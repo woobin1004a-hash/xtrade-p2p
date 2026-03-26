@@ -1548,8 +1548,21 @@
             // Supabase DELETE는 204(본문 없음)로 올 수 있으므로 JSON 파싱을 강제하지 않음
             var t = '';
             try { t = await res.text(); } catch (e) { t = ''; }
-            if (!t) return { ok: true };
-            try { return JSON.parse(t); } catch (e2) { return { ok: true }; }
+            if (!t) return [];
+            try {
+                var parsed = JSON.parse(t);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e2) {
+                return [];
+            }
+        }
+
+        async function listingExistsInSupabase(listingId) {
+            var url = SUPABASE_URL + '/rest/v1/listings?select=id&id=eq.' + encodeURIComponent(String(listingId || ''));
+            var res = await fetch(url, { headers: supabaseHeaders(), cache: 'no-store' });
+            if (!res.ok) throw new Error('supabase exists ' + res.status);
+            var rows = await res.json();
+            return Array.isArray(rows) && rows.length > 0;
         }
 
         // Escape special characters for safe HTML rendering (display only)
@@ -3596,8 +3609,11 @@
             var serverDeleted = false;
             var serverDeleteErr = '';
             try {
-                await deleteListingFromSupabase(listingId);
-                serverDeleted = true;
+                    await deleteListingFromSupabase(listingId);
+                    // 실제 삭제 검증: 동일 ID가 남아 있으면 실패로 처리
+                    var stillExists = await listingExistsInSupabase(listingId);
+                    serverDeleted = !stillExists;
+                    if (stillExists) serverDeleteErr = 'supabase row still exists';
             } catch (e) {
                 serverDeleted = false;
                 serverDeleteErr = String(e && e.message ? e.message : e);
@@ -3605,6 +3621,11 @@
 
             // 2) 서버 삭제 성공이면 목록만 갱신
             if (serverDeleted) {
+                    // 로컬 캐시도 함께 제거해 화면 잔상 방지
+                    if (idx >= 0) {
+                        listings.splice(idx, 1);
+                        saveListings(listings);
+                    }
                 closeListingDetail();
                 loadMarketplace();
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('리스팅이 삭제되었습니다.');
