@@ -916,16 +916,41 @@
         // --------------------------------------------------------
         // Marketplace trader list generation
         const UPBIT_TICKER_URL = 'https://api.upbit.com/v1/ticker?markets=KRW-USDT';
+        /** CoinGecko — 브라우저 CORS가 Upbit보다 잘 열려 있는 경우가 많음 */
+        const COINGECKO_USDT_KRW = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=krw';
+        /** 모든 시세 API 실패 시 참고용 (대략적인 KRW/USDT 구간) */
+        const FALLBACK_KRW_USDT = 1450;
         const TRADER_NAMES = ['NAKNEXTCO', 'LUCAS', 'CryptoKing', 'WhaleHunter', 'TonyTrader'];
 
+        /**
+         * KRW 기준 USDT 참고가. Upbit → CoinGecko → 고정값 순으로 시도.
+         * (텔레그램 웹뷰·일부 환경에서는 Upbit가 CORS로 막혀 실패할 수 있음)
+         */
         async function fetchBasePrice() {
-            const response = await fetch(UPBIT_TICKER_URL);
-            if (!response.ok) throw new Error('Price API response error');
+            try {
+                const response = await fetch(UPBIT_TICKER_URL, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const basePrice = data && data[0] ? Number(data[0].trade_price) : NaN;
+                    if (Number.isFinite(basePrice) && basePrice > 0) return basePrice;
+                }
+            } catch (e) {
+                console.warn('Upbit 시세 실패 (CORS/네트워크 등):', e);
+            }
 
-            const data = await response.json();
-            const basePrice = data && data[0] ? Number(data[0].trade_price) : NaN;
-            if (!Number.isFinite(basePrice)) throw new Error('Invalid price data');
-            return basePrice;
+            try {
+                const response = await fetch(COINGECKO_USDT_KRW, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const p = data && data.tether && typeof data.tether.krw === 'number' ? data.tether.krw : NaN;
+                    if (Number.isFinite(p) && p > 0) return p;
+                }
+            } catch (e) {
+                console.warn('CoinGecko 시세 실패:', e);
+            }
+
+            console.warn('시세 API 모두 실패 — 참고 고정가 사용:', FALLBACK_KRW_USDT);
+            return FALLBACK_KRW_USDT;
         }
 
         function createTraderCardHtml(rawName, index, basePrice) {
@@ -977,7 +1002,7 @@
                 if (dom.traderList) dom.traderList.innerHTML = html;
             } catch (error) {
                 if (dom.traderList) {
-                    dom.traderList.innerHTML = "<div style='text-align: center; color: #ef4444; padding: 30px;'>Price error</div>";
+                    dom.traderList.innerHTML = "<div style='text-align: center; color: #94a3b8; padding: 30px; font-size: 14px;'>목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
                 }
                 console.error('loadMarketplace error:', error);
             }
