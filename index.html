@@ -3472,7 +3472,21 @@
             if (!listingDetailState.listingId) return;
             var listingId = listingDetailState.listingId;
             closeListingDetail();
-            deleteListing(listingId);
+            // deleteListing은 async이므로 실패 시에도 사용자에게 표시
+            try {
+                var p = deleteListing(listingId);
+                if (p && typeof p.catch === 'function') {
+                    p.catch(function (e) {
+                        var msg = '삭제 오류: ' + (e && e.message ? e.message : String(e));
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                        else alert(msg);
+                    });
+                }
+            } catch (e2) {
+                var msg2 = '삭제 오류: ' + (e2 && e2.message ? e2.message : String(e2));
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
+                else alert(msg2);
+            }
         }
 
         async function deleteListing(listingId) {
