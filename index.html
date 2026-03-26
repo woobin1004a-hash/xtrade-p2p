@@ -285,6 +285,31 @@
             .listing-confirm-right { width: 100%; }
         }
 
+        /* 마켓 카드(리스팅) 내부 액션 버튼 */
+        .listing-card-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .tiny-action-btn {
+            background: rgba(124,58,237,0.16);
+            border: 1px solid rgba(124,58,237,0.45);
+            color: #ede9fe;
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tiny-action-btn:active { transform: scale(0.98); }
+        .tiny-action-btn--danger {
+            background: rgba(248,113,113,0.12);
+            border-color: rgba(248,113,113,0.45);
+            color: #fecaca;
+        }
+
         .listing-three-cards {
             display: flex;
             gap: 10px;
@@ -1759,6 +1784,15 @@
         function backToListingCreate() {
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.remove('hidden');
+            resetScrollTop();
+        }
+
+        function resetScrollTop() {
+            try { window.scrollTo(0, 0); } catch (e) {}
+            try {
+                var el = document.scrollingElement || document.documentElement;
+                if (el) el.scrollTop = 0;
+            } catch (e) {}
         }
 
         function updateListingConfirmUi() {
@@ -1798,6 +1832,7 @@
             // 입력 검증은 submitListingCreate()에서 이미 수행한다고 가정
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
             if (dom.listingConfirmView) dom.listingConfirmView.classList.remove('hidden');
+            resetScrollTop();
             updateListingConfirmUi();
         }
 
@@ -2303,6 +2338,7 @@
                     var ownerName = escapeHtml(l.ownerName || 'User');
                     var initial = escapeHtml(String(ownerName).charAt(0).toUpperCase() || '?');
                     var idForJs = escapeJsString(l.id);
+                    var isOwner = currentUserId != null && String(l.ownerId) === String(currentUserId);
 
                     var depositTxt = Number(l.depositUsdt || 0).toLocaleString() + " USDT";
                     var orderTxt = (Number(l.orderMinUsdt || 0).toLocaleString() + "~" + Number(l.orderMaxUsdt || 0).toLocaleString() + " USDT");
@@ -2318,6 +2354,15 @@
 
                     var boostTxt = Number(l.boostUsdt || 0).toLocaleString() + " USDT";
                     var boostHint = l.boostUsdt > 0 ? "Boost" : "기본";
+
+                    var actionsHtml = isOwner
+                        ? `
+                        <div class="listing-card-actions" onclick="event.stopPropagation();">
+                            <button type="button" class="tiny-action-btn" onclick="event.stopPropagation(); openListingEdit('${idForJs}')">수정</button>
+                            <button type="button" class="tiny-action-btn tiny-action-btn--danger" onclick="event.stopPropagation(); deleteListing('${idForJs}')">삭제</button>
+                        </div>
+                        `
+                        : '';
 
                     return `
                         <div class="trader-card" onclick="openListingDetail('${idForJs}')">
@@ -2336,6 +2381,7 @@
                                 <span class="dot purple"></span> TON &nbsp;&nbsp;
                                 <span class="dot yellow"></span> ${escapeHtml(boostHint)}: ${escapeHtml(boostTxt)}
                             </div>
+                            ${actionsHtml}
                         </div>
                     `;
                 };
