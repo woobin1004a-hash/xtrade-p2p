@@ -303,6 +303,101 @@
         }
         .switch input:checked + .slider { background-color: #22c55e; }
         .switch input:checked + .slider:before { transform: translateX(24px); }
+
+        /* ------------------ KYC (리스팅 등록) ------------------ */
+        .section-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .listing-register-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 2px 12px rgba(124, 58, 237, 0.35);
+        }
+        .listing-register-btn:active { transform: scale(0.98); }
+        #kycView { padding-bottom: 32px; }
+        .kyc-body { padding: 8px 20px 24px; }
+        .kyc-headline { font-size: 22px; font-weight: bold; margin: 8px 0 8px; }
+        .kyc-sub { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+        .kyc-upload-block { margin-bottom: 16px; }
+        .kyc-upload-label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+        .kyc-upload-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 120px;
+            padding: 16px;
+            background: #0a0a0a;
+            border: 2px dashed #3d2666;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .kyc-upload-zone.has-file { border-style: solid; border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+        .kyc-upload-zone .kyc-upload-icon { font-size: 28px; opacity: 0.9; }
+        .kyc-upload-zone .kyc-upload-hint { font-size: 12px; color: #64748b; text-align: center; }
+        .kyc-upload-zone .kyc-file-name { font-size: 13px; color: #a78bfa; word-break: break-all; text-align: center; max-width: 100%; }
+        .kyc-file-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+        .kyc-bullets { margin: 20px 0 24px; padding-left: 18px; color: #94a3b8; font-size: 13px; line-height: 1.6; }
+        .kyc-bullets li { margin-bottom: 8px; }
+        .kyc-submit-btn {
+            width: 100%;
+            margin: 0;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .kyc-submit-btn:disabled {
+            background: #3f3f46;
+            color: #a1a1aa;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .kyc-err { color: #f87171; font-size: 12px; margin-top: 6px; }
+        #kycCompleteView {
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 24px 48px;
+            text-align: center;
+        }
+        .kyc-complete-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+        }
+        .kyc-complete-icon-wrap span { color: #fff; font-size: 36px; font-weight: bold; line-height: 1; }
+        .kyc-complete-title { font-size: 22px; font-weight: bold; margin: 0 0 16px; }
+        .kyc-complete-desc { color: #94a3b8; font-size: 14px; line-height: 1.65; margin: 0 0 32px; max-width: 340px; }
+        .kyc-complete-actions { width: 100%; max-width: 400px; }
     </style>
 </head>
 <body>
@@ -315,8 +410,64 @@
             </div>
             <div class="menu-icon" onclick="openMenu()">☰</div>
         </div>
-        <div class="section-title-wrap"><h2 class="section-title">Top Trader</h2></div>
+        <div class="section-title-wrap section-title-row">
+            <h2 class="section-title" style="margin:0;">Top Trader</h2>
+            <button type="button" class="listing-register-btn" onclick="openKycFlow()" aria-label="리스팅 등록">＋ 리스팅 등록</button>
+        </div>
         <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
+    </div>
+
+    <!-- KYC: 리스팅 등록 전 신원 인증 (데모 플로우) -->
+    <div id="kycView" class="hidden">
+        <div class="settings-header">
+            <button type="button" class="back-btn" onclick="closeKycFlow()" aria-label="뒤로">←</button>
+            <span class="settings-title">신원 인증</span>
+        </div>
+        <div class="kyc-body">
+            <h3 class="kyc-headline">신원을 인증하세요</h3>
+            <p class="kyc-sub">리스팅을 생성하려면 KYC 신원 인증이 필요합니다.</p>
+
+            <div class="kyc-upload-block">
+                <span class="kyc-upload-label">① 신분증 업로드</span>
+                <label class="kyc-upload-zone" id="kycZoneId" for="kycIdFile">
+                    <span class="kyc-upload-icon">⬆</span>
+                    <span class="kyc-upload-hint">파일 크기 제한: 최대 20MB</span>
+                    <span class="kyc-file-name" id="kycIdFileName"></span>
+                </label>
+                <input type="file" id="kycIdFile" class="kyc-file-input" accept="image/*,.pdf" onchange="onKycFileChange('id')" />
+                <p class="kyc-err hidden" id="kycIdErr"></p>
+            </div>
+
+            <div class="kyc-upload-block">
+                <span class="kyc-upload-label">② 신분증을 들고 있는 셀카 업로드</span>
+                <label class="kyc-upload-zone" id="kycZoneSelfie" for="kycSelfieFile">
+                    <span class="kyc-upload-icon">⬆</span>
+                    <span class="kyc-upload-hint">파일 크기 제한: 최대 20MB</span>
+                    <span class="kyc-file-name" id="kycSelfieFileName"></span>
+                </label>
+                <input type="file" id="kycSelfieFile" class="kyc-file-input" accept="image/*,.pdf" onchange="onKycFileChange('selfie')" />
+                <p class="kyc-err hidden" id="kycSelfieErr"></p>
+            </div>
+
+            <ul class="kyc-bullets">
+                <li>밝은 곳에서 촬영하여 신분증의 모든 정보가 선명하게 보이도록 해 주세요.</li>
+                <li>이미지는 흐림·반사·잘림 없이 선명해야 합니다.</li>
+                <li>심사는 통상 24~48시간이 소요될 수 있습니다. (데모에서는 즉시 안내만 표시됩니다.)</li>
+            </ul>
+
+            <button type="button" class="kyc-submit-btn" id="kycSubmitBtn" disabled onclick="submitKycDemo()">제출하기</button>
+        </div>
+    </div>
+
+    <div id="kycCompleteView" class="hidden">
+        <div class="kyc-complete-icon-wrap"><span>✓</span></div>
+        <h2 class="kyc-complete-title">제출 완료</h2>
+        <p class="kyc-complete-desc">
+            서류 제출이 완료되었습니다. 인증은 보통 24~48시간 이내에 완료됩니다. 인증이 완료되면 이메일로 안내드립니다. 인증 승인 후 리스팅을 생성할 수 있습니다.
+        </p>
+        <div class="kyc-complete-actions">
+            <button type="button" class="primary-btn" style="width:100%;margin:0;" onclick="goToMarketplaceFromKyc()">마켓플레이스로 이동</button>
+        </div>
     </div>
 
     <div id="myPageView" class="hidden">
@@ -561,6 +712,10 @@
         const dom = {
             marketplaceView: document.getElementById('marketplaceView'),
             myPageView: document.getElementById('myPageView'),
+            kycView: document.getElementById('kycView'),
+            kycCompleteView: document.getElementById('kycCompleteView'),
+            kycIdFile: document.getElementById('kycIdFile'),
+            kycSelfieFile: document.getElementById('kycSelfieFile'),
             myPageSettingsMainView: document.getElementById('myPageSettingsMainView'),
             walletSettingsView: document.getElementById('walletSettingsView'),
             bankAccountsSettingsView: document.getElementById('bankAccountsSettingsView'),
@@ -627,6 +782,9 @@
 
         function goToMyPage() {
             closeMenu();
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.remove('hidden');
             showMyPageSettingsMain(); // Keep the default settings view on entry
@@ -634,8 +792,125 @@
 
         function goToMarketplace() {
             closeMenu();
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+        }
+
+        // --------------------------------------------------------
+        // KYC (리스팅 등록) — 데모: 서버 업로드 없음, 제출 후 텔레그램 알림만
+        const KYC_MAX_BYTES = 20 * 1024 * 1024;
+        let kycAlertTimer = null;
+
+        function clearKycAlertTimer() {
+            if (kycAlertTimer) {
+                clearTimeout(kycAlertTimer);
+                kycAlertTimer = null;
+            }
+        }
+
+        function resetKycForm() {
+            if (dom.kycIdFile) dom.kycIdFile.value = '';
+            if (dom.kycSelfieFile) dom.kycSelfieFile.value = '';
+            const idName = document.getElementById('kycIdFileName');
+            const selfieName = document.getElementById('kycSelfieFileName');
+            if (idName) idName.textContent = '';
+            if (selfieName) selfieName.textContent = '';
+            const zId = document.getElementById('kycZoneId');
+            const zS = document.getElementById('kycZoneSelfie');
+            if (zId) zId.classList.remove('has-file');
+            if (zS) zS.classList.remove('has-file');
+            const e1 = document.getElementById('kycIdErr');
+            const e2 = document.getElementById('kycSelfieErr');
+            if (e1) { e1.textContent = ''; e1.classList.add('hidden'); }
+            if (e2) { e2.textContent = ''; e2.classList.add('hidden'); }
+            const btn = document.getElementById('kycSubmitBtn');
+            if (btn) btn.disabled = true;
+        }
+
+        function onKycFileChange(which) {
+            const input = which === 'id' ? dom.kycIdFile : dom.kycSelfieFile;
+            const errEl = document.getElementById(which === 'id' ? 'kycIdErr' : 'kycSelfieErr');
+            const zone = document.getElementById(which === 'id' ? 'kycZoneId' : 'kycZoneSelfie');
+            const nameEl = document.getElementById(which === 'id' ? 'kycIdFileName' : 'kycSelfieFileName');
+            const f = input && input.files && input.files[0];
+
+            if (!f) {
+                if (nameEl) nameEl.textContent = '';
+                if (zone) zone.classList.remove('has-file');
+                if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+            } else if (f.size > KYC_MAX_BYTES) {
+                if (errEl) {
+                    errEl.textContent = '파일이 20MB를 초과했습니다.';
+                    errEl.classList.remove('hidden');
+                }
+                if (nameEl) nameEl.textContent = f.name;
+                if (zone) zone.classList.add('has-file');
+            } else {
+                if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+                if (nameEl) nameEl.textContent = f.name;
+                if (zone) zone.classList.add('has-file');
+            }
+
+            const idF = dom.kycIdFile && dom.kycIdFile.files && dom.kycIdFile.files[0];
+            const sF = dom.kycSelfieFile && dom.kycSelfieFile.files && dom.kycSelfieFile.files[0];
+            const idOk = idF && idF.size <= KYC_MAX_BYTES;
+            const selfieOk = sF && sF.size <= KYC_MAX_BYTES;
+            const btn = document.getElementById('kycSubmitBtn');
+            if (btn) btn.disabled = !(idOk && selfieOk);
+        }
+
+        function openKycFlow() {
+            closeMenu();
+            clearKycAlertTimer();
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.kycView) dom.kycView.classList.remove('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            resetKycForm();
+        }
+
+        function closeKycFlow() {
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+            resetKycForm();
+        }
+
+        function goToMarketplaceFromKyc() {
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+            resetKycForm();
+        }
+
+        function submitKycDemo() {
+            const idF = dom.kycIdFile && dom.kycIdFile.files && dom.kycIdFile.files[0];
+            const sF = dom.kycSelfieFile && dom.kycSelfieFile.files && dom.kycSelfieFile.files[0];
+            if (!idF || !sF || idF.size > KYC_MAX_BYTES || sF.size > KYC_MAX_BYTES) return;
+
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.remove('hidden');
+
+            clearKycAlertTimer();
+            // 제출 완료 화면을 본 뒤 약 2초 후 텔레그램 네이티브 알림 (채팅 말풍선이 아님 — 봇 API 필요)
+            kycAlertTimer = setTimeout(function () {
+                kycAlertTimer = null;
+                var msg = 'KYC인증이 완료 되었습니다';
+                if (tg && typeof tg.showAlert === 'function') {
+                    tg.showAlert(msg);
+                } else {
+                    window.alert(msg);
+                }
+                if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+                    try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+                }
+            }, 2000);
         }
 
         // --------------------------------------------------------
