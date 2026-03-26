@@ -304,53 +304,55 @@
         .switch input:checked + .slider { background-color: #22c55e; }
         .switch input:checked + .slider:before { transform: translateX(24px); }
 
-        /* ------------------ KYC (리스팅 등록) ------------------ */
-        /* 텔레그램 웹뷰는 폭이 좁아 가로 한 줄(제목+버튼)이 overflow-x에 잘려 버튼이 안 보일 수 있음 → 세로 스택 + 전체 폭 버튼 */
+        /* ------------------ KYC 진입: 탑 트레이더 행 오른쪽 작은 리스팅 버튼 ------------------ */
         .section-title-wrap.section-title-row {
             display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 14px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
             box-sizing: border-box;
         }
         .section-title-row .section-title {
-            flex: none;
+            flex: 1;
+            min-width: 0;
             font-size: 20px;
+            margin: 0;
         }
         .listing-register-btn {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            width: 100%;
+            flex-shrink: 0;
+            width: auto;
             max-width: 100%;
             box-sizing: border-box;
-            background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
-            color: #fff;
+            background: linear-gradient(180deg, #4c1d95 0%, #3b0764 100%);
+            color: #ede9fe;
             border: none;
-            padding: 14px 16px;
-            border-radius: 14px;
-            font-size: 15px;
-            font-weight: bold;
+            padding: 5px 12px 5px 6px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 2px 12px rgba(124, 58, 237, 0.35);
+            box-shadow: 0 2px 10px rgba(76, 29, 149, 0.45);
             -webkit-tap-highlight-color: transparent;
         }
-        .listing-register-btn:active { transform: scale(0.98); }
-        @media (min-width: 420px) {
-            .section-title-wrap.section-title-row {
-                flex-direction: row;
-                flex-wrap: wrap;
-                align-items: center;
-                justify-content: space-between;
-            }
-            .listing-register-btn {
-                width: auto;
-                min-width: 0;
-                padding: 10px 18px;
-                border-radius: 999px;
-            }
+        .listing-register-btn__icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(167, 139, 250, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
         }
+        .listing-register-btn:active { transform: scale(0.98); }
         #kycView { padding-bottom: 32px; }
         .kyc-body { padding: 8px 20px 24px; }
         .kyc-headline { font-size: 22px; font-weight: bold; margin: 8px 0 8px; }
@@ -434,8 +436,11 @@
             <div class="menu-icon" onclick="openMenu()">☰</div>
         </div>
         <div class="section-title-wrap section-title-row">
-            <h2 class="section-title" style="margin:0;">Top Trader</h2>
-            <button type="button" class="listing-register-btn" onclick="openKycFlow()" aria-label="리스팅 등록">+ 리스팅 등록</button>
+            <h2 class="section-title">탑 트레이더</h2>
+            <button type="button" class="listing-register-btn" onclick="openKycFlow()" aria-label="리스팅">
+                <span class="listing-register-btn__icon" aria-hidden="true">+</span>
+                <span>리스팅</span>
+            </button>
         </div>
         <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
     </div>
