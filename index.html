@@ -937,7 +937,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-order-status-10</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-seller-wallet-11</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3626,7 +3626,12 @@
             var myBankAccountNumber = myBank && myBank.accountNumber ? String(myBank.accountNumber) : '';
             var myBankHolderName = myBank && myBank.accountHolder ? String(myBank.accountHolder) : '';
 
-            if (dom.orderBuyReceiveWalletInput) dom.orderBuyReceiveWalletInput.value = myTonAddr ? formatOrderWalletAddress(String(myTonAddr)) : '';
+            if (dom.orderBuyReceiveWalletInput) {
+                var buyWalletRaw = myTonAddr ? String(myTonAddr) : '';
+                dom.orderBuyReceiveWalletInput.value = buyWalletRaw ? formatOrderWalletAddress(buyWalletRaw) : '';
+                // 화면에는 마스킹 주소를 보여주되, 서버 저장 시에는 원본 주소를 사용
+                dom.orderBuyReceiveWalletInput.dataset.rawWalletAddress = buyWalletRaw;
+            }
             if (dom.orderBuyDepositNameInput) dom.orderBuyDepositNameInput.value = myBankHolderName;
             if (dom.orderSellReceiveAccountInput) dom.orderSellReceiveAccountInput.value = myBankAccountNumber;
             if (dom.orderSellWalletAddressInput) dom.orderSellWalletAddressInput.value = myTonAddr ? formatOrderWalletAddress(String(myTonAddr)) : '';
@@ -3665,7 +3670,13 @@
             // 수취 정보
             var receiver = {};
             if (orderFlowState.side === 'buy') {
-                receiver.receiverWalletAddress = dom.orderBuyReceiveWalletInput ? dom.orderBuyReceiveWalletInput.value : '';
+                if (dom.orderBuyReceiveWalletInput) {
+                    receiver.receiverWalletAddress = String(
+                        dom.orderBuyReceiveWalletInput.dataset.rawWalletAddress || dom.orderBuyReceiveWalletInput.value || ''
+                    );
+                } else {
+                    receiver.receiverWalletAddress = '';
+                }
                 receiver.depositName = dom.orderBuyDepositNameInput ? dom.orderBuyDepositNameInput.value : '';
             } else {
                 receiver.receiveAccountNumber = dom.orderSellReceiveAccountInput ? dom.orderSellReceiveAccountInput.value : '';
@@ -3807,10 +3818,15 @@
                 var extra = '';
                 if (status === 'seller_approved' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">판매자 계좌</div><div class="offer-v">' + escapeHtml(r.sellerBankText || '-') + '</div></div>';
+                } else if (status === 'buyer_paid' && !youAreBuyer) {
+                    // 구매자가 입금 완료한 뒤 판매자가 코인 전송할 수 있도록 구매자 지갑주소를 제공
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' + escapeHtml(r.receiverWalletAddress || '-') + '</div></div>';
                 } else if (status === 'seller_deposit_checked') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
                 } else if (status === 'seller_payment_check_requested') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인을 요청했습니다.</div></div>';
+                } else if (status === 'buyer_issue' && !youAreBuyer) {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' + escapeHtml(r.receiverWalletAddress || '-') + '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
                 } else if (status === 'buyer_issue') {
@@ -3860,9 +3876,7 @@
                     '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료(재확인)</button>';
             }
             if (!youAreBuyer && status === 'buyer_issue') {
-                return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">확인요청</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
             }
             if (youAreBuyer && status === 'seller_sent') {
                 return '' +
