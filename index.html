@@ -937,7 +937,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-seller-wallet-11</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-account-copy-12</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2696,11 +2696,24 @@
             }
 
             // 리스팅 상세/결제 화면으로 이동
+            var bankAccountId = dom.listingBankAccountSelect ? dom.listingBankAccountSelect.value : '';
             var bankText = '';
-            if (dom.listingBankAccountSelect && dom.listingBankAccountSelect.selectedIndex >= 0) {
+            if (bankAccountId) {
+                var accounts = loadBankAccounts();
+                var selectedBank = (Array.isArray(accounts) ? accounts : []).find(function (a) {
+                    return String(a.id) === String(bankAccountId);
+                });
+                if (selectedBank) {
+                    // 구매자에게 전달될 계좌 정보는 전체 값을 저장
+                    bankText = String(selectedBank.bank || '') + ' | ' +
+                        String(selectedBank.accountNumber || '') + ' | ' +
+                        String(selectedBank.accountHolder || '');
+                }
+            }
+            if (!bankText && dom.listingBankAccountSelect && dom.listingBankAccountSelect.selectedIndex >= 0) {
+                // 구데이터/예외 상황 fallback
                 bankText = dom.listingBankAccountSelect.options[dom.listingBankAccountSelect.selectedIndex].textContent || '';
             }
-            var bankAccountId = dom.listingBankAccountSelect ? dom.listingBankAccountSelect.value : '';
             var tonWalletText = '';
             if (dom.listingTonWalletSelect && dom.listingTonWalletSelect.selectedIndex >= 0) {
                 tonWalletText = dom.listingTonWalletSelect.options[dom.listingTonWalletSelect.selectedIndex].textContent || '';
@@ -3368,6 +3381,46 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function escapeJsSingleQuote(s) {
+            return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        }
+
+        function parseBankTextParts(text) {
+            var raw = String(text || '');
+            var parts = raw.split(' | ');
+            return {
+                bankName: parts[0] || '',
+                accountNumber: parts[1] || '',
+                accountHolder: parts[2] || ''
+            };
+        }
+
+        async function copyOfferValue(value, label) {
+            var v = String(value || '').trim();
+            if (!v) return;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(v);
+                } else {
+                    var ta = document.createElement('textarea');
+                    ta.value = v;
+                    ta.style.position = 'fixed';
+                    ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                }
+                var msg = (label || '값') + '이(가) 복사되었습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+            } catch (e) {
+                var err = (label || '값') + ' 복사에 실패했습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
+                else alert(err);
+            }
+        }
+
         function loadSellerAlertedOrderIds() {
             try {
                 var raw = localStorage.getItem(STORAGE_ORDER_SELLER_ALERTED);
@@ -3817,16 +3870,35 @@
 
                 var extra = '';
                 if (status === 'seller_approved' && youAreBuyer) {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">판매자 계좌</div><div class="offer-v">' + escapeHtml(r.sellerBankText || '-') + '</div></div>';
+                    var bankParts = parseBankTextParts(r.sellerBankText || '');
+                    var accNumEsc = escapeJsSingleQuote(bankParts.accountNumber || '');
+                    extra =
+                        '<div class="offer-divider"></div>' +
+                        '<div class="offer-line"><div class="offer-k">은행명</div><div class="offer-v">' + escapeHtml(bankParts.bankName || '-') + '</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">계좌번호</div><div class="offer-v">' +
+                            escapeHtml(bankParts.accountNumber || '-') +
+                            (bankParts.accountNumber ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + accNumEsc + '\', \'계좌번호\')">⧉</button>') : '') +
+                        '</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">입금자명</div><div class="offer-v">' + escapeHtml(bankParts.accountHolder || '-') + '</div></div>';
                 } else if (status === 'buyer_paid' && !youAreBuyer) {
                     // 구매자가 입금 완료한 뒤 판매자가 코인 전송할 수 있도록 구매자 지갑주소를 제공
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' + escapeHtml(r.receiverWalletAddress || '-') + '</div></div>';
+                    var buyWallet = String(r.receiverWalletAddress || '');
+                    var buyWalletEsc = escapeJsSingleQuote(buyWallet);
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' +
+                        escapeHtml(buyWallet || '-') +
+                        (buyWallet ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'지갑주소\')">⧉</button>') : '') +
+                    '</div></div>';
                 } else if (status === 'seller_deposit_checked') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
                 } else if (status === 'seller_payment_check_requested') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인을 요청했습니다.</div></div>';
                 } else if (status === 'buyer_issue' && !youAreBuyer) {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' + escapeHtml(r.receiverWalletAddress || '-') + '</div></div>';
+                    var buyWallet2 = String(r.receiverWalletAddress || '');
+                    var buyWalletEsc2 = escapeJsSingleQuote(buyWallet2);
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' +
+                        escapeHtml(buyWallet2 || '-') +
+                        (buyWallet2 ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + buyWalletEsc2 + '\', \'지갑주소\')">⧉</button>') : '') +
+                    '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
                 } else if (status === 'buyer_issue') {
