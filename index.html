@@ -845,6 +845,30 @@
                 <button type="button" id="orderSellTabBtn" class="order-tab" onclick="switchOrderSide('sell')">판매</button>
             </div>
 
+            <!-- 구매: 수취지갑 / 입금자명 -->
+            <div id="orderBuyReceiverCard" class="order-input-card" style="display:block;">
+                <div class="order-input-label">수취지갑</div>
+                <div class="order-input-row">
+                    <input id="orderBuyReceiveWalletInput" class="order-input" type="text" value="" readonly />
+                </div>
+                <div class="order-input-label" style="margin-top:12px;">입금자명</div>
+                <div class="order-input-row">
+                    <input id="orderBuyDepositNameInput" class="order-input" type="text" value="" readonly />
+                </div>
+            </div>
+
+            <!-- 판매: 수취계좌 / 지갑주소 -->
+            <div id="orderSellReceiverCard" class="order-input-card" style="display:none;">
+                <div class="order-input-label">수취계좌</div>
+                <div class="order-input-row">
+                    <input id="orderSellReceiveAccountInput" class="order-input" type="text" value="" readonly />
+                </div>
+                <div class="order-input-label" style="margin-top:12px;">지갑주소</div>
+                <div class="order-input-row">
+                    <input id="orderSellWalletAddressInput" class="order-input" type="text" value="" readonly />
+                </div>
+            </div>
+
             <div class="order-input-card">
                 <div class="order-input-label" id="orderUsdtLabel">구매할 USDT</div>
                 <div class="order-input-row">
@@ -1470,6 +1494,12 @@
             orderUsdtInput: document.getElementById('orderUsdtInput'),
             orderKrwInput: document.getElementById('orderKrwInput'),
             orderSubmitBtn: document.getElementById('orderSubmitBtn'),
+            orderBuyReceiverCard: document.getElementById('orderBuyReceiverCard'),
+            orderSellReceiverCard: document.getElementById('orderSellReceiverCard'),
+            orderBuyReceiveWalletInput: document.getElementById('orderBuyReceiveWalletInput'),
+            orderBuyDepositNameInput: document.getElementById('orderBuyDepositNameInput'),
+            orderSellReceiveAccountInput: document.getElementById('orderSellReceiveAccountInput'),
+            orderSellWalletAddressInput: document.getElementById('orderSellWalletAddressInput'),
 
             // Saved Lists
             savedWalletsCount: document.getElementById('savedWalletsCount'),
@@ -2954,7 +2984,19 @@
             if (!dom.orderSubmitBtn) return;
             var usdt = Number(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
             var krw = Number(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
-            var canSubmit = Number.isFinite(usdt) && usdt > 0 && Number.isFinite(krw) && krw > 0;
+            // 수취 정보(구매: 수취지갑/입금자명, 판매: 수취계좌/지갑주소)가 비어있으면 주문 불가
+            var receiverOk = true;
+            if (orderFlowState.side === 'buy') {
+                var recvWallet = dom.orderBuyReceiveWalletInput ? dom.orderBuyReceiveWalletInput.value : '';
+                var depositName = dom.orderBuyDepositNameInput ? dom.orderBuyDepositNameInput.value : '';
+                receiverOk = String(recvWallet || '').trim().length > 0 && String(depositName || '').trim().length > 0;
+            } else {
+                var recvAccount = dom.orderSellReceiveAccountInput ? dom.orderSellReceiveAccountInput.value : '';
+                var recvAddr = dom.orderSellWalletAddressInput ? dom.orderSellWalletAddressInput.value : '';
+                receiverOk = String(recvAccount || '').trim().length > 0 && String(recvAddr || '').trim().length > 0;
+            }
+
+            var canSubmit = receiverOk && Number.isFinite(usdt) && usdt > 0 && Number.isFinite(krw) && krw > 0;
             dom.orderSubmitBtn.disabled = !canSubmit;
             dom.orderSubmitBtn.classList.toggle('enabled', canSubmit);
         }
@@ -2986,6 +3028,8 @@
             if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('active', orderFlowState.side === 'sell');
             if (dom.orderUsdtLabel) dom.orderUsdtLabel.textContent = orderFlowState.side === 'buy' ? '구매할 USDT' : '판매할 USDT';
             if (dom.orderKrwLabel) dom.orderKrwLabel.textContent = orderFlowState.side === 'buy' ? '송금액' : '수령액';
+            if (dom.orderBuyReceiverCard) dom.orderBuyReceiverCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
+            if (dom.orderSellReceiverCard) dom.orderSellReceiverCard.style.display = orderFlowState.side === 'sell' ? 'block' : 'none';
             onOrderUsdtInput();
         }
 
@@ -3009,6 +3053,23 @@
             if (dom.orderBuyPriceText) dom.orderBuyPriceText.textContent = found.buyPriceKrW != null ? (Math.floor(Number(found.buyPriceKrW)).toLocaleString() + ' KRW') : '—';
             if (dom.orderSellPriceText) dom.orderSellPriceText.textContent = found.sellPriceKrW != null ? (Math.floor(Number(found.sellPriceKrW)).toLocaleString() + ' KRW') : '—';
             if (dom.orderLimitText) dom.orderLimitText.textContent = Number(found.orderMinUsdt || 0).toLocaleString() + '~' + Number(found.orderMaxUsdt || 0).toLocaleString() + ' USDT';
+
+            // 구매/판매 수취 정보 자동 채우기(데모)
+            // - 구매: 수취지갑(내 TON 주소), 입금자명(내 기본 은행 계좌의 accountHolder)
+            // - 판매: 수취계좌(내 기본 은행 계좌의 accountNumber), 지갑주소(내 TON 주소)
+            var myTonAddr = getDefaultTonWalletAddress ? getDefaultTonWalletAddress() : null;
+            var banks = loadBankAccounts();
+            var defaultBankId = localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+            var myBank = (Array.isArray(banks) ? banks : []).find(function (a) {
+                return String(a.id) === String(defaultBankId);
+            });
+            var myBankAccountNumber = myBank && myBank.accountNumber ? String(myBank.accountNumber) : '';
+            var myBankHolderName = myBank && myBank.accountHolder ? String(myBank.accountHolder) : '';
+
+            if (dom.orderBuyReceiveWalletInput) dom.orderBuyReceiveWalletInput.value = myTonAddr ? String(myTonAddr) : '';
+            if (dom.orderBuyDepositNameInput) dom.orderBuyDepositNameInput.value = myBankHolderName;
+            if (dom.orderSellReceiveAccountInput) dom.orderSellReceiveAccountInput.value = myBankAccountNumber;
+            if (dom.orderSellWalletAddressInput) dom.orderSellWalletAddressInput.value = myTonAddr ? String(myTonAddr) : '';
             orderFlowState.buyUnitPrice = Number(found.sellPriceKrW || 0);
             orderFlowState.sellUnitPrice = Number(found.buyPriceKrW || 0);
 
@@ -3032,6 +3093,7 @@
             if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('hidden', !canSell);
 
             switchOrderSide(firstSide);
+            updateOrderSubmitButton();
         }
 
         function submitOrderDemo() {
