@@ -3411,6 +3411,9 @@
             }
 
             listingDetailState.listingId = found.id;
+            // 모달 재렌더/상태 꼬임 방지를 위해 data 속성에도 저장
+            var detailEl = document.getElementById('listingDetailView');
+            if (detailEl && detailEl.dataset) detailEl.dataset.listingId = found.id;
 
             var el = document.getElementById('listingDetailView');
             if (el) el.classList.remove('hidden');
@@ -3463,14 +3466,33 @@
         }
 
         function openListingEditFromDetail() {
-            if (!listingDetailState.listingId) return;
+            var listingId = listingDetailState && listingDetailState.listingId ? listingDetailState.listingId : null;
+            if (!listingId) {
+                var detailEl = document.getElementById('listingDetailView');
+                listingId = detailEl && detailEl.dataset ? detailEl.dataset.listingId : null;
+            }
+            if (!listingId) {
+                var msg = '수정할 리스팅을 찾지 못했습니다. 다시 열어 주세요.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+                return;
+            }
             closeListingDetail();
-            openListingEdit(listingDetailState.listingId);
+            openListingEdit(listingId);
         }
 
         function deleteListingFromDetail() {
-            if (!listingDetailState.listingId) return;
-            var listingId = listingDetailState.listingId;
+            var listingId = listingDetailState && listingDetailState.listingId ? listingDetailState.listingId : null;
+            if (!listingId) {
+                var detailEl = document.getElementById('listingDetailView');
+                listingId = detailEl && detailEl.dataset ? detailEl.dataset.listingId : null;
+            }
+            if (!listingId) {
+                var missMsg = '삭제할 리스팅을 찾지 못했습니다. 다시 열어 주세요.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg);
+                else alert(missMsg);
+                return;
+            }
             closeListingDetail();
             // deleteListing은 async이므로 실패 시에도 사용자에게 표시
             try {
