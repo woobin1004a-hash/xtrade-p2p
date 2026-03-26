@@ -981,6 +981,55 @@
         </div>
     </div>
 
+    <!-- 리스팅 상세 (수정/삭제) -->
+    <div id="listingDetailView" class="modal-overlay hidden" onclick="closeListingDetailIfOverlayClicked(event)">
+        <div class="modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-title">리스팅 상세</div>
+                <button class="modal-close" onclick="closeListingDetail()">×</button>
+            </div>
+
+            <div class="modal-body">
+                <div id="detailRank" style="color:#f59e0b; font-weight:900; margin-bottom:10px;">#—</div>
+                <div class="helper-text" style="margin-top:0;">등록자</div>
+                <div style="font-size:18px; font-weight:900; margin-bottom:12px;" id="detailOwnerName">—</div>
+
+                <div class="confirm-line">
+                    <span class="confirm-label">예치금</span>
+                    <span class="confirm-value" id="detailDepositText">—</span>
+                </div>
+                <div class="confirm-line">
+                    <span class="confirm-label">주문 한도</span>
+                    <span class="confirm-value" id="detailOrderText">—</span>
+                </div>
+
+                <div class="confirm-subtitle" id="detailSellTitle" style="margin-top:14px; display:none;">매도</div>
+                <div class="confirm-line" id="detailSellPriceLine" style="display:none;">
+                    <span class="confirm-label">매도 가격</span>
+                    <span class="confirm-value" id="detailSellPriceText">—</span>
+                </div>
+                <div class="confirm-subtitle" id="detailBuyTitle" style="margin-top:14px; display:none;">매수</div>
+                <div class="confirm-line" id="detailBuyPriceLine" style="display:none;">
+                    <span class="confirm-label">매수 가격</span>
+                    <span class="confirm-value" id="detailBuyPriceText">—</span>
+                </div>
+
+                <div class="confirm-subtitle" style="margin-top:14px;">부스트</div>
+                <div class="confirm-line">
+                    <span class="confirm-label">부스트 금액</span>
+                    <span class="confirm-value" id="detailBoostText">—</span>
+                </div>
+
+                <div id="detailOwnerActions" class="hidden" style="margin-top:16px;">
+                    <button type="button" class="primary-btn" style="width:100%; margin:0;" onclick="openListingEditFromDetail()">수정</button>
+                    <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" onclick="deleteListingFromDetail()">삭제</button>
+                </div>
+
+                <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" id="detailMakeOfferBtn" onclick="alert('거래 요청(데모)')">거래 요청</button>
+            </div>
+        </div>
+    </div>
+
     <div id="myPageView" class="hidden">
         <div class="top-header">
             <div class="logo">👤 My Page</div>
@@ -1204,6 +1253,10 @@
                 .replace(/\n/g, '\\n');
         }
 
+        // 현재 텔레그램 사용자(소유자 체크용)
+        let currentUserId = null;
+        let currentUserName = 'User';
+
         // Bind Telegram user info into the UI
         function bindTelegramUser() {
             let userName = 'Web Test User';
@@ -1213,11 +1266,14 @@
             // If Telegram provided user info successfully
             if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 const u = tg.initDataUnsafe.user;
+                currentUserId = (u && typeof u.id !== 'undefined') ? u.id : null;
                 const firstName = u.first_name || 'User';
                 userName = u.username || firstName;
                 userHandle = u.username ? '@' + u.username : '@' + firstName;
                 userInitial = userName.charAt(0).toUpperCase();
             }
+
+            currentUserName = userName;
 
             // Bind user info into specific DOM targets
             const sideName = document.getElementById('sideName');
@@ -1321,7 +1377,9 @@
             BANK_ACCOUNTS: 'bankAccounts',
             DEFAULT_BANK_ACCOUNT_ID: 'defaultBankAccountId',
             /** 리스팅용 KYC(2차) 제출·완료 플래그 — 데모는 제출 시 true */
-            KYC_TIER2_COMPLETE: 'kycTier2Complete'
+            KYC_TIER2_COMPLETE: 'kycTier2Complete',
+            /** 등록된 리스팅(탑 트레이더/주문 카드) 목록 */
+            LISTINGS: 'listings'
         };
 
         /** TonAPI 공개 API: TON 지갑 주소의 USDT(제톤) 잔액 */
@@ -1398,6 +1456,7 @@
         function goToMyPage() {
             closeMenu();
             clearKycAlertTimer();
+            closeListingDetail();
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
@@ -1411,6 +1470,7 @@
         function goToMarketplace() {
             closeMenu();
             clearKycAlertTimer();
+            closeListingDetail();
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
@@ -1588,6 +1648,12 @@
         };
         let listingInitPromise = null;
 
+        // 리스팅 CRUD 컨텍스트 (생성/수정)
+        let listingCrudState = {
+            mode: 'create', // 'create' | 'edit'
+            listingId: null
+        };
+
         function formatKrw(n) {
             var num = Number(n);
             if (!Number.isFinite(num)) return '—';
@@ -1679,9 +1745,15 @@
             sellMarginPct: 1.0,
             buyMarginPct: 1.0,
             bankText: '',
+            bankAccountId: '',
             tonWalletText: '',
+            tonWalletAddress: '',
             boostUsdt: 0,
-            boostMaxUsdt: 0
+            boostMaxUsdt: 0,
+
+            // CRUD 컨텍스트
+            crudMode: 'create', // 'create' | 'edit'
+            editListingId: null
         };
 
         function backToListingCreate() {
@@ -1745,16 +1817,80 @@
         }
 
         function submitListingBoostPayment() {
-            // 실제 결제는 이후 TonConnect + 백엔드(또는 컨트랙트) 연동이 필요
-            var msg = '결제 요청(데모)\\n\\n총액: ' +
-                (Number(listingConfirmState.depositUsdt) + Number(listingConfirmState.boostUsdt)).toLocaleString() +
-                ' USDT\\n\\n현재는 UI 흐름만 제공됩니다.';
+            // 데모: 결제 즉시 완료 처리 → 리스팅 등록(또는 수정)
+            if (localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) !== '1') {
+                openKycFlow();
+                return;
+            }
+            if (!currentUserId) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('텔레그램 사용자 정보가 필요합니다.');
+                else alert('텔레그램 사용자 정보가 필요합니다.');
+                return;
+            }
 
-            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-            else window.alert(msg);
+            var s = listingConfirmState;
+            var listings = loadListings();
+            listings = Array.isArray(listings) ? listings : [];
 
-            // 결제 완료 가정: 결제 화면 닫기
-            backToListingCreate();
+            var now = Date.now();
+            var isEdit = s.crudMode === 'edit' && s.editListingId;
+
+            var nextId = isEdit ? s.editListingId : (String(now) + '_' + Math.random().toString(16).slice(2));
+
+            var existingIdx = listings.findIndex(function (l) { return String(l.id) === String(nextId); });
+            if (isEdit && existingIdx >= 0) {
+                // 소유자 검증
+                if (String(listings[existingIdx].ownerId) !== String(currentUserId)) {
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 수정할 수 있습니다.');
+                    else alert('본인의 리스팅만 수정할 수 있습니다.');
+                    return;
+                }
+            }
+
+            var record = {
+                id: nextId,
+                ownerId: currentUserId,
+                ownerName: currentUserName,
+                createdAt: isEdit && existingIdx >= 0 ? listings[existingIdx].createdAt : now,
+                updatedAt: now,
+
+                depositUsdt: Number(s.depositUsdt || 0),
+                orderMinUsdt: Number(s.orderMinUsdt || LISTING_ORDER_MIN_USDT),
+                orderMaxUsdt: Number(s.orderMaxUsdt || 0),
+
+                sellMode: !!s.sellMode,
+                buyMode: !!s.buyMode,
+                sellMarginPct: Number(s.sellMarginPct || 0),
+                buyMarginPct: Number(s.buyMarginPct || 0),
+                sellPriceKrW: s.sellPriceKrW,
+                buyPriceKrW: s.buyPriceKrW,
+
+                network: 'TON',
+                bankAccountId: s.bankAccountId || '',
+                bankText: s.bankText || '',
+                tonWalletAddress: s.tonWalletAddress || '',
+                tonWalletText: s.tonWalletText || '',
+
+                boostUsdt: Number(s.boostUsdt || 0)
+            };
+
+            if (isEdit && existingIdx >= 0) {
+                listings[existingIdx] = record;
+            } else {
+                listings.unshift(record);
+            }
+
+            saveListings(listings);
+            closeListingDetail();
+            if (tg && typeof tg.showAlert === 'function') {
+                tg.showAlert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료(데모)!');
+            } else {
+                alert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료(데모)!');
+            }
+
+            // 마켓으로 복귀하고 목록 갱신
+            goToMarketplace();
+            loadMarketplace();
         }
 
         function closeListingCreateFlow() {
@@ -1773,6 +1909,9 @@
                 openKycFlow();
                 return;
             }
+
+            listingCrudState.mode = 'create';
+            listingCrudState.listingId = null;
 
             closeMenu();
             clearKycAlertTimer();
@@ -1800,6 +1939,62 @@
 
             // 데이터 준비(시장 가격/계좌/지갑/네트워크)
             initListingCreateData();
+        }
+
+        // --------------------------------------------------------
+        // 리스팅 편집
+        function openListingEdit(listingId) {
+            if (!listingId) return;
+            var listings = loadListings();
+            var found = listings.find(function (l) { return String(l.id) === String(listingId); });
+            if (!found) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
+                else alert('존재하지 않는 리스팅입니다.');
+                return;
+            }
+
+            // 소유자만 편집 가능
+            if (String(found.ownerId) !== String(currentUserId)) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 수정할 수 있습니다.');
+                else alert('본인의 리스팅만 수정할 수 있습니다.');
+                return;
+            }
+
+            listingCrudState.mode = 'edit';
+            listingCrudState.listingId = found.id;
+
+            // 화면 전환
+            closeMenu();
+            clearKycAlertTimer();
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
+            if (dom.listingCreateView) dom.listingCreateView.classList.remove('hidden');
+
+            // 선택/입력 값 프리필
+            listingInitPromise = null;
+            listingFlowState.basePriceKrW = null;
+            initListingCreateData().then(function () {
+                if (dom.listingDepositUsdtInput) dom.listingDepositUsdtInput.value = String(found.depositUsdt || '');
+                if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = String(found.orderMinUsdt || LISTING_ORDER_MIN_USDT);
+                if (dom.listingOrderMaxInput) dom.listingOrderMaxInput.value = String(found.orderMaxUsdt || '');
+
+                if (dom.listingModeSell) dom.listingModeSell.checked = !!found.sellMode;
+                if (dom.listingModeBuy) dom.listingModeBuy.checked = !!found.buyMode;
+
+                if (dom.listingSellMarginInput && Number.isFinite(Number(found.sellMarginPct))) dom.listingSellMarginInput.value = Number(found.sellMarginPct).toFixed(1);
+                if (dom.listingBuyMarginInput && Number.isFinite(Number(found.buyMarginPct))) dom.listingBuyMarginInput.value = Number(found.buyMarginPct).toFixed(1);
+
+                updateListingTradeUi();
+                recalcListingPrices();
+                onListingDepositInput();
+
+                // select 값 세팅 (옵션 로드 후)
+                if (dom.listingBankAccountSelect) dom.listingBankAccountSelect.value = found.bankAccountId || '';
+                if (dom.listingTonWalletSelect) dom.listingTonWalletSelect.value = found.tonWalletAddress || '';
+            });
         }
 
         function setListingActiveNetwork(network) {
@@ -1969,10 +2164,12 @@
             if (dom.listingBankAccountSelect && dom.listingBankAccountSelect.selectedIndex >= 0) {
                 bankText = dom.listingBankAccountSelect.options[dom.listingBankAccountSelect.selectedIndex].textContent || '';
             }
+            var bankAccountId = dom.listingBankAccountSelect ? dom.listingBankAccountSelect.value : '';
             var tonWalletText = '';
             if (dom.listingTonWalletSelect && dom.listingTonWalletSelect.selectedIndex >= 0) {
                 tonWalletText = dom.listingTonWalletSelect.options[dom.listingTonWalletSelect.selectedIndex].textContent || '';
             }
+            var tonWalletAddress = dom.listingTonWalletSelect ? dom.listingTonWalletSelect.value : '';
 
             listingConfirmState.depositUsdt = deposit;
             listingConfirmState.orderMaxUsdt = max;
@@ -1984,9 +2181,14 @@
             listingConfirmState.sellMarginPct = listingFlowState.sellMarginPct;
             listingConfirmState.buyMarginPct = listingFlowState.buyMarginPct;
             listingConfirmState.bankText = bankText;
+            listingConfirmState.bankAccountId = bankAccountId;
             listingConfirmState.tonWalletText = tonWalletText;
+            listingConfirmState.tonWalletAddress = tonWalletAddress;
             listingConfirmState.boostUsdt = 0;
             listingConfirmState.boostMaxUsdt = Math.floor(deposit / LISTING_BOOST_UNIT_USDT) * LISTING_BOOST_UNIT_USDT;
+
+            listingConfirmState.crudMode = listingCrudState.mode;
+            listingConfirmState.editListingId = listingCrudState.listingId;
 
             openListingConfirmViewFromCreate();
         }
@@ -2071,16 +2273,79 @@
             `;
         }
 
-        async function loadMarketplace() {
+        function loadMarketplace() {
             try {
-                const basePrice = await fetchBasePrice();
-                const html = TRADER_NAMES.map((rawName, index) =>
-                    createTraderCardHtml(rawName, index, basePrice)
-                ).join('');
-                if (dom.traderList) dom.traderList.innerHTML = html;
+                if (!dom.traderList) return;
+
+                var listings = loadListings();
+                listings = Array.isArray(listings) ? listings.slice() : [];
+
+                // 부스트 높은 순 → 최신 순
+                listings.sort(function (a, b) {
+                    var db = Number(b.boostUsdt || 0) - Number(a.boostUsdt || 0);
+                    if (db !== 0) return db;
+                    return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+                });
+
+                if (!listings.length) {
+                    dom.traderList.innerHTML =
+                        "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
+                        "아직 등록된 리스팅이 없습니다.<br/>" +
+                        "리스팅을 생성해 거래를 시작해 보세요." +
+                        "</div>";
+                    return;
+                }
+
+                var createListingCardHtml = function (l, index) {
+                    var rank = index + 1;
+                    var rankHtml = rank === 1 ? "<div class=\"rank\">👑 #" + rank + "</div>" : "";
+
+                    var ownerName = escapeHtml(l.ownerName || 'User');
+                    var initial = escapeHtml(String(ownerName).charAt(0).toUpperCase() || '?');
+                    var idForJs = escapeJsString(l.id);
+
+                    var depositTxt = Number(l.depositUsdt || 0).toLocaleString() + " USDT";
+                    var orderTxt = (Number(l.orderMinUsdt || 0).toLocaleString() + "~" + Number(l.orderMaxUsdt || 0).toLocaleString() + " USDT");
+
+                    var modeParts = [];
+                    if (l.sellMode) modeParts.push('매도');
+                    if (l.buyMode) modeParts.push('매수');
+                    var modeStr = modeParts.join(' + ') || '—';
+
+                    var priceLines = [];
+                    if (l.sellMode) priceLines.push("매도: " + (l.sellPriceKrW != null ? formatKrw(l.sellPriceKrW) : '—'));
+                    if (l.buyMode) priceLines.push("매수: " + (l.buyPriceKrW != null ? formatKrw(l.buyPriceKrW) : '—'));
+
+                    var boostTxt = Number(l.boostUsdt || 0).toLocaleString() + " USDT";
+                    var boostHint = l.boostUsdt > 0 ? "Boost" : "기본";
+
+                    return `
+                        <div class="trader-card" onclick="openListingDetail('${idForJs}')">
+                            ${rankHtml}
+                            <div class="profile-row">
+                                <div class="avatar">${initial}</div>
+                                <div class="trader-name">${ownerName} <span class="verified">✔</span></div>
+                            </div>
+                            <div class="limit-info">예치금: ${escapeHtml(depositTxt)}</div>
+                            <div class="limit-info" style="margin-top:6px;">주문 한도: ${escapeHtml(orderTxt)}</div>
+                            <div class="limit-info" style="margin-top:6px;">거래: ${escapeHtml(modeStr)}</div>
+                            <div class="helper-text" style="margin-top:10px;line-height:1.5;">
+                                ${priceLines.map(function (x) { return escapeHtml(x); }).join('<br/>')}
+                            </div>
+                            <div class="network-info" style="margin-bottom:0;">
+                                <span class="dot purple"></span> TON &nbsp;&nbsp;
+                                <span class="dot yellow"></span> ${escapeHtml(boostHint)}: ${escapeHtml(boostTxt)}
+                            </div>
+                        </div>
+                    `;
+                };
+
+                dom.traderList.innerHTML = listings.map(createListingCardHtml).join('');
             } catch (error) {
                 if (dom.traderList) {
-                    dom.traderList.innerHTML = "<div style='text-align: center; color: #94a3b8; padding: 30px; font-size: 14px;'>목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
+                    dom.traderList.innerHTML =
+                        "<div style='text-align: center; color: #94a3b8; padding: 30px; font-size: 14px;'>" +
+                        "목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
                 }
                 console.error('loadMarketplace error:', error);
             }
@@ -2131,7 +2396,8 @@
                 STORAGE.LEGACY_DEFAULT_TON_WALLET,
                 STORAGE.BANK_ACCOUNTS,
                 STORAGE.DEFAULT_BANK_ACCOUNT_ID,
-                STORAGE.KYC_TIER2_COMPLETE
+                STORAGE.KYC_TIER2_COMPLETE,
+                STORAGE.LISTINGS
             ];
 
             const values = await cloudGetItems(keys);
@@ -2149,6 +2415,139 @@
             } catch (e) {
                 return fallback;
             }
+        }
+
+        // --------------------------------------------------------
+        // 리스팅 저장소 (로컬/클라우드)
+        function loadListings() {
+            return safeParseJson(localStorage.getItem(STORAGE.LISTINGS) || '[]', []);
+        }
+
+        function saveListings(listings) {
+            var next = Array.isArray(listings) ? listings : [];
+            try {
+                localStorage.setItem(STORAGE.LISTINGS, JSON.stringify(next));
+            } catch (e) {}
+
+            // 텔레그램 CloudStorage가 있으면 동기화
+            try {
+                cloudSetItem(STORAGE.LISTINGS, JSON.stringify(next));
+            } catch (e) {}
+        }
+
+        // 리스팅 상세(모달)
+        let listingDetailState = { listingId: null };
+
+        function closeListingDetail() {
+            if (!dom.listingDetailView) {
+                // dom 객체에 없을 수 있으니 안전 처리
+                var el = document.getElementById('listingDetailView');
+                if (el) el.classList.add('hidden');
+                return;
+            }
+            dom.listingDetailView.classList.add('hidden');
+        }
+
+        function closeListingDetailIfOverlayClicked(event) {
+            if (!event) return;
+            if (event.target !== event.currentTarget) return;
+            closeListingDetail();
+        }
+
+        function openListingDetail(listingId) {
+            if (!listingId) return;
+            var listings = loadListings();
+            var found = (Array.isArray(listings) ? listings : []).find(function (l) {
+                return String(l.id) === String(listingId);
+            });
+            if (!found) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
+                else alert('존재하지 않는 리스팅입니다.');
+                return;
+            }
+
+            listingDetailState.listingId = found.id;
+
+            var el = document.getElementById('listingDetailView');
+            if (el) el.classList.remove('hidden');
+
+            var ownerName = found.ownerName || 'User';
+            document.getElementById('detailOwnerName').textContent = ownerName;
+            document.getElementById('detailDepositText').textContent = Number(found.depositUsdt || 0).toLocaleString() + ' USDT';
+            document.getElementById('detailOrderText').textContent =
+                Number(found.orderMinUsdt || 0).toLocaleString() + '~' + Number(found.orderMaxUsdt || 0).toLocaleString() + ' USDT';
+            document.getElementById('detailBoostText').textContent = Number(found.boostUsdt || 0).toLocaleString() + ' USDT';
+
+            // 모드/가격 라인 토글
+            var sellLine = document.getElementById('detailSellPriceLine');
+            var buyLine = document.getElementById('detailBuyPriceLine');
+            var sellTitle = document.getElementById('detailSellTitle');
+            var buyTitle = document.getElementById('detailBuyTitle');
+
+            if (found.sellMode) {
+                if (sellLine) sellLine.style.display = 'flex';
+                if (sellTitle) sellTitle.style.display = 'block';
+                var sp = found.sellPriceKrW != null ? formatKrw(found.sellPriceKrW) : '—';
+                var sm = Number(found.sellMarginPct != null ? found.sellMarginPct : 0);
+                if (Number.isFinite(sm) && dom && dom.listingSellMarginInput) sp += ' · ' + sm.toFixed(1) + '%';
+                document.getElementById('detailSellPriceText').textContent = sp;
+            } else {
+                if (sellLine) sellLine.style.display = 'none';
+                if (sellTitle) sellTitle.style.display = 'none';
+            }
+
+            if (found.buyMode) {
+                if (buyLine) buyLine.style.display = 'flex';
+                if (buyTitle) buyTitle.style.display = 'block';
+                var bp = found.buyPriceKrW != null ? formatKrw(found.buyPriceKrW) : '—';
+                var bm = Number(found.buyMarginPct != null ? found.buyMarginPct : 0);
+                if (Number.isFinite(bm) && dom && dom.listingBuyMarginInput) bp += ' · ' + bm.toFixed(1) + '%';
+                document.getElementById('detailBuyPriceText').textContent = bp;
+            } else {
+                if (buyLine) buyLine.style.display = 'none';
+                if (buyTitle) buyTitle.style.display = 'none';
+            }
+
+            // 소유자 액션 표시
+            var isOwner = String(found.ownerId) === String(currentUserId);
+            var ownerActionsEl = document.getElementById('detailOwnerActions');
+            if (ownerActionsEl) ownerActionsEl.classList.toggle('hidden', !isOwner);
+        }
+
+        function openListingEditFromDetail() {
+            if (!listingDetailState.listingId) return;
+            closeListingDetail();
+            openListingEdit(listingDetailState.listingId);
+        }
+
+        function deleteListingFromDetail() {
+            if (!listingDetailState.listingId) return;
+            var listingId = listingDetailState.listingId;
+            closeListingDetail();
+            deleteListing(listingId);
+        }
+
+        function deleteListing(listingId) {
+            if (!listingId) return;
+            var listings = loadListings();
+            var idx = (Array.isArray(listings) ? listings : []).findIndex(function (l) {
+                return String(l.id) === String(listingId);
+            });
+            if (idx < 0) return;
+
+            var found = listings[idx];
+            if (String(found.ownerId) !== String(currentUserId)) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 삭제할 수 있습니다.');
+                else alert('본인의 리스팅만 삭제할 수 있습니다.');
+                return;
+            }
+
+            var ok = window.confirm('이 리스팅을 삭제할까요?');
+            if (!ok) return;
+
+            listings.splice(idx, 1);
+            saveListings(listings);
+            loadMarketplace();
         }
 
         function shortenAddress(address) {
@@ -2759,8 +3158,8 @@
         // Initialization
         (async function initPaymentAndUI() {
             bindTelegramUser();
-            loadMarketplace();
             await syncCloudToLocal();
+            loadMarketplace();
             updateMyPageKycUi();
             renderSavedWallets();
             renderSavedBankAccounts();
