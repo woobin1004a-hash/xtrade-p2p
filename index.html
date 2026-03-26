@@ -1988,6 +1988,13 @@
                 return;
             }
 
+            // 가상 트레이더는 수정/삭제를 막음
+            if (String(found.ownerId) === 'virtual_gdragon') {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('가상 리스팅은 수정/삭제할 수 없습니다.');
+                else alert('가상 리스팅은 수정/삭제할 수 없습니다.');
+                return;
+            }
+
             // 소유자만 편집 가능
             if (String(found.ownerId) !== String(currentUserId)) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 수정할 수 있습니다.');
@@ -2314,6 +2321,49 @@
 
                 var listings = loadListings();
                 listings = Array.isArray(listings) ? listings.slice() : [];
+
+                // 안전장치: G-DRAGON 가상 리스팅이 아예 없으면 즉시 생성(가격은 1450로 초기)
+                var hasVirtual = listings.some(function (l) {
+                    return String(l.ownerId) === 'virtual_gdragon';
+                });
+                if (!hasVirtual) {
+                    var basePrice = 1450;
+                    var sellMarginPct = 1.0;
+                    var buyMarginPct = 1.0;
+                    var sellPriceKrW = basePrice * (1 + sellMarginPct / 100);
+                    var buyPriceKrW = basePrice * (1 - buyMarginPct / 100);
+
+                    var now = Date.now();
+                    var record = {
+                        id: 'virtual_gdragon_' + String(now),
+                        ownerId: 'virtual_gdragon',
+                        ownerName: 'G-DRAGON',
+                        createdAt: now,
+                        updatedAt: now,
+
+                        depositUsdt: 10000,
+                        orderMinUsdt: 100,
+                        orderMaxUsdt: 10000,
+
+                        sellMode: true,
+                        buyMode: true,
+                        sellMarginPct: sellMarginPct,
+                        buyMarginPct: buyMarginPct,
+                        sellPriceKrW: sellPriceKrW,
+                        buyPriceKrW: buyPriceKrW,
+
+                        network: 'TON',
+                        bankAccountId: '',
+                        bankText: '—',
+                        tonWalletAddress: '',
+                        tonWalletText: '—',
+
+                        boostUsdt: 0
+                    };
+
+                    listings.unshift(record);
+                    saveListings(listings);
+                }
 
                 // 부스트 높은 순 → 최신 순
                 listings.sort(function (a, b) {
@@ -2669,6 +2719,14 @@
             if (idx < 0) return;
 
             var found = listings[idx];
+
+            // 가상 트레이더는 삭제를 막음
+            if (String(found.ownerId) === 'virtual_gdragon') {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('가상 리스팅은 삭제할 수 없습니다.');
+                else alert('가상 리스팅은 삭제할 수 없습니다.');
+                return;
+            }
+
             if (String(found.ownerId) !== String(currentUserId)) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 삭제할 수 있습니다.');
                 else alert('본인의 리스팅만 삭제할 수 있습니다.');
