@@ -117,55 +117,10 @@
             cursor: not-allowed;
         }
 
-        /* ------------------ 리스팅 생성 Flow ------------------ */
-        .listing-flow-wrap {
+        /* ------------------ 리스팅 생성 (단일 화면) ------------------ */
+        .listing-single-wrap {
             padding: 0 16px 32px 16px;
-            display: flex;
-            gap: 14px;
             box-sizing: border-box;
-        }
-        .listing-flow-left {
-            width: 190px;
-            flex-shrink: 0;
-            padding-top: 8px;
-        }
-        .listing-step-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 10px;
-            border-radius: 14px;
-            border: 1px solid rgba(124,58,237,0.15);
-            background: rgba(124,58,237,0.06);
-            margin-bottom: 10px;
-        }
-        .listing-step-item.active {
-            border-color: rgba(124,58,237,0.6);
-            background: rgba(124,58,237,0.18);
-        }
-        .listing-step-circle {
-            width: 34px;
-            height: 34px;
-            border-radius: 999px;
-            background: rgba(124,58,237,0.35);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .listing-step-text {
-            font-size: 13px;
-            color: #e9d5ff;
-            font-weight: 700;
-            line-height: 1.25;
-        }
-
-        .listing-flow-right {
-            flex: 1;
-            padding-top: 8px;
         }
         .listing-step-panel {
             border-radius: 18px;
@@ -234,10 +189,28 @@
             color: #fff;
         }
 
+        .listing-trade-mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            margin-top: 6px;
+        }
+        .listing-trade-mode-row label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #e2e8f0;
+            cursor: pointer;
+        }
+        .listing-block-muted {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
         @media (max-width: 420px) {
-            .listing-flow-wrap { flex-direction: column; }
-            .listing-flow-left { width: 100%; display: flex; gap: 10px; }
-            .listing-step-item { margin-bottom: 0; flex: 1; }
             .listing-three-cards { flex-direction: column; }
         }
 
@@ -676,156 +649,106 @@
             <button type="button" class="back-btn" onclick="closeListingCreateFlow()" aria-label="닫기">←</button>
         </div>
 
-        <div class="listing-flow-wrap">
-            <div class="listing-flow-left">
-                <div class="listing-step-item" id="listingStepItem1">
-                    <span class="listing-step-circle">01</span>
-                    <span class="listing-step-text">예치 금액</span>
-                </div>
-                <div class="listing-step-item" id="listingStepItem2">
-                    <span class="listing-step-circle">02</span>
-                    <span class="listing-step-text">매도(USDT) 가격 설정</span>
-                </div>
-                <div class="listing-step-item" id="listingStepItem3">
-                    <span class="listing-step-circle">03</span>
-                    <span class="listing-step-text">매수(USDT) 가격 설정</span>
-                </div>
-            </div>
+        <div class="listing-single-wrap">
+            <div class="listing-step-panel" id="listingCreatePanel">
+                <div class="listing-panel-title">리스팅 상세</div>
 
-            <div class="listing-flow-right">
-                <!-- Step 1 -->
-                <div class="listing-step-panel hidden" id="listingStepPanel1">
-                    <div class="listing-panel-title">Step 1. 예치 금액</div>
+                <div class="listing-field">
+                    <label class="field-label">예치금 (USDT)</label>
+                    <input id="listingDepositUsdtInput" class="input" inputmode="decimal" placeholder="예: 10000" oninput="onListingDepositInput()" />
+                    <div class="helper-text" id="listingDepositHint">예치금은 주문 한도 상한(최대)으로 사용됩니다.</div>
+                </div>
 
-                    <div class="listing-field">
-                        <label class="field-label">예치금 (USDT)</label>
-                        <div class="field-row-with-btn">
-                            <input id="listingDepositUsdtInput" class="input" inputmode="decimal" placeholder="예: 10000" />
-                            <button class="icon-btn" type="button" onclick="setListingDepositMax()">최대</button>
-                        </div>
-                        <div class="helper-text">예치금은 리스팅 생성 완료 시 사용됩니다. (데모)</div>
+                <div class="listing-field">
+                    <label class="field-label">주문 한도 (USDT)</label>
+                    <div class="field-row-with-btn">
+                        <input id="listingOrderMinInput" class="input" inputmode="decimal" value="10" readonly aria-readonly="true" />
+                        <span style="color:#888;font-size:13px;">~</span>
+                        <input id="listingOrderMaxInput" class="input" inputmode="decimal" placeholder="최대 (예치금 이하)" oninput="onListingOrderMaxInput()" />
                     </div>
-
-                    <div class="listing-field">
-                        <label class="field-label">주문 한도 (USDT)</label>
-                        <div class="field-row-with-btn">
-                            <input id="listingOrderMinInput" class="input" inputmode="decimal" placeholder="최소" />
-                            <span style="color:#888;font-size:13px;">-</span>
-                            <input id="listingOrderMaxInput" class="input" inputmode="decimal" placeholder="최대" />
-                        </div>
-                        <div class="helper-text">최소~최대 범위를 입력해 주세요. (데모)</div>
-                    </div>
-
-                    <button class="primary-btn" onclick="goListingStep(2)">다음</button>
+                    <div class="helper-text" id="listingOrderHint">최소 10 USDT · 최대는 예치금을 넘을 수 없습니다.</div>
                 </div>
 
-                <!-- Step 2 -->
-                <div class="listing-step-panel hidden" id="listingStepPanel2">
-                    <div class="listing-panel-title">Step 2. 매도(USDT) 가격 설정</div>
+                <div class="listing-field">
+                    <label class="field-label">등록할 거래 유형 (하나만 선택)</label>
+                    <div class="listing-trade-mode-row">
+                        <label><input type="checkbox" id="listingModeSell" checked onchange="onListingTradeModeChange('sell')" /> 매도 가격 설정 (USDT 매도)</label>
+                        <label><input type="checkbox" id="listingModeBuy" onchange="onListingTradeModeChange('buy')" /> 매수 가격 설정 (USDT 매수)</label>
+                    </div>
+                </div>
 
-                    <div class="listing-field">
-                        <label class="field-label">
-                            <input type="checkbox" id="listingSellPriceEnabled" checked onchange="recalcListingPrices()" style="margin-right:8px;"/> 매도 가격 설정 (USDT 매도)
-                        </label>
-                        <div class="listing-three-cards">
-                            <div class="listing-card">
-                                <div class="listing-card-label">시장 가격</div>
-                                <div class="listing-card-value" id="listingMarketPriceText">조회중…</div>
-                            </div>
-                            <div class="listing-card">
-                                <div class="listing-card-label">마진</div>
-                                <div class="listing-card-mid">
-                                    <input id="listingSellMarginInput" class="input" inputmode="decimal" value="1.0" onchange="recalcListingPrices()" />
-                                    <div class="listing-margin-btns">
-                                        <button type="button" class="icon-btn" onclick="adjustListingSellMargin(-0.1)">-</button>
-                                        <button type="button" class="icon-btn" onclick="adjustListingSellMargin(0.1)">+</button>
-                                    </div>
+                <div class="listing-field">
+                    <label class="field-label">시장 가격 (Upbit 기준)</label>
+                    <div class="listing-card" style="min-height:auto;padding:14px;">
+                        <div class="listing-card-value" id="listingMarketPriceText" style="font-size:18px;">조회중…</div>
+                    </div>
+                </div>
+
+                <div class="listing-field">
+                    <label class="field-label">지원 네트워크</label>
+                    <div class="listing-network-row" id="listingNetworkRow">
+                        <button type="button" class="network-chip" data-network="BTC" onclick="selectListingNetwork(this)">BTC</button>
+                        <button type="button" class="network-chip" data-network="ETH" onclick="selectListingNetwork(this)">ETH</button>
+                        <button type="button" class="network-chip" data-network="SOL" onclick="selectListingNetwork(this)">SOL</button>
+                        <button type="button" class="network-chip" data-network="BNB" onclick="selectListingNetwork(this)">BNB</button>
+                        <button type="button" class="network-chip" data-network="POL" onclick="selectListingNetwork(this)">POL</button>
+                        <button type="button" class="network-chip" data-network="TRON" onclick="selectListingNetwork(this)">TRON</button>
+                    </div>
+                </div>
+
+                <div class="listing-field" id="listingSellSection">
+                    <div class="listing-panel-title" style="margin-bottom:10px;">매도(USDT) 가격</div>
+                    <div class="listing-three-cards">
+                        <div class="listing-card">
+                            <div class="listing-card-label">마진 (%)</div>
+                            <div class="listing-card-mid">
+                                <input id="listingSellMarginInput" class="input" inputmode="decimal" value="1.0" onchange="recalcListingPrices()" />
+                                <div class="listing-margin-btns">
+                                    <button type="button" class="icon-btn" onclick="adjustListingSellMargin(-0.1)">-</button>
+                                    <button type="button" class="icon-btn" onclick="adjustListingSellMargin(0.1)">+</button>
                                 </div>
-                                <div class="helper-text">마진(%)을 조절합니다. (데모)</div>
-                            </div>
-                            <div class="listing-card">
-                                <div class="listing-card-label">매수 가격</div>
-                                <div class="listing-card-value" id="listingSellPriceText">—</div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="listing-field">
-                        <label class="field-label">지원 네트워크</label>
-                        <div class="listing-network-row" id="listingNetworkRow">
-                            <button type="button" class="network-chip" data-network="BTC" onclick="selectListingNetwork(this)">BTC</button>
-                            <button type="button" class="network-chip" data-network="ETH" onclick="selectListingNetwork(this)">ETH</button>
-                            <button type="button" class="network-chip" data-network="SOL" onclick="selectListingNetwork(this)">SOL</button>
-                            <button type="button" class="network-chip" data-network="BNB" onclick="selectListingNetwork(this)">BNB</button>
-                            <button type="button" class="network-chip" data-network="POL" onclick="selectListingNetwork(this)">POL</button>
-                            <button type="button" class="network-chip" data-network="TRON" onclick="selectListingNetwork(this)">TRON</button>
+                        <div class="listing-card">
+                            <div class="listing-card-label">적용 가격 (매도)</div>
+                            <div class="listing-card-value" id="listingSellPriceText">—</div>
                         </div>
                     </div>
-
-                    <div class="listing-field">
-                        <label class="field-label">입금 계좌</label>
+                    <div class="listing-field" style="margin-top:12px;margin-bottom:0;">
+                        <label class="field-label">입금 계좌 (매도 시)</label>
                         <select id="listingBankAccountSelect" class="select" onchange="onListingBankAccountChange()">
                             <option value="">계좌를 선택해 주세요</option>
                         </select>
-                        <div class="helper-text">마이페이지에 저장된 은행 계좌를 불러옵니다.</div>
                     </div>
-
-                    <button class="primary-btn" onclick="goListingStep(3)">다음</button>
                 </div>
 
-                <!-- Step 3 -->
-                <div class="listing-step-panel hidden" id="listingStepPanel3">
-                    <div class="listing-panel-title">Step 3. 매수(USDT) 가격 설정</div>
-
-                    <div class="listing-field">
-                        <label class="field-label">
-                            <input type="checkbox" id="listingBuyPriceEnabled" checked onchange="recalcListingPrices()" style="margin-right:8px;"/> 매수 가격 설정 (USDT 매수)
-                        </label>
-                        <div class="listing-three-cards">
-                            <div class="listing-card">
-                                <div class="listing-card-label">시장 가격</div>
-                                <div class="listing-card-value" id="listingMarketPriceText2">조회중…</div>
-                            </div>
-                            <div class="listing-card">
-                                <div class="listing-card-label">마진</div>
-                                <div class="listing-card-mid">
-                                    <input id="listingBuyMarginInput" class="input" inputmode="decimal" value="1.0" onchange="recalcListingPrices()" />
-                                    <div class="listing-margin-btns">
-                                        <button type="button" class="icon-btn" onclick="adjustListingBuyMargin(-0.1)">-</button>
-                                        <button type="button" class="icon-btn" onclick="adjustListingBuyMargin(0.1)">+</button>
-                                    </div>
+                <div class="listing-field" id="listingBuySection">
+                    <div class="listing-panel-title" style="margin-bottom:10px;">매수(USDT) 가격</div>
+                    <div class="listing-three-cards">
+                        <div class="listing-card">
+                            <div class="listing-card-label">마진 (%)</div>
+                            <div class="listing-card-mid">
+                                <input id="listingBuyMarginInput" class="input" inputmode="decimal" value="1.0" onchange="recalcListingPrices()" />
+                                <div class="listing-margin-btns">
+                                    <button type="button" class="icon-btn" onclick="adjustListingBuyMargin(-0.1)">-</button>
+                                    <button type="button" class="icon-btn" onclick="adjustListingBuyMargin(0.1)">+</button>
                                 </div>
-                                <div class="helper-text">마진(%)을 조절합니다. (데모)</div>
-                            </div>
-                            <div class="listing-card">
-                                <div class="listing-card-label">매도 가격</div>
-                                <div class="listing-card-value" id="listingBuyPriceText">—</div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="listing-field">
-                        <label class="field-label">지원 네트워크</label>
-                        <div class="listing-network-row" id="listingNetworkRow2">
-                            <button type="button" class="network-chip" data-network="BTC" onclick="selectListingNetwork(this)">BTC</button>
-                            <button type="button" class="network-chip" data-network="ETH" onclick="selectListingNetwork(this)">ETH</button>
-                            <button type="button" class="network-chip" data-network="SOL" onclick="selectListingNetwork(this)">SOL</button>
-                            <button type="button" class="network-chip" data-network="BNB" onclick="selectListingNetwork(this)">BNB</button>
-                            <button type="button" class="network-chip" data-network="POL" onclick="selectListingNetwork(this)">POL</button>
-                            <button type="button" class="network-chip" data-network="TRON" onclick="selectListingNetwork(this)">TRON</button>
+                        <div class="listing-card">
+                            <div class="listing-card-label">적용 가격 (매수)</div>
+                            <div class="listing-card-value" id="listingBuyPriceText">—</div>
                         </div>
                     </div>
-
-                    <div class="listing-field">
-                        <label class="field-label">입금 지갑</label>
+                    <div class="listing-field" style="margin-top:12px;margin-bottom:0;">
+                        <label class="field-label">입금 지갑 (매수 시)</label>
                         <select id="listingTonWalletSelect" class="select" onchange="onListingTonWalletChange()">
                             <option value="">지갑을 선택해 주세요</option>
                         </select>
-                        <div class="helper-text">저장된 TON 지갑(마이페이지 Saved Wallets)을 불러옵니다.</div>
                     </div>
-
-                    <button class="primary-btn" onclick="submitListingCreate()">리스팅 생성</button>
                 </div>
+
+                <button class="primary-btn" onclick="submitListingCreate()">리스팅 생성</button>
             </div>
         </div>
     </div>
@@ -1124,25 +1047,22 @@
             mypageKycStatus: document.getElementById('mypageKycStatus'),
             mypageUsdtBalance: document.getElementById('mypageUsdtBalance'),
 
-            // 리스팅 생성 Flow
+            // 리스팅 생성 (단일 화면)
             listingCreateView: document.getElementById('listingCreateView'),
-            listingStepItem1: document.getElementById('listingStepItem1'),
-            listingStepItem2: document.getElementById('listingStepItem2'),
-            listingStepItem3: document.getElementById('listingStepItem3'),
-            listingStepPanel1: document.getElementById('listingStepPanel1'),
-            listingStepPanel2: document.getElementById('listingStepPanel2'),
-            listingStepPanel3: document.getElementById('listingStepPanel3'),
+            listingCreatePanel: document.getElementById('listingCreatePanel'),
             listingDepositUsdtInput: document.getElementById('listingDepositUsdtInput'),
             listingOrderMinInput: document.getElementById('listingOrderMinInput'),
             listingOrderMaxInput: document.getElementById('listingOrderMaxInput'),
+            listingOrderHint: document.getElementById('listingOrderHint'),
+            listingModeSell: document.getElementById('listingModeSell'),
+            listingModeBuy: document.getElementById('listingModeBuy'),
+            listingSellSection: document.getElementById('listingSellSection'),
+            listingBuySection: document.getElementById('listingBuySection'),
             listingSellMarginInput: document.getElementById('listingSellMarginInput'),
             listingBuyMarginInput: document.getElementById('listingBuyMarginInput'),
             listingMarketPriceText: document.getElementById('listingMarketPriceText'),
-            listingMarketPriceText2: document.getElementById('listingMarketPriceText2'),
             listingSellPriceText: document.getElementById('listingSellPriceText'),
             listingBuyPriceText: document.getElementById('listingBuyPriceText'),
-            listingSellPriceEnabled: document.getElementById('listingSellPriceEnabled'),
-            listingBuyPriceEnabled: document.getElementById('listingBuyPriceEnabled'),
             listingBankAccountSelect: document.getElementById('listingBankAccountSelect'),
             listingTonWalletSelect: document.getElementById('listingTonWalletSelect'),
         };
@@ -1405,10 +1325,10 @@
         }
 
         // --------------------------------------------------------
-        // 리스팅 생성 (KYC 2차 완료 후)
+        // 리스팅 생성 (KYC 2차 완료 후) — 단일 화면
+        const LISTING_ORDER_MIN_USDT = 10;
         let listingFlowState = {
             basePriceKrW: null, // KRW 기준 USDT(테더) 시장 가격
-            currentStep: 1,
             selectedNetwork: 'BTC'
         };
         let listingInitPromise = null;
@@ -1431,7 +1351,6 @@
 
                 var p = listingFlowState.basePriceKrW;
                 if (dom.listingMarketPriceText) dom.listingMarketPriceText.textContent = p ? formatKrw(p) : '조회 실패';
-                if (dom.listingMarketPriceText2) dom.listingMarketPriceText2.textContent = p ? formatKrw(p) : '조회 실패';
 
                 // 2) 은행 계좌 select 채우기
                 try {
@@ -1483,6 +1402,7 @@
                 // 4) 네트워크 기본 선택 + 가격 계산
                 setListingActiveNetwork(listingFlowState.selectedNetwork);
                 recalcListingPrices();
+                updateListingTradeUi();
             })();
             return listingInitPromise;
         }
@@ -1509,7 +1429,6 @@
             // 매번 열 때 최신 시장가/계좌/지갑을 다시 로드
             listingInitPromise = null;
             listingFlowState.basePriceKrW = null;
-            listingFlowState.currentStep = 1;
 
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
@@ -1518,9 +1437,14 @@
 
             if (dom.listingCreateView) dom.listingCreateView.classList.remove('hidden');
 
-            // 기본 step 세팅
-            listingFlowState.currentStep = 1;
-            goListingStep(1);
+            // 기본: 매도만 선택 (매도/매수 상호 배타)
+            if (dom.listingModeSell) dom.listingModeSell.checked = true;
+            if (dom.listingModeBuy) dom.listingModeBuy.checked = false;
+            if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = String(LISTING_ORDER_MIN_USDT);
+            if (dom.listingOrderMaxInput) dom.listingOrderMaxInput.value = '';
+            if (dom.listingDepositUsdtInput) dom.listingDepositUsdtInput.value = '';
+            updateListingTradeUi();
+            onListingDepositInput();
 
             // 데이터 준비(시장 가격/계좌/지갑/네트워크)
             initListingCreateData();
@@ -1544,16 +1468,49 @@
             setListingActiveNetwork(net);
         }
 
-        function goListingStep(stepNum) {
-            listingFlowState.currentStep = stepNum;
+        /** 매도/매수 체크박스: 둘 중 하나만 선택 (기본 매도) */
+        function onListingTradeModeChange(which) {
+            var sellOn = dom.listingModeSell && dom.listingModeSell.checked;
+            var buyOn = dom.listingModeBuy && dom.listingModeBuy.checked;
+            if (which === 'sell') {
+                if (sellOn && dom.listingModeBuy) dom.listingModeBuy.checked = false;
+                if (!sellOn && !buyOn && dom.listingModeSell) dom.listingModeSell.checked = true;
+            } else if (which === 'buy') {
+                if (buyOn && dom.listingModeSell) dom.listingModeSell.checked = false;
+                if (!sellOn && !buyOn && dom.listingModeBuy) dom.listingModeBuy.checked = true;
+            }
+            updateListingTradeUi();
+            recalcListingPrices();
+        }
 
-            if (dom.listingStepItem1) dom.listingStepItem1.classList.toggle('active', stepNum === 1);
-            if (dom.listingStepItem2) dom.listingStepItem2.classList.toggle('active', stepNum === 2);
-            if (dom.listingStepItem3) dom.listingStepItem3.classList.toggle('active', stepNum === 3);
+        /** 선택되지 않은 쪽은 입력 불가(등록 대상 아님) */
+        function updateListingTradeUi() {
+            var sellSel = dom.listingModeSell && dom.listingModeSell.checked;
+            var buySel = dom.listingModeBuy && dom.listingModeBuy.checked;
+            if (dom.listingSellSection) dom.listingSellSection.classList.toggle('listing-block-muted', !sellSel);
+            if (dom.listingBuySection) dom.listingBuySection.classList.toggle('listing-block-muted', !buySel);
+        }
 
-            if (dom.listingStepPanel1) dom.listingStepPanel1.classList.toggle('hidden', stepNum !== 1);
-            if (dom.listingStepPanel2) dom.listingStepPanel2.classList.toggle('hidden', stepNum !== 2);
-            if (dom.listingStepPanel3) dom.listingStepPanel3.classList.toggle('hidden', stepNum !== 3);
+        /** 예치금 변경 시 주문 최대값 상한 안내·클램프 */
+        function onListingDepositInput() {
+            var d = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
+            if (dom.listingOrderHint) {
+                if (Number.isFinite(d) && d >= LISTING_ORDER_MIN_USDT) {
+                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금(' + d + ' USDT) 이하입니다.';
+                } else {
+                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금을 넘을 수 없습니다.';
+                }
+            }
+            onListingOrderMaxInput();
+        }
+
+        function onListingOrderMaxInput() {
+            var deposit = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
+            var maxVal = dom.listingOrderMaxInput ? parseFloat(dom.listingOrderMaxInput.value) : NaN;
+            if (!Number.isFinite(deposit) || deposit < LISTING_ORDER_MIN_USDT) return;
+            if (Number.isFinite(maxVal) && maxVal > deposit && dom.listingOrderMaxInput) {
+                dom.listingOrderMaxInput.value = String(deposit);
+            }
         }
 
         function recalcListingPrices() {
@@ -1561,17 +1518,15 @@
             if (!base) return;
 
             // 매도(USDT 매도): 시장가 + 마진(%)
-            var sellEnabled = dom.listingSellPriceEnabled ? !!dom.listingSellPriceEnabled.checked : true;
             var sellMargin = dom.listingSellMarginInput ? parseFloat(dom.listingSellMarginInput.value) : 1.0;
             if (!Number.isFinite(sellMargin)) sellMargin = 1.0;
-            var sellPrice = sellEnabled ? base * (1 + (sellMargin / 100)) : base;
+            var sellPrice = base * (1 + (sellMargin / 100));
             if (dom.listingSellPriceText) dom.listingSellPriceText.textContent = formatKrw(sellPrice);
 
             // 매수(USDT 매수): 시장가 - 마진(%)
-            var buyEnabled = dom.listingBuyPriceEnabled ? !!dom.listingBuyPriceEnabled.checked : true;
             var buyMargin = dom.listingBuyMarginInput ? parseFloat(dom.listingBuyMarginInput.value) : 1.0;
             if (!Number.isFinite(buyMargin)) buyMargin = 1.0;
-            var buyPrice = buyEnabled ? base * (1 - (buyMargin / 100)) : base;
+            var buyPrice = base * (1 - (buyMargin / 100));
             if (dom.listingBuyPriceText) dom.listingBuyPriceText.textContent = formatKrw(buyPrice);
         }
 
@@ -1597,16 +1552,6 @@
             recalcListingPrices();
         }
 
-        function setListingDepositMax() {
-            if (!dom.listingDepositUsdtInput) return;
-            var t = dom.mypageUsdtBalance ? dom.mypageUsdtBalance.textContent : '';
-            // "123.45 USDT" 형태에서 숫자만 추출
-            var m = t.match(/([0-9]+(\.[0-9]+)?)/);
-            var val = m ? parseFloat(m[1]) : NaN;
-            if (!Number.isFinite(val) || val <= 0) val = 10000;
-            dom.listingDepositUsdtInput.value = String(Math.floor(val));
-        }
-
         function onListingBankAccountChange() {
             // 데모: 필요 시 localStorage에 저장하도록 확장 가능
         }
@@ -1623,19 +1568,26 @@
             }
 
             var deposit = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
-            var min = dom.listingOrderMinInput ? parseFloat(dom.listingOrderMinInput.value) : NaN;
+            var min = LISTING_ORDER_MIN_USDT;
             var max = dom.listingOrderMaxInput ? parseFloat(dom.listingOrderMaxInput.value) : NaN;
+            var sellMode = dom.listingModeSell && dom.listingModeSell.checked;
+            var buyMode = dom.listingModeBuy && dom.listingModeBuy.checked;
 
-            if (!Number.isFinite(deposit) || deposit <= 0) {
-                var msg1 = '예치금(USDT)을 올바르게 입력해 주세요.';
+            if (!Number.isFinite(deposit) || deposit < LISTING_ORDER_MIN_USDT) {
+                var msg1 = '예치금은 ' + LISTING_ORDER_MIN_USDT + ' USDT 이상으로 입력해 주세요.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg1);
                 else alert(msg1);
                 return;
             }
-            if (Number.isFinite(min) && Number.isFinite(max) && max < min) {
-                var msg2 = '주문 한도: 최대값이 최소값보다 작습니다.';
+            if (!Number.isFinite(max) || max < min || max > deposit) {
+                var msg2 = '주문 한도: 최소 ' + min + ' USDT, 최대는 예치금(' + deposit + ' USDT) 이하로 입력해 주세요.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
                 else alert(msg2);
+                return;
+            }
+            if (!sellMode && !buyMode) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매도 또는 매수 중 하나를 선택해 주세요.');
+                else alert('매도 또는 매수 중 하나를 선택해 주세요.');
                 return;
             }
 
@@ -1643,7 +1595,21 @@
             var bankId = dom.listingBankAccountSelect ? dom.listingBankAccountSelect.value : '';
             var tonWallet = dom.listingTonWalletSelect ? dom.listingTonWalletSelect.value : '';
 
-            var summary = '리스팅 생성 완료 (데모)\\n네트워크: ' + (net || '-') + '\\n은행계좌: ' + (bankId || '-') + '\\n입금지갑: ' + (tonWallet || '-') + '\\n예치금: ' + deposit + ' USDT';
+            if (sellMode && !bankId) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매도 등록을 위해 입금 계좌를 선택해 주세요.');
+                else alert('매도 등록을 위해 입금 계좌를 선택해 주세요.');
+                return;
+            }
+            if (buyMode && !tonWallet) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매수 등록을 위해 입금 지갑을 선택해 주세요.');
+                else alert('매수 등록을 위해 입금 지갑을 선택해 주세요.');
+                return;
+            }
+
+            var modeStr = sellMode ? '매도' : '매수';
+            var summary = '리스팅 생성 완료 (데모)\\n등록 유형: ' + modeStr + '\\n네트워크: ' + (net || '-') + '\\n예치금: ' + deposit + ' USDT\\n주문 한도: ' + min + ' ~ ' + max + ' USDT';
+            if (sellMode) summary += '\\n은행계좌: ' + bankId;
+            if (buyMode) summary += '\\n입금지갑: ' + tonWallet;
             if (tg && typeof tg.showAlert === 'function') tg.showAlert(summary);
             else alert(summary);
 
