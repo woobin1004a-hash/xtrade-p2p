@@ -67,6 +67,62 @@
         .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
         .dot.red { background-color: #ef4444; } .dot.yellow { background-color: #eab308; } .dot.purple { background-color: #a855f7; }
         .make-offer-btn { width: 100%; background-color: #9d4edd; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .myoffers-view { min-height: 100vh; background: #07060d; }
+        .myoffers-wrap { padding: 14px 16px 80px; }
+        .myoffers-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .myoffers-tab {
+            background: transparent;
+            color: #8f8f9a;
+            border: none;
+            border-bottom: 2px solid transparent;
+            height: 36px;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            text-align: left;
+            padding: 0 2px;
+        }
+        .myoffers-tab.active { color: #a855f7; border-bottom-color: #a855f7; }
+        .offer-card {
+            background: linear-gradient(145deg, #221a31 0%, #171322 100%);
+            border: 1px solid #32294a;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .offer-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .offer-name { font-size: 20px; font-weight: 900; }
+        .offer-status {
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 900;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #d1d5db;
+            background: rgba(148,163,184,0.18);
+        }
+        .offer-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; }
+        .offer-k { color: #94a3b8; font-size: 13px; }
+        .offer-v { color: #f8fafc; font-size: 14px; font-weight: 800; }
+        .offer-divider { border-top: 1px dashed rgba(255,255,255,0.12); margin: 10px 0; }
+        .offer-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .offer-btn {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            height: 40px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .offer-btn--primary { background: #9d4edd; color: #fff; }
+        .offer-btn--danger { background: #30303a; color: #fecaca; }
+        .offer-btn--ghost { background: #262630; color: #e2e8f0; }
+        .offer-empty { text-align: center; color: #94a3b8; font-size: 14px; padding: 60px 12px; }
         .order-flow-view { min-height: 100vh; background: #07060d; padding-bottom: 92px; }
         .order-flow-header {
             height: 56px; display: flex; align-items: center; justify-content: center;
@@ -851,7 +907,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-card-gradient-6</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-order-flow-ab-7</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -869,6 +925,20 @@
             </button>
         </div>
         <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
+    </div>
+
+    <div id="myOffersView" class="myoffers-view hidden">
+        <div class="top-header">
+            <div class="logo">📄 내 제안</div>
+            <div class="menu-icon" onclick="openMenu()">☰</div>
+        </div>
+        <div class="myoffers-wrap">
+            <div class="myoffers-tabs">
+                <button type="button" id="myOffersBuyTab" class="myoffers-tab active" onclick="setMyOffersTab('buy')">구매 USDT</button>
+                <button type="button" id="myOffersSellTab" class="myoffers-tab" onclick="setMyOffersTab('sell')">판매 USDT</button>
+            </div>
+            <div id="myOffersList"></div>
+        </div>
     </div>
 
     <!-- 주문 화면 (구매/판매 탭) -->
@@ -1467,8 +1537,8 @@
                 <div class="nav-icon-text">📊 Marketplace</div>
             </div>
             <div class="nav-group">
-                <div class="nav-item-main"><div class="nav-icon-text">🎟️ My Offers</div><div>^</div></div>
-                <div class="nav-sub">History</div>
+                <div class="nav-item-main" onclick="goToMyOffers()"><div class="nav-icon-text">🎟️ My Offers</div><div>^</div></div>
+                <div class="nav-sub" onclick="goToMyOffers()">History</div>
             </div>
             <div class="nav-group">
                 <div class="nav-item-main"><div class="nav-icon-text">⇄ Trader Console</div><div>^</div></div>
@@ -1738,6 +1808,7 @@
 
             // 리스팅 상세/결제 Flow
             listingConfirmView: document.getElementById('listingConfirmView'),
+            myOffersView: document.getElementById('myOffersView'),
             listingBoostUsdtText: document.getElementById('listingBoostUsdtText'),
             confirmDepositText: document.getElementById('confirmDepositText'),
             confirmOrderText: document.getElementById('confirmOrderText'),
@@ -1843,6 +1914,7 @@
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myOffersView) dom.myOffersView.classList.add('hidden');
             if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
@@ -1858,6 +1930,7 @@
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.myOffersView) dom.myOffersView.classList.add('hidden');
             if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
@@ -3216,8 +3289,35 @@
             buyUnitPrice: 0,
             sellUnitPrice: 0,
             orderMinUsdt: 0,
-            orderMaxUsdt: 0
+            orderMaxUsdt: 0,
+            listingOwnerId: '',
+            listingOwnerName: '',
+            listingBankText: '',
+            listingBankAccountId: '',
+            listingTonWalletAddress: ''
         };
+        let myOffersState = { tab: 'buy', orders: [] };
+
+        function orderStatusLabel(status) {
+            var s = String(status || 'pending_seller');
+            if (s === 'pending_seller') return '판매자 승인 대기';
+            if (s === 'seller_approved') return '입금 대기';
+            if (s === 'seller_rejected') return '판매자 거절';
+            if (s === 'buyer_paid') return '판매자 전송 대기';
+            if (s === 'seller_sent') return '구매자 확인 대기';
+            if (s === 'buyer_confirmed') return '거래 완료';
+            if (s === 'buyer_issue') return '확인 요청';
+            return s;
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
 
         function formatOrderWalletAddress(address) {
             var s = String(address || '');
@@ -3335,6 +3435,11 @@
             orderFlowState.listingId = found.id;
             orderFlowState.orderMinUsdt = Number(found.orderMinUsdt || 0);
             orderFlowState.orderMaxUsdt = Number(found.orderMaxUsdt || 0);
+            orderFlowState.listingOwnerId = String(found.ownerId || '');
+            orderFlowState.listingOwnerName = String(found.ownerName || 'User');
+            orderFlowState.listingBankText = String(found.bankText || '');
+            orderFlowState.listingBankAccountId = String(found.bankAccountId || '');
+            orderFlowState.listingTonWalletAddress = String(found.tonWalletAddress || '');
 
             if (dom.orderOwnerName) dom.orderOwnerName.textContent = found.ownerName || 'User';
             if (dom.orderOwnerInitial) dom.orderOwnerInitial.textContent = String(found.ownerName || 'U').charAt(0).toUpperCase();
@@ -3384,7 +3489,7 @@
             updateOrderSubmitButton();
         }
 
-        function submitOrderDemo() {
+        async function submitOrderDemo() {
             var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
 
             var usdt = parseOrderNumber(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
@@ -3400,49 +3505,235 @@
                 receiver.receiverWalletAddress = dom.orderSellWalletAddressInput ? dom.orderSellWalletAddressInput.value : '';
             }
 
-            // 데모도 서버에 저장 시도(서버 없으면 로컬 알림만)
-            (async function () {
-                var posted = false;
-                var errDetail = '';
-                try {
-                    var res = await fetch(SUPABASE_URL + '/rest/v1/orders', {
-                        method: 'POST',
-                        headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
-                        body: JSON.stringify([{
-                            id: String(Date.now()),
-                            listing_id: String(orderFlowState.listingId || ''),
-                            side: String(orderFlowState.side || ''),
-                            usdt: Number(usdt || 0),
-                            krw: Number(krw || 0),
-                            receiver: receiver,
-                            created_at: Number(Date.now())
-                        }])
-                    });
-                    if (res && res.ok) {
-                        posted = true;
-                    } else {
-                        errDetail = 'HTTP ' + (res ? res.status : 'unknown');
-                        try {
-                            var txt = await res.text();
-                            if (txt) errDetail += ' · ' + txt;
-                        } catch (e) {}
-                    }
-                } catch (e) {
-                    posted = false;
-                    errDetail = String(e && e.message ? e.message : e);
+            receiver.status = 'pending_seller';
+            receiver.buyerId = String(currentUserId || '');
+            receiver.buyerName = String(currentUserName || 'User');
+            receiver.sellerId = String(orderFlowState.listingOwnerId || '');
+            receiver.sellerName = String(orderFlowState.listingOwnerName || 'User');
+            receiver.sellerBankText = String(orderFlowState.listingBankText || '');
+            receiver.sellerBankAccountId = String(orderFlowState.listingBankAccountId || '');
+            receiver.sellerTonWalletAddress = String(orderFlowState.listingTonWalletAddress || '');
+            receiver.sellerApprovedAt = null;
+            receiver.buyerPaidAt = null;
+            receiver.sellerSentAt = null;
+            receiver.buyerConfirmedAt = null;
+            receiver.txid = '';
+            receiver.issueNote = '';
+            receiver.updatedAt = Number(Date.now());
+
+            var posted = false;
+            var errDetail = '';
+            try {
+                var res = await fetch(SUPABASE_URL + '/rest/v1/orders', {
+                    method: 'POST',
+                    headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
+                    body: JSON.stringify([{
+                        id: String(Date.now()),
+                        listing_id: String(orderFlowState.listingId || ''),
+                        side: String(orderFlowState.side || ''),
+                        usdt: Number(usdt || 0),
+                        krw: Number(krw || 0),
+                        receiver: receiver,
+                        created_at: Number(Date.now())
+                    }])
+                });
+                if (res && res.ok) {
+                    posted = true;
+                } else {
+                    errDetail = 'HTTP ' + (res ? res.status : 'unknown');
+                    try {
+                        var txt = await res.text();
+                        if (txt) errDetail += ' · ' + txt;
+                    } catch (e) {}
+                }
+            } catch (e) {
+                posted = false;
+                errDetail = String(e && e.message ? e.message : e);
+            }
+
+            var msg = posted
+                ? (sideTxt + ' 주문이 접수되었습니다. 판매자 승인을 기다려주세요.')
+                : (sideTxt + ' 주문 저장이 실패했습니다. ' + (errDetail ? ('· ' + errDetail) : ''));
+
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+            else alert(msg);
+
+            closeOrderFlow();
+            await loadMarketplace();
+        }
+
+        async function fetchOrdersFromSupabase() {
+            var res = await fetch(SUPABASE_URL + '/rest/v1/orders?select=*&order=created_at.desc&limit=200', {
+                headers: supabaseHeaders({ 'Accept': 'application/json' }),
+                cache: 'no-store'
+            });
+            if (!res.ok) throw new Error('orders fetch failed: ' + res.status);
+            var rows = await res.json();
+            return Array.isArray(rows) ? rows : [];
+        }
+
+        async function patchOrderReceiverToSupabase(orderId, receiverObj) {
+            var url = SUPABASE_URL + '/rest/v1/orders?id=eq.' + encodeURIComponent(String(orderId));
+            var res = await fetch(url, {
+                method: 'PATCH',
+                headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
+                body: JSON.stringify({ receiver: receiverObj })
+            });
+            if (!res.ok) {
+                var txt = '';
+                try { txt = await res.text(); } catch (e) {}
+                throw new Error('order patch failed: ' + res.status + (txt ? (' · ' + txt) : ''));
+            }
+            var rows = await res.json();
+            return Array.isArray(rows) ? rows[0] : null;
+        }
+
+        function setMyOffersTab(tab) {
+            myOffersState.tab = tab === 'sell' ? 'sell' : 'buy';
+            var buyActive = myOffersState.tab === 'buy';
+            var buyTab = document.getElementById('myOffersBuyTab');
+            var sellTab = document.getElementById('myOffersSellTab');
+            if (buyTab) buyTab.classList.toggle('active', buyActive);
+            if (sellTab) sellTab.classList.toggle('active', !buyActive);
+            renderMyOffers();
+        }
+
+        function goToMyOffers() {
+            closeMenu();
+            clearKycAlertTimer();
+            closeListingDetail();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
+            if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
+            var el = document.getElementById('myOffersView');
+            if (el) el.classList.remove('hidden');
+            refreshMyOffers();
+        }
+
+        function renderMyOffers() {
+            var wrap = document.getElementById('myOffersList');
+            if (!wrap) return;
+            var userId = String(currentUserId || '');
+            var wantBuy = myOffersState.tab === 'buy';
+            var rows = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).filter(function (o) {
+                var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+                return wantBuy ? String(r.buyerId || '') === userId : String(r.sellerId || '') === userId;
+            });
+            if (!rows.length) {
+                wrap.innerHTML = '<div class="offer-empty">표시할 주문이 없습니다.</div>';
+                return;
+            }
+            wrap.innerHTML = rows.map(function (o) {
+                var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+                var status = String(r.status || 'pending_seller');
+                var youAreBuyer = String(r.buyerId || '') === userId;
+                var counterName = youAreBuyer ? String(r.sellerName || '판매자') : String(r.buyerName || '구매자');
+                var total = Number(o.krw || 0).toLocaleString() + ' KRW';
+                var price = Number(o.usdt || 0) > 0 ? (Number(o.krw || 0) / Number(o.usdt || 0)) : 0;
+
+                var extra = '';
+                if (status === 'seller_approved' && youAreBuyer) {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">판매자 계좌</div><div class="offer-v">' + escapeHtml(r.sellerBankText || '-') + '</div></div>';
+                } else if (status === 'seller_sent' && youAreBuyer) {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                } else if (status === 'buyer_issue') {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || '입금/전송 상태 확인 요청') + '</div></div>';
                 }
 
-                // 서버 저장 성공/실패를 확실히 구분해서 안내(캐시/네트워크 이슈도 확인 가능)
-                var msg = posted
-                    ? (sideTxt + ' 주문이 서버에 저장되었습니다.')
-                    : (sideTxt + ' 주문 저장이 실패했습니다. 데모로만 처리됩니다.' + (errDetail ? (' · ' + errDetail) : ''));
+                var actions = buildOrderActionButtons(o, status, youAreBuyer);
+                return '' +
+                    '<div class="offer-card">' +
+                        '<div class="offer-head">' +
+                            '<div class="offer-name">' + escapeHtml(counterName) + '</div>' +
+                            '<div class="offer-status">' + escapeHtml(orderStatusLabel(status)) + '</div>' +
+                        '</div>' +
+                        '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' + Math.floor(price).toLocaleString() + ' KRW/USDT</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' + Number(o.usdt || 0).toLocaleString() + ' USDT</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' + total + '</div></div>' +
+                        extra +
+                        (actions ? ('<div class="offer-actions">' + actions + '</div>') : '') +
+                    '</div>';
+            }).join('');
+        }
 
+        function buildOrderActionButtons(order, status, youAreBuyer) {
+            var id = String(order && order.id ? order.id : '');
+            if (!id) return '';
+            if (!youAreBuyer && status === 'pending_seller') {
+                return '' +
+                    '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">거절</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">승인</button>';
+            }
+            if (youAreBuyer && status === 'seller_approved') {
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
+            }
+            if (!youAreBuyer && status === 'buyer_paid') {
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+            }
+            if (youAreBuyer && status === 'seller_sent') {
+                return '' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">확인 요청</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+            }
+            return '';
+        }
+
+        async function refreshMyOffers() {
+            var wrap = document.getElementById('myOffersList');
+            if (wrap) wrap.innerHTML = '<div class="offer-empty">주문을 불러오는 중...</div>';
+            try {
+                myOffersState.orders = await fetchOrdersFromSupabase();
+            } catch (e) {
+                myOffersState.orders = [];
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('주문 목록을 불러오지 못했습니다.');
+                else alert('주문 목록을 불러오지 못했습니다.');
+            }
+            renderMyOffers();
+        }
+
+        async function handleOrderAction(orderId, action) {
+            var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
+                return String(o.id) === String(orderId);
+            });
+            if (!target) return;
+            var receiver = Object.assign({}, (target.receiver && typeof target.receiver === 'object') ? target.receiver : {});
+            var now = Number(Date.now());
+            if (action === 'approve') {
+                receiver.status = 'seller_approved';
+                receiver.sellerApprovedAt = now;
+            } else if (action === 'reject') {
+                receiver.status = 'seller_rejected';
+            } else if (action === 'paid') {
+                receiver.status = 'buyer_paid';
+                receiver.buyerPaidAt = now;
+            } else if (action === 'sent') {
+                var txid = prompt('전송 TxID를 입력해주세요 (선택).') || '';
+                receiver.status = 'seller_sent';
+                receiver.sellerSentAt = now;
+                receiver.txid = String(txid || '').trim();
+            } else if (action === 'confirm') {
+                receiver.status = 'buyer_confirmed';
+                receiver.buyerConfirmedAt = now;
+            } else if (action === 'issue') {
+                var note = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
+                receiver.status = 'buyer_issue';
+                receiver.issueNote = String(note || '입금/전송 상태 확인 요청');
+            } else {
+                return;
+            }
+            receiver.updatedAt = now;
+            try {
+                await patchOrderReceiverToSupabase(orderId, receiver);
+                await refreshMyOffers();
+            } catch (e) {
+                var msg = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                 else alert(msg);
-
-                closeOrderFlow();
-                loadMarketplace();
-            })();
+            }
         }
 
         // 리스팅 상세(모달)
