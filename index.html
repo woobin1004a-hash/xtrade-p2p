@@ -1241,7 +1241,7 @@
 
                 <div id="detailOwnerActions" class="hidden" style="margin-top:16px;">
                     <button type="button" class="primary-btn" style="width:100%; margin:0;" onclick="openListingEditFromDetail()">수정</button>
-                    <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" onclick="deleteListingFromDetail()">삭제</button>
+                    <button type="button" id="detailDeleteBtn" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" onclick="deleteListingFromDetail()">삭제</button>
                 </div>
 
                 <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" id="detailMakeOfferBtn" onclick="openOrderFlow(listingDetailState.listingId, 'buy')">거래 요청</button>
@@ -4224,6 +4224,16 @@
         (async function initPaymentAndUI() {
             try {
                 bindTelegramUser();
+                // 삭제 버튼 이벤트를 JS로도 한 번 더 바인딩(웹뷰별 onclick 누락 이슈 대응)
+                try {
+                    var detailDeleteBtn = document.getElementById('detailDeleteBtn');
+                    if (detailDeleteBtn) {
+                        detailDeleteBtn.addEventListener('click', function (e) {
+                            if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                            deleteListingFromDetail();
+                        });
+                    }
+                } catch (eBind) {}
                 await syncCloudToLocal();
 
                 // 가격 시드(seed)는 외부 API 의존이 있어서(네트워크 환경에 따라) await로 UI 렌더를 막지 않도록
