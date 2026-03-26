@@ -98,6 +98,25 @@
         .mypage-summary-badge--ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
         .mypage-summary-badge--pending { background: rgba(248, 113, 113, 0.15); color: #f87171; }
 
+        /* 마이페이지: KYC 초기화 버튼 */
+        .kyc-reset-btn {
+            background: rgba(248, 113, 113, 0.12);
+            border: 1px solid rgba(248, 113, 113, 0.35);
+            color: #fecaca;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            flex-shrink: 0;
+        }
+        .kyc-reset-btn:active { transform: scale(0.98); }
+        .kyc-reset-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         /* ------------------ My Page Settings ------------------ */
         .settings-header {
             display: flex;
@@ -550,6 +569,10 @@
                 <span id="mypageKycStatus" class="mypage-summary-badge mypage-summary-badge--pending">미완료</span>
             </div>
             <div class="mypage-summary-row">
+                <span class="mypage-summary-label"> </span>
+                <button type="button" class="kyc-reset-btn" id="kycResetBtn" disabled onclick="resetKycTier2()">인증 초기화</button>
+            </div>
+            <div class="mypage-summary-row">
                 <span class="mypage-summary-label">TON 지갑 USDT</span>
                 <span id="mypageUsdtBalance" class="mypage-summary-value">—</span>
             </div>
@@ -862,6 +885,9 @@
             var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
             el.textContent = done ? '완료' : '미완료';
             el.className = 'mypage-summary-badge ' + (done ? 'mypage-summary-badge--ok' : 'mypage-summary-badge--pending');
+
+            var resetBtn = document.getElementById('kycResetBtn');
+            if (resetBtn) resetBtn.disabled = !done;
         }
 
         // --------------------------------------------------------
@@ -920,6 +946,26 @@
         // KYC (리스팅 등록) — 데모: 서버 업로드 없음, 제출 후 텔레그램 알림만
         const KYC_MAX_BYTES = 20 * 1024 * 1024;
         let kycAlertTimer = null;
+
+        // KYC 2차(데모) 초기화
+        function resetKycTier2() {
+            var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
+            if (!done) return;
+
+            var ok = window.confirm('KYC 2차 인증을 초기화할까요? 초기화 후 다시 인증 화면이 표시됩니다.');
+            if (!ok) return;
+
+            try { localStorage.setItem(STORAGE.KYC_TIER2_COMPLETE, '0'); } catch (e) {}
+            try { localStorage.removeItem(STORAGE.KYC_TIER2_COMPLETE); } catch (e) {}
+
+            // CloudStorage에 저장/동기화 (미지원 환경이면 무시)
+            try { cloudSetItem(STORAGE.KYC_TIER2_COMPLETE, '0'); } catch (e) {}
+
+            updateMyPageKycUi();
+
+            // 초기화 후 다시 인증 진행할 수 있도록 KYC 화면으로 이동
+            openKycFlow();
+        }
 
         function clearKycAlertTimer() {
             if (kycAlertTimer) {
@@ -982,6 +1028,21 @@
         function openKycFlow() {
             closeMenu();
             clearKycAlertTimer();
+
+            // KYC 2차 완료 상태면 인증 화면을 더 이상 보여주지 않음
+            var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
+            if (done) {
+                if (dom.kycView) dom.kycView.classList.add('hidden');
+                if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+                if (dom.myPageView) dom.myPageView.classList.add('hidden');
+                if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+
+                var msg = '이미 KYC 2차 인증이 완료되었습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else window.alert(msg);
+                return;
+            }
+
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.kycView) dom.kycView.classList.remove('hidden');
