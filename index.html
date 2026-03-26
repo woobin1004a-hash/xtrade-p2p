@@ -1545,7 +1545,11 @@
                 headers: supabaseHeaders({ 'Prefer': 'return=representation' })
             });
             if (!res.ok) throw new Error('supabase delete ' + res.status);
-            return res.json();
+            // Supabase DELETE는 204(본문 없음)로 올 수 있으므로 JSON 파싱을 강제하지 않음
+            var t = '';
+            try { t = await res.text(); } catch (e) { t = ''; }
+            if (!t) return { ok: true };
+            try { return JSON.parse(t); } catch (e2) { return { ok: true }; }
         }
 
         // Escape special characters for safe HTML rendering (display only)
