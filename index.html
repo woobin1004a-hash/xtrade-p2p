@@ -3495,7 +3495,7 @@
             }
             // deleteListing은 async이므로 실패 시에도 사용자에게 표시
             try {
-                var p = deleteListing(listingId);
+                var p = deleteListing(listingId, true);
                 if (p && typeof p.catch === 'function') {
                     p.catch(function (e) {
                         var msg = '삭제 오류: ' + (e && e.message ? e.message : String(e));
@@ -3531,7 +3531,7 @@
             });
         }
 
-        async function deleteListing(listingId) {
+        async function deleteListing(listingId, skipConfirm) {
             if (!listingId) return;
             var listings = loadListings();
             var idx = (Array.isArray(listings) ? listings : []).findIndex(function (l) {
@@ -3573,8 +3573,11 @@
                 return;
             }
 
-            var ok = await confirmDeleteAsync('이 리스팅을 삭제할까요?');
-            if (!ok) return;
+            // 텔레그램 웹뷰에서 confirm이 막히는 이슈가 있어 상세 모달 버튼은 즉시 삭제 모드로 실행
+            if (!skipConfirm) {
+                var ok = await confirmDeleteAsync('이 리스팅을 삭제할까요?');
+                if (!ok) return;
+            }
 
             // 1) 서버에서 삭제 시도
             var serverDeleted = false;
