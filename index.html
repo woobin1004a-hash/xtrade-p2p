@@ -57,6 +57,55 @@
         .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
         .dot.red { background-color: #ef4444; } .dot.yellow { background-color: #eab308; } .dot.purple { background-color: #a855f7; }
         .make-offer-btn { width: 100%; background-color: #9d4edd; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .order-flow-view { min-height: 100vh; background: #07060d; padding-bottom: 92px; }
+        .order-flow-header {
+            height: 56px; display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid #1b1626; position: sticky; top: 0; background: #0a0813; z-index: 5;
+        }
+        .order-flow-back {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            background: transparent; border: none; color: #fff; font-size: 22px; cursor: pointer;
+        }
+        .order-flow-title { font-size: 20px; font-weight: 900; }
+        .order-flow-wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+        .order-summary-card {
+            background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%);
+            border: 1px solid #3d2666; border-radius: 14px; padding: 14px;
+        }
+        .order-owner { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-weight: 800; }
+        .order-line { display: flex; justify-content: space-between; color: #d1d5db; font-size: 14px; margin: 8px 0; }
+        .order-tabs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+            border: 1px solid #2d2540; border-radius: 10px; padding: 3px; background: #0f0b18;
+        }
+        .order-tab {
+            height: 40px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;
+            color: #8b8b93; background: transparent;
+        }
+        .order-tab.active { background: #9d4edd; color: #fff; }
+        .order-input-card { border: 1px solid #2a223b; border-radius: 12px; padding: 12px; background: #0b0912; }
+        .order-input-label { color: #cbd5e1; font-size: 13px; margin-bottom: 6px; }
+        .order-input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .order-input {
+            flex: 1; background: transparent; border: none; outline: none; color: #fff;
+            font-size: 28px; font-weight: 900;
+        }
+        .order-input-unit { color: #d1d5db; font-size: 30px; font-weight: 900; }
+        .order-input-unit--krw { font-size: 24px; }
+        .order-network-chips { display: flex; gap: 8px; margin-top: 6px; }
+        .order-chip {
+            border: 1px solid #2a223b; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #d1d5db;
+        }
+        .order-chip.active { border-color: #7c3aed; color: #fff; }
+        .order-submit-wrap {
+            position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(7,6,13,0) 0%, rgba(7,6,13,0.95) 24%, #07060d 100%);
+        }
+        .order-submit-btn {
+            width: 100%; height: 54px; border: none; border-radius: 12px; font-size: 18px; font-weight: 900;
+            background: #34323e; color: #8e8d95;
+        }
+        .order-submit-btn.enabled { background: #9d4edd; color: #fff; cursor: pointer; }
 
         /* ------------------ Side Menu (Drawer) ------------------ */
         .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 99; display: none; }
@@ -772,6 +821,59 @@
         <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
     </div>
 
+    <!-- 주문 화면 (구매/판매 탭) -->
+    <div id="orderFlowView" class="order-flow-view hidden">
+        <div class="order-flow-header">
+            <button type="button" class="order-flow-back" onclick="closeOrderFlow()" aria-label="뒤로">←</button>
+            <div class="order-flow-title">주문</div>
+        </div>
+        <div class="order-flow-wrap">
+            <div class="order-summary-card">
+                <div class="order-owner">
+                    <span class="avatar" id="orderOwnerInitial">?</span>
+                    <span id="orderOwnerName">—</span>
+                    <span class="verified">✔</span>
+                </div>
+                <div class="order-line"><span>구매가</span><span id="orderBuyPriceText">—</span></div>
+                <div class="order-line"><span>판매가</span><span id="orderSellPriceText">—</span></div>
+                <div class="order-line"><span>주문 한도</span><span id="orderLimitText">—</span></div>
+                <div class="order-line"><span>네트워크</span><span>TON</span></div>
+            </div>
+
+            <div class="order-tabs">
+                <button type="button" id="orderBuyTabBtn" class="order-tab active" onclick="switchOrderSide('buy')">구매</button>
+                <button type="button" id="orderSellTabBtn" class="order-tab" onclick="switchOrderSide('sell')">판매</button>
+            </div>
+
+            <div class="order-input-card">
+                <div class="order-input-label" id="orderUsdtLabel">구매할 USDT</div>
+                <div class="order-input-row">
+                    <input id="orderUsdtInput" class="order-input" type="number" min="0" step="1" value="0" oninput="onOrderUsdtInput()" />
+                    <span class="order-input-unit">USDT</span>
+                </div>
+            </div>
+
+            <div class="order-input-card">
+                <div class="order-input-label" id="orderKrwLabel">송금액</div>
+                <div class="order-input-row">
+                    <input id="orderKrwInput" class="order-input" type="number" min="0" step="1" value="0" oninput="onOrderKrwInput()" />
+                    <span class="order-input-unit order-input-unit--krw">KRW</span>
+                </div>
+            </div>
+
+            <div class="order-input-card">
+                <div class="order-input-label">네트워크</div>
+                <div class="order-network-chips">
+                    <span class="order-chip active">TON</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-submit-wrap">
+            <button type="button" id="orderSubmitBtn" class="order-submit-btn" onclick="submitOrderDemo()" disabled>주문하기</button>
+        </div>
+    </div>
+
     <!-- KYC: 리스팅 등록 전 신원 인증 (데모 플로우) -->
     <div id="kycView" class="hidden">
         <div class="settings-header">
@@ -1076,7 +1178,7 @@
                     <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" onclick="deleteListingFromDetail()">삭제</button>
                 </div>
 
-                <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" id="detailMakeOfferBtn" onclick="alert('거래 요청(데모)')">거래 요청</button>
+                <button type="button" class="secondary-btn" style="width:100%; margin:12px 0 0 0;" id="detailMakeOfferBtn" onclick="openOrderFlow(listingDetailState.listingId, 'buy')">거래 요청</button>
             </div>
         </div>
     </div>
@@ -1355,6 +1457,19 @@
             sideMenu: document.getElementById('sideMenu'),
             menuOverlay: document.getElementById('menuOverlay'),
             traderList: document.getElementById('traderList'),
+            orderFlowView: document.getElementById('orderFlowView'),
+            orderOwnerInitial: document.getElementById('orderOwnerInitial'),
+            orderOwnerName: document.getElementById('orderOwnerName'),
+            orderBuyPriceText: document.getElementById('orderBuyPriceText'),
+            orderSellPriceText: document.getElementById('orderSellPriceText'),
+            orderLimitText: document.getElementById('orderLimitText'),
+            orderBuyTabBtn: document.getElementById('orderBuyTabBtn'),
+            orderSellTabBtn: document.getElementById('orderSellTabBtn'),
+            orderUsdtLabel: document.getElementById('orderUsdtLabel'),
+            orderKrwLabel: document.getElementById('orderKrwLabel'),
+            orderUsdtInput: document.getElementById('orderUsdtInput'),
+            orderKrwInput: document.getElementById('orderKrwInput'),
+            orderSubmitBtn: document.getElementById('orderSubmitBtn'),
 
             // Saved Lists
             savedWalletsCount: document.getElementById('savedWalletsCount'),
@@ -1511,6 +1626,7 @@
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.remove('hidden');
@@ -1525,6 +1641,7 @@
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
@@ -2539,7 +2656,7 @@
 
                     var offerBtnHtml = isOwner
                         ? ''
-                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openListingDetail('${idForJs}')">주문</button>`;
+                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', 'buy')">주문</button>`;
 
                     return `
                         <div class="trader-card ${cardVariantClass}" onclick="openListingDetail('${idForJs}')">
@@ -2816,6 +2933,114 @@
             }
         }
 
+        // --------------------------------------------------------
+        // 주문 Flow (구매/판매 데모)
+        let orderFlowState = {
+            listingId: null,
+            side: 'buy',
+            unitPrice: 0,
+            buyUnitPrice: 0,
+            sellUnitPrice: 0,
+            orderMinUsdt: 0,
+            orderMaxUsdt: 0
+        };
+
+        function closeOrderFlow() {
+            if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+        }
+
+        function updateOrderSubmitButton() {
+            if (!dom.orderSubmitBtn) return;
+            var usdt = Number(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
+            var krw = Number(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
+            var canSubmit = Number.isFinite(usdt) && usdt > 0 && Number.isFinite(krw) && krw > 0;
+            dom.orderSubmitBtn.disabled = !canSubmit;
+            dom.orderSubmitBtn.classList.toggle('enabled', canSubmit);
+        }
+
+        function onOrderUsdtInput() {
+            var usdt = Number(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
+            if (!Number.isFinite(usdt) || usdt < 0) usdt = 0;
+            var price = Number(orderFlowState.unitPrice || 0);
+            var krw = usdt * price;
+            if (dom.orderKrwInput) dom.orderKrwInput.value = Math.floor(krw).toString();
+            updateOrderSubmitButton();
+        }
+
+        function onOrderKrwInput() {
+            var krw = Number(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
+            if (!Number.isFinite(krw) || krw < 0) krw = 0;
+            var price = Number(orderFlowState.unitPrice || 0);
+            var usdt = price > 0 ? (krw / price) : 0;
+            if (dom.orderUsdtInput) dom.orderUsdtInput.value = (Math.floor(usdt * 1000) / 1000).toString();
+            updateOrderSubmitButton();
+        }
+
+        function switchOrderSide(side) {
+            orderFlowState.side = side === 'sell' ? 'sell' : 'buy';
+            orderFlowState.unitPrice = orderFlowState.side === 'buy'
+                ? Number(orderFlowState.buyUnitPrice || 0)
+                : Number(orderFlowState.sellUnitPrice || 0);
+            if (dom.orderBuyTabBtn) dom.orderBuyTabBtn.classList.toggle('active', orderFlowState.side === 'buy');
+            if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('active', orderFlowState.side === 'sell');
+            if (dom.orderUsdtLabel) dom.orderUsdtLabel.textContent = orderFlowState.side === 'buy' ? '구매할 USDT' : '판매할 USDT';
+            if (dom.orderKrwLabel) dom.orderKrwLabel.textContent = orderFlowState.side === 'buy' ? '송금액' : '수령액';
+            onOrderUsdtInput();
+        }
+
+        function openOrderFlow(listingId, initialSide) {
+            var listings = loadListings();
+            var found = (Array.isArray(listings) ? listings : []).find(function (l) {
+                return String(l.id) === String(listingId);
+            });
+            if (!found) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
+                else alert('존재하지 않는 리스팅입니다.');
+                return;
+            }
+
+            orderFlowState.listingId = found.id;
+            orderFlowState.orderMinUsdt = Number(found.orderMinUsdt || 0);
+            orderFlowState.orderMaxUsdt = Number(found.orderMaxUsdt || 0);
+
+            if (dom.orderOwnerName) dom.orderOwnerName.textContent = found.ownerName || 'User';
+            if (dom.orderOwnerInitial) dom.orderOwnerInitial.textContent = String(found.ownerName || 'U').charAt(0).toUpperCase();
+            if (dom.orderBuyPriceText) dom.orderBuyPriceText.textContent = found.buyPriceKrW != null ? (Math.floor(Number(found.buyPriceKrW)).toLocaleString() + ' KRW') : '—';
+            if (dom.orderSellPriceText) dom.orderSellPriceText.textContent = found.sellPriceKrW != null ? (Math.floor(Number(found.sellPriceKrW)).toLocaleString() + ' KRW') : '—';
+            if (dom.orderLimitText) dom.orderLimitText.textContent = Number(found.orderMinUsdt || 0).toLocaleString() + '~' + Number(found.orderMaxUsdt || 0).toLocaleString() + ' USDT';
+            orderFlowState.buyUnitPrice = Number(found.sellPriceKrW || 0);
+            orderFlowState.sellUnitPrice = Number(found.buyPriceKrW || 0);
+
+            if (dom.orderUsdtInput) dom.orderUsdtInput.value = '0';
+            if (dom.orderKrwInput) dom.orderKrwInput.value = '0';
+
+            closeListingDetail();
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
+            if (dom.orderFlowView) dom.orderFlowView.classList.remove('hidden');
+
+            var firstSide = initialSide === 'sell' ? 'sell' : 'buy';
+            var canBuy = !!found.sellMode;  // 상대의 매도 리스팅에 대해 내가 구매
+            var canSell = !!found.buyMode;  // 상대의 매수 리스팅에 대해 내가 판매
+            if (firstSide === 'buy' && !canBuy && canSell) firstSide = 'sell';
+            if (firstSide === 'sell' && !canSell && canBuy) firstSide = 'buy';
+
+            if (dom.orderBuyTabBtn) dom.orderBuyTabBtn.classList.toggle('hidden', !canBuy);
+            if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('hidden', !canSell);
+
+            switchOrderSide(firstSide);
+        }
+
+        function submitOrderDemo() {
+            var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(sideTxt + ' 주문이 접수되었습니다(데모).');
+            else alert(sideTxt + ' 주문이 접수되었습니다(데모).');
+            closeOrderFlow();
+        }
+
         // 리스팅 상세(모달)
         let listingDetailState = { listingId: null };
 
@@ -2893,6 +3118,10 @@
             var isOwner = String(found.ownerId) === String(currentUserId);
             var ownerActionsEl = document.getElementById('detailOwnerActions');
             if (ownerActionsEl) ownerActionsEl.classList.toggle('hidden', !isOwner);
+
+            // 본인 리스팅 상세에서는 거래요청 버튼 숨김(수정/삭제만 노출)
+            var makeOfferBtn = document.getElementById('detailMakeOfferBtn');
+            if (makeOfferBtn) makeOfferBtn.classList.toggle('hidden', !!isOwner);
         }
 
         function openListingEditFromDetail() {
@@ -3546,13 +3775,24 @@
         // --------------------------------------------------------
         // Initialization
         (async function initPaymentAndUI() {
-            bindTelegramUser();
-            await syncCloudToLocal();
-            await seedVirtualTraderGDragonIfNeeded();
-            loadMarketplace();
-            updateMyPageKycUi();
-            renderSavedWallets();
-            renderSavedBankAccounts();
+            try {
+                bindTelegramUser();
+                await syncCloudToLocal();
+
+                // 가격 시드(seed)는 외부 API 의존이 있어서(네트워크 환경에 따라) await로 UI 렌더를 막지 않도록
+                // 백그라운드로 실행합니다.
+                seedVirtualTraderGDragonIfNeeded();
+
+                // 기본/안전장치 로직이 loadMarketplace 내부에 있으므로 즉시 렌더합니다.
+                loadMarketplace();
+                updateMyPageKycUi();
+                renderSavedWallets();
+                renderSavedBankAccounts();
+            } catch (e) {
+                console.error('initPaymentAndUI failed:', e);
+                // 최소한 마켓플레이스는 시도
+                try { loadMarketplace(); } catch (e2) {}
+            }
         })();
     </script>
 </body>
