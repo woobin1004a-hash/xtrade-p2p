@@ -223,6 +223,21 @@
         .nav-item-main { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; cursor: pointer; color: #fff; font-size: 15px; }
         .nav-item-main:active { background-color: #1a1a1a; }
         .nav-icon-text { display: flex; align-items: center; gap: 15px; }
+        .menu-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #a855f7;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .menu-count-badge.hidden { display: none; }
         .nav-sub { color: #cbd5e1; font-size: 14px; padding: 10px 20px 10px 55px; cursor: pointer; }
 
         /* ------------------ My Page View ------------------ */
@@ -907,7 +922,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-order-flow-ab-7</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-realtime-orders-9</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1537,7 +1552,10 @@
                 <div class="nav-icon-text">📊 Marketplace</div>
             </div>
             <div class="nav-group">
-                <div class="nav-item-main" onclick="goToMyOffers()"><div class="nav-icon-text">🎟️ My Offers</div><div>^</div></div>
+                <div class="nav-item-main" onclick="goToMyOffers()">
+                    <div class="nav-icon-text">🎟️ My Offers <span id="myOffersCountBadge" class="menu-count-badge hidden">0</span></div>
+                    <div>^</div>
+                </div>
                 <div class="nav-sub" onclick="goToMyOffers()">History</div>
             </div>
             <div class="nav-group">
@@ -3297,6 +3315,12 @@
             listingTonWalletAddress: ''
         };
         let myOffersState = { tab: 'buy', orders: [] };
+        let ordersRealtimeTimer = null;
+        let ordersPollingInFlight = false;
+        let lastOrdersSnapshotHash = '';
+        let sellerAlertedOrderIds = {};
+        const ORDER_REALTIME_INTERVAL_MS = 3000;
+        const STORAGE_ORDER_SELLER_ALERTED = 'orderSellerAlertedIdsV1';
 
         function orderStatusLabel(status) {
             var s = String(status || 'pending_seller');
@@ -3304,6 +3328,7 @@
             if (s === 'seller_approved') return '입금 대기';
             if (s === 'seller_rejected') return '판매자 거절';
             if (s === 'buyer_paid') return '판매자 전송 대기';
+            if (s === 'seller_deposit_checked') return '입금 확인 완료';
             if (s === 'seller_sent') return '구매자 확인 대기';
             if (s === 'buyer_confirmed') return '거래 완료';
             if (s === 'buyer_issue') return '확인 요청';
@@ -3317,6 +3342,120 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function loadSellerAlertedOrderIds() {
+            try {
+                var raw = localStorage.getItem(STORAGE_ORDER_SELLER_ALERTED);
+                var obj = raw ? JSON.parse(raw) : {};
+                sellerAlertedOrderIds = (obj && typeof obj === 'object') ? obj : {};
+            } catch (e) {
+                sellerAlertedOrderIds = {};
+            }
+        }
+
+        function saveSellerAlertedOrderIds() {
+            try {
+                localStorage.setItem(STORAGE_ORDER_SELLER_ALERTED, JSON.stringify(sellerAlertedOrderIds || {}));
+            } catch (e) {}
+        }
+
+        function computeOrdersSnapshotHash(rows) {
+            if (!Array.isArray(rows)) return '';
+            // 주문 목록의 핵심 상태만 해시로 만들어 변경 감지에 사용
+            return rows.map(function (o) {
+                var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+                return [
+                    String(o.id || ''),
+                    String(r.status || ''),
+                    String(r.updatedAt || ''),
+                    String(r.buyerId || ''),
+                    String(r.sellerId || '')
+                ].join(':');
+            }).join('|');
+        }
+
+        function updateMyOffersCountBadge(rows) {
+            var badge = document.getElementById('myOffersCountBadge');
+            if (!badge) return;
+            var userId = String(currentUserId || '');
+            if (!userId) {
+                badge.classList.add('hidden');
+                return;
+            }
+            var count = (Array.isArray(rows) ? rows : []).filter(function (o) {
+                var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+                return String(r.buyerId || '') === userId || String(r.sellerId || '') === userId;
+            }).length;
+            if (count <= 0) {
+                badge.classList.add('hidden');
+                badge.textContent = '0';
+                return;
+            }
+            badge.classList.remove('hidden');
+            badge.textContent = count > 99 ? '99+' : String(count);
+        }
+
+        function notifySellerForNewPendingOrders(rows) {
+            var userId = String(currentUserId || '');
+            if (!userId || !Array.isArray(rows)) return;
+            var newCount = 0;
+            rows.forEach(function (o) {
+                var id = String(o && o.id ? o.id : '');
+                var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+                var isMySellOrder = String(r.sellerId || '') === userId;
+                var isPending = String(r.status || '') === 'pending_seller';
+                if (!id || !isMySellOrder || !isPending) return;
+                if (sellerAlertedOrderIds[id]) return;
+                sellerAlertedOrderIds[id] = 1;
+                newCount += 1;
+            });
+            if (newCount > 0) {
+                saveSellerAlertedOrderIds();
+                var msg = newCount === 1
+                    ? '새 구매 요청 1건이 도착했습니다.'
+                    : ('새 구매 요청 ' + newCount + '건이 도착했습니다.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+            }
+        }
+
+        function isMyOffersViewVisible() {
+            var el = document.getElementById('myOffersView');
+            return !!(el && !el.classList.contains('hidden'));
+        }
+
+        async function pollOrdersRealtime() {
+            if (ordersPollingInFlight) return;
+            if (document && document.visibilityState === 'hidden') return;
+            ordersPollingInFlight = true;
+            try {
+                var rows = await fetchOrdersFromSupabase();
+                var nextHash = computeOrdersSnapshotHash(rows);
+                updateMyOffersCountBadge(rows);
+                notifySellerForNewPendingOrders(rows);
+                myOffersState.orders = rows;
+                if (nextHash !== lastOrdersSnapshotHash) {
+                    lastOrdersSnapshotHash = nextHash;
+                    if (isMyOffersViewVisible()) renderMyOffers();
+                } else if (isMyOffersViewVisible()) {
+                    // 같은 스냅샷이라도 화면 진입 직후 비어 보이는 경우를 방지
+                    renderMyOffers();
+                }
+            } catch (e) {
+                // 실시간 폴링은 조용히 실패 처리(경고 스팸 방지)
+            } finally {
+                ordersPollingInFlight = false;
+            }
+        }
+
+        function startOrdersRealtimeSync() {
+            if (ordersRealtimeTimer) return;
+            ordersRealtimeTimer = setInterval(function () {
+                pollOrdersRealtime();
+            }, ORDER_REALTIME_INTERVAL_MS);
+            // 시작 즉시 1회 실행
+            pollOrdersRealtime();
         }
 
         function formatOrderWalletAddress(address) {
@@ -3560,6 +3699,7 @@
 
             closeOrderFlow();
             await loadMarketplace();
+            await pollOrdersRealtime();
         }
 
         async function fetchOrdersFromSupabase() {
@@ -3638,6 +3778,8 @@
                 var extra = '';
                 if (status === 'seller_approved' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">판매자 계좌</div><div class="offer-v">' + escapeHtml(r.sellerBankText || '-') + '</div></div>';
+                } else if (status === 'seller_deposit_checked') {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
                 } else if (status === 'buyer_issue') {
@@ -3672,7 +3814,17 @@
                 return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
             }
             if (!youAreBuyer && status === 'buyer_paid') {
+                return '' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'check_deposit\')">입금 확인</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+            }
+            if (!youAreBuyer && status === 'seller_deposit_checked') {
                 return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+            }
+            if (!youAreBuyer && status === 'buyer_issue') {
+                return '' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'check_deposit\')">입금 확인</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
             }
             if (youAreBuyer && status === 'seller_sent') {
                 return '' +
@@ -3685,14 +3837,10 @@
         async function refreshMyOffers() {
             var wrap = document.getElementById('myOffersList');
             if (wrap) wrap.innerHTML = '<div class="offer-empty">주문을 불러오는 중...</div>';
-            try {
-                myOffersState.orders = await fetchOrdersFromSupabase();
-            } catch (e) {
-                myOffersState.orders = [];
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('주문 목록을 불러오지 못했습니다.');
-                else alert('주문 목록을 불러오지 못했습니다.');
+            await pollOrdersRealtime();
+            if (!Array.isArray(myOffersState.orders) || myOffersState.orders.length === 0) {
+                renderMyOffers();
             }
-            renderMyOffers();
         }
 
         async function handleOrderAction(orderId, action) {
@@ -3710,6 +3858,9 @@
             } else if (action === 'paid') {
                 receiver.status = 'buyer_paid';
                 receiver.buyerPaidAt = now;
+            } else if (action === 'check_deposit') {
+                receiver.status = 'seller_deposit_checked';
+                receiver.sellerDepositCheckedAt = now;
             } else if (action === 'sent') {
                 var txid = prompt('전송 TxID를 입력해주세요 (선택).') || '';
                 receiver.status = 'seller_sent';
@@ -3722,6 +3873,7 @@
                 var note = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
                 receiver.status = 'buyer_issue';
                 receiver.issueNote = String(note || '입금/전송 상태 확인 요청');
+                receiver.issueRaisedAt = now;
             } else {
                 return;
             }
@@ -4615,6 +4767,7 @@
         (async function initPaymentAndUI() {
             try {
                 bindTelegramUser();
+                loadSellerAlertedOrderIds();
                 // 삭제 버튼 이벤트를 JS로도 한 번 더 바인딩(웹뷰별 onclick 누락 이슈 대응)
                 try {
                     var detailDeleteBtn = document.getElementById('detailDeleteBtn');
@@ -4633,6 +4786,12 @@
 
                 // 기본/안전장치 로직이 loadMarketplace 내부에 있으므로 즉시 렌더합니다.
                 loadMarketplace();
+                startOrdersRealtimeSync();
+                if (document && typeof document.addEventListener === 'function') {
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'visible') pollOrdersRealtime();
+                    });
+                }
                 updateMyPageKycUi();
                 renderSavedWallets();
                 renderSavedBankAccounts();
@@ -4640,6 +4799,7 @@
                 console.error('initPaymentAndUI failed:', e);
                 // 최소한 마켓플레이스는 시도
                 try { loadMarketplace(); } catch (e2) {}
+                try { startOrdersRealtimeSync(); } catch (e3) {}
             }
         })();
     </script>
