@@ -28,7 +28,21 @@
         }
         .section-title { font-size: 22px; font-weight: bold; margin: 0; }
         .trader-card { background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%); border: 1px solid #3d2666; border-radius: 16px; padding: 20px; margin: 0 20px 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; }
+        .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .rank .crown { font-size: 14px; line-height: 1; }
+        .trader-card--top { padding: 26px 20px; margin: 0 20px 22px 20px; }
+        .trader-card--sub { padding: 18px 16px; margin: 0 20px 18px 20px; }
+        .trader-card--top .rank { font-size: 14px; margin-bottom: 14px; }
+        .trader-card--sub .trader-name { font-size: 16px; }
+        .trader-card--sub .avatar { width: 26px; height: 26px; font-size: 11px; }
+        .trader-card--sub .verified { font-size: 12px; }
+        .trader-card--sub .profile-row { margin-bottom: 14px; }
+        .trader-card--sub .price-row { margin-bottom: 14px; }
+        .trader-card--sub .price-value { font-size: 20px; }
+        .trader-card--sub .price-label { font-size: 12px; }
+        .trader-card--sub .limit-info { font-size: 11.5px; margin-bottom: 8px; }
+        .trader-card--sub .network-info { font-size: 10px; margin-bottom: 12px !important; }
+        .trader-card--sub .make-offer-btn { padding: 12px; font-size: 15px; border-radius: 12px; }
         .profile-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
         .avatar { width: 28px; height: 28px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
         .trader-name { font-size: 18px; font-weight: bold; }
@@ -2428,11 +2442,15 @@
 
                 var createListingCardHtml = function (l, index) {
                     var rank = index + 1;
-                    var rankHtml = "<div class=\"rank\">#" + rank + "</div>";
+                    var rankHtml = rank === 1
+                        ? "<div class=\"rank\"><span class=\"crown\">👑</span>#1</div>"
+                        : "<div class=\"rank\">#" + rank + "</div>";
 
                     var ownerName = escapeHtml(l.ownerName || 'User');
                     var initial = escapeHtml(String(ownerName).charAt(0).toUpperCase() || '?');
                     var idForJs = escapeJsString(l.id);
+
+                    var cardVariantClass = rank === 1 ? 'trader-card--top' : 'trader-card--sub';
 
                     var buyNum = l.buyMode ? Math.floor(Number(l.buyPriceKrW || 0)) : null;
                     var sellNum = l.sellMode ? Math.floor(Number(l.sellPriceKrW || 0)) : null;
@@ -2443,7 +2461,7 @@
                     var boostTxt = boostNum.toLocaleString() + " USDT";
 
                     return `
-                        <div class="trader-card" onclick="openListingDetail('${idForJs}')">
+                        <div class="trader-card ${cardVariantClass}" onclick="openListingDetail('${idForJs}')">
                             ${rankHtml}
                             <div class="profile-row">
                                 <div class="avatar">${initial}</div>
