@@ -90,8 +90,29 @@
             flex: 1; background: transparent; border: none; outline: none; color: #fff;
             font-size: 28px; font-weight: 900;
         }
+        .order-input::-webkit-outer-spin-button,
+        .order-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .order-input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+        .order-static-input {
+            flex: 1; background: transparent; border: none; outline: none; color: #e5e7eb;
+            font-size: 20px; font-weight: 700;
+        }
         .order-input-unit { color: #d1d5db; font-size: 30px; font-weight: 900; }
         .order-input-unit--krw { font-size: 24px; }
+        .order-unit-wrap { display: inline-flex; align-items: center; gap: 8px; }
+        .order-unit-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 12px; font-weight: 900;
+        }
+        .order-unit-icon--usdt { background: #2fbf8f; }
+        .order-unit-icon--krw { background: #2b7fff; }
+        .order-prefix-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 12px; font-weight: 900; flex-shrink: 0;
+            background: #2b7fff;
+        }
         .order-network-chips { display: flex; gap: 8px; margin-top: 6px; }
         .order-chip {
             border: 1px solid #2a223b; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #d1d5db;
@@ -845,47 +866,68 @@
                 <button type="button" id="orderSellTabBtn" class="order-tab" onclick="switchOrderSide('sell')">판매</button>
             </div>
 
-            <!-- 구매: 수취지갑 / 입금자명 -->
-            <div id="orderBuyReceiverCard" class="order-input-card" style="display:block;">
-                <div class="order-input-label">수취지갑</div>
-                <div class="order-input-row">
-                    <input id="orderBuyReceiveWalletInput" class="order-input" type="text" value="" readonly />
-                </div>
-                <div class="order-input-label" style="margin-top:12px;">입금자명</div>
-                <div class="order-input-row">
-                    <input id="orderBuyDepositNameInput" class="order-input" type="text" value="" readonly />
-                </div>
-            </div>
-
-            <!-- 판매: 수취계좌 / 지갑주소 -->
-            <div id="orderSellReceiverCard" class="order-input-card" style="display:none;">
-                <div class="order-input-label">수취계좌</div>
-                <div class="order-input-row">
-                    <input id="orderSellReceiveAccountInput" class="order-input" type="text" value="" readonly />
-                </div>
-                <div class="order-input-label" style="margin-top:12px;">지갑주소</div>
-                <div class="order-input-row">
-                    <input id="orderSellWalletAddressInput" class="order-input" type="text" value="" readonly />
-                </div>
-            </div>
-
             <div class="order-input-card">
                 <div class="order-input-label" id="orderUsdtLabel">구매할 USDT</div>
                 <div class="order-input-row">
-                    <input id="orderUsdtInput" class="order-input" type="number" min="0" step="1" value="0" oninput="onOrderUsdtInput()" />
-                    <span class="order-input-unit">USDT</span>
+                    <input id="orderUsdtInput" class="order-input" type="text" inputmode="decimal" value="" placeholder="" oninput="onOrderUsdtInput()" />
+                    <span class="order-unit-wrap">
+                        <span class="order-unit-icon order-unit-icon--usdt">₮</span>
+                        <span class="order-input-unit">USDT</span>
+                    </span>
                 </div>
             </div>
 
             <div class="order-input-card">
                 <div class="order-input-label" id="orderKrwLabel">송금액</div>
                 <div class="order-input-row">
-                    <input id="orderKrwInput" class="order-input" type="number" min="0" step="1" value="0" oninput="onOrderKrwInput()" />
-                    <span class="order-input-unit order-input-unit--krw">KRW</span>
+                    <input id="orderKrwInput" class="order-input" type="text" inputmode="numeric" value="" placeholder="" oninput="onOrderKrwInput()" />
+                    <span class="order-unit-wrap">
+                        <span class="order-unit-icon order-unit-icon--krw">₩</span>
+                        <span class="order-input-unit order-input-unit--krw">KRW</span>
+                    </span>
                 </div>
             </div>
 
-            <div class="order-input-card">
+            <!-- 구매용: 수취지갑 -> 네트워크 -> 입금자명 -->
+            <div id="orderBuyWalletCard" class="order-input-card" style="display:block;">
+                <div class="order-input-label">수취 지갑</div>
+                <div class="order-input-row">
+                    <span class="order-prefix-icon">👜</span>
+                    <input id="orderBuyReceiveWalletInput" class="order-static-input" type="text" value="" readonly />
+                </div>
+            </div>
+
+            <div id="orderBuyNetworkCard" class="order-input-card" style="display:block;">
+                <div class="order-input-label">네트워크</div>
+                <div class="order-network-chips">
+                    <span class="order-chip active">TON</span>
+                </div>
+            </div>
+
+            <div id="orderBuyNameCard" class="order-input-card" style="display:block;">
+                <div class="order-input-label">입금자명</div>
+                <div class="order-input-row">
+                    <input id="orderBuyDepositNameInput" class="order-static-input" type="text" value="" readonly />
+                </div>
+            </div>
+
+            <!-- 판매용: 수취계좌 -> 지갑주소 -> 네트워크 -->
+            <div id="orderSellAccountCard" class="order-input-card" style="display:none;">
+                <div class="order-input-label">수취 계좌</div>
+                <div class="order-input-row">
+                    <input id="orderSellReceiveAccountInput" class="order-static-input" type="text" value="" readonly />
+                </div>
+            </div>
+
+            <div id="orderSellWalletCard" class="order-input-card" style="display:none;">
+                <div class="order-input-label">지갑 주소</div>
+                <div class="order-input-row">
+                    <span class="order-prefix-icon">👜</span>
+                    <input id="orderSellWalletAddressInput" class="order-static-input" type="text" value="" readonly />
+                </div>
+            </div>
+
+            <div id="orderSellNetworkCard" class="order-input-card" style="display:none;">
                 <div class="order-input-label">네트워크</div>
                 <div class="order-network-chips">
                     <span class="order-chip active">TON</span>
@@ -1494,8 +1536,12 @@
             orderUsdtInput: document.getElementById('orderUsdtInput'),
             orderKrwInput: document.getElementById('orderKrwInput'),
             orderSubmitBtn: document.getElementById('orderSubmitBtn'),
-            orderBuyReceiverCard: document.getElementById('orderBuyReceiverCard'),
-            orderSellReceiverCard: document.getElementById('orderSellReceiverCard'),
+            orderBuyWalletCard: document.getElementById('orderBuyWalletCard'),
+            orderBuyNetworkCard: document.getElementById('orderBuyNetworkCard'),
+            orderBuyNameCard: document.getElementById('orderBuyNameCard'),
+            orderSellAccountCard: document.getElementById('orderSellAccountCard'),
+            orderSellWalletCard: document.getElementById('orderSellWalletCard'),
+            orderSellNetworkCard: document.getElementById('orderSellNetworkCard'),
             orderBuyReceiveWalletInput: document.getElementById('orderBuyReceiveWalletInput'),
             orderBuyDepositNameInput: document.getElementById('orderBuyDepositNameInput'),
             orderSellReceiveAccountInput: document.getElementById('orderSellReceiveAccountInput'),
@@ -2975,6 +3021,30 @@
             orderMaxUsdt: 0
         };
 
+        function formatOrderWalletAddress(address) {
+            var s = String(address || '');
+            if (s.length <= 12) return s;
+            // 주문 화면 가독성용: 앞 6자리 + ..... + 뒤 6자리
+            return s.slice(0, 6) + '.....' + s.slice(-6);
+        }
+
+        function parseOrderNumber(value) {
+            var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+            if (!raw) return 0;
+            var n = Number(raw);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function formatOrderNumber(value, digits) {
+            var n = Number(value || 0);
+            if (!Number.isFinite(n) || n <= 0) return '';
+            var maxDigits = typeof digits === 'number' ? digits : 0;
+            return n.toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: maxDigits
+            });
+        }
+
         function closeOrderFlow() {
             if (dom.orderFlowView) dom.orderFlowView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
@@ -2982,8 +3052,8 @@
 
         function updateOrderSubmitButton() {
             if (!dom.orderSubmitBtn) return;
-            var usdt = Number(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
-            var krw = Number(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
+            var usdt = parseOrderNumber(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
+            var krw = parseOrderNumber(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
             // 수취 정보(구매: 수취지갑/입금자명, 판매: 수취계좌/지갑주소)가 비어있으면 주문 불가
             var receiverOk = true;
             if (orderFlowState.side === 'buy') {
@@ -3002,20 +3072,23 @@
         }
 
         function onOrderUsdtInput() {
-            var usdt = Number(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
+            var usdt = parseOrderNumber(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
             if (!Number.isFinite(usdt) || usdt < 0) usdt = 0;
             var price = Number(orderFlowState.unitPrice || 0);
             var krw = usdt * price;
-            if (dom.orderKrwInput) dom.orderKrwInput.value = Math.floor(krw).toString();
+            if (dom.orderUsdtInput) dom.orderUsdtInput.value = formatOrderNumber(usdt, 3);
+            if (dom.orderKrwInput) dom.orderKrwInput.value = formatOrderNumber(Math.floor(krw), 0);
             updateOrderSubmitButton();
         }
 
         function onOrderKrwInput() {
-            var krw = Number(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
+            var krw = parseOrderNumber(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
             if (!Number.isFinite(krw) || krw < 0) krw = 0;
             var price = Number(orderFlowState.unitPrice || 0);
             var usdt = price > 0 ? (krw / price) : 0;
-            if (dom.orderUsdtInput) dom.orderUsdtInput.value = (Math.floor(usdt * 1000) / 1000).toString();
+            var normalizedUsdt = Math.floor(usdt * 1000) / 1000;
+            if (dom.orderKrwInput) dom.orderKrwInput.value = formatOrderNumber(Math.floor(krw), 0);
+            if (dom.orderUsdtInput) dom.orderUsdtInput.value = formatOrderNumber(normalizedUsdt, 3);
             updateOrderSubmitButton();
         }
 
@@ -3028,8 +3101,12 @@
             if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('active', orderFlowState.side === 'sell');
             if (dom.orderUsdtLabel) dom.orderUsdtLabel.textContent = orderFlowState.side === 'buy' ? '구매할 USDT' : '판매할 USDT';
             if (dom.orderKrwLabel) dom.orderKrwLabel.textContent = orderFlowState.side === 'buy' ? '송금액' : '수령액';
-            if (dom.orderBuyReceiverCard) dom.orderBuyReceiverCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
-            if (dom.orderSellReceiverCard) dom.orderSellReceiverCard.style.display = orderFlowState.side === 'sell' ? 'block' : 'none';
+            if (dom.orderBuyWalletCard) dom.orderBuyWalletCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
+            if (dom.orderBuyNetworkCard) dom.orderBuyNetworkCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
+            if (dom.orderBuyNameCard) dom.orderBuyNameCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
+            if (dom.orderSellAccountCard) dom.orderSellAccountCard.style.display = orderFlowState.side === 'sell' ? 'block' : 'none';
+            if (dom.orderSellWalletCard) dom.orderSellWalletCard.style.display = orderFlowState.side === 'sell' ? 'block' : 'none';
+            if (dom.orderSellNetworkCard) dom.orderSellNetworkCard.style.display = orderFlowState.side === 'sell' ? 'block' : 'none';
             onOrderUsdtInput();
         }
 
@@ -3066,15 +3143,15 @@
             var myBankAccountNumber = myBank && myBank.accountNumber ? String(myBank.accountNumber) : '';
             var myBankHolderName = myBank && myBank.accountHolder ? String(myBank.accountHolder) : '';
 
-            if (dom.orderBuyReceiveWalletInput) dom.orderBuyReceiveWalletInput.value = myTonAddr ? String(myTonAddr) : '';
+            if (dom.orderBuyReceiveWalletInput) dom.orderBuyReceiveWalletInput.value = myTonAddr ? formatOrderWalletAddress(String(myTonAddr)) : '';
             if (dom.orderBuyDepositNameInput) dom.orderBuyDepositNameInput.value = myBankHolderName;
             if (dom.orderSellReceiveAccountInput) dom.orderSellReceiveAccountInput.value = myBankAccountNumber;
-            if (dom.orderSellWalletAddressInput) dom.orderSellWalletAddressInput.value = myTonAddr ? String(myTonAddr) : '';
+            if (dom.orderSellWalletAddressInput) dom.orderSellWalletAddressInput.value = myTonAddr ? formatOrderWalletAddress(String(myTonAddr)) : '';
             orderFlowState.buyUnitPrice = Number(found.sellPriceKrW || 0);
             orderFlowState.sellUnitPrice = Number(found.buyPriceKrW || 0);
 
-            if (dom.orderUsdtInput) dom.orderUsdtInput.value = '0';
-            if (dom.orderKrwInput) dom.orderKrwInput.value = '0';
+            if (dom.orderUsdtInput) dom.orderUsdtInput.value = '';
+            if (dom.orderKrwInput) dom.orderKrwInput.value = '';
 
             closeListingDetail();
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
