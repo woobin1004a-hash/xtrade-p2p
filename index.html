@@ -3267,11 +3267,13 @@
                     }
                 }
 
-                if (tg && typeof tg.showAlert === 'function') {
-                    tg.showAlert(sideTxt + ' 주문이 ' + (posted ? '서버에 저장되었습니다.' : '접수되었습니다(데모).'));
-                } else {
-                    alert(sideTxt + ' 주문이 ' + (posted ? '서버에 저장되었습니다.' : '접수되었습니다(데모).'));
-                }
+                // 서버 저장 성공/실패를 확실히 구분해서 안내(캐시/네트워크 이슈도 확인 가능)
+                var msg = posted
+                    ? (sideTxt + ' 주문이 서버에 저장되었습니다.')
+                    : (sideTxt + ' 주문 저장이 실패했습니다. 데모로만 처리됩니다.');
+
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
 
                 closeOrderFlow();
                 loadMarketplace();
