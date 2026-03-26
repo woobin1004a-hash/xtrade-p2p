@@ -1452,8 +1452,8 @@
         // Telegram WebApp object (prevents errors on browsers without Telegram)
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg && typeof tg.expand === 'function') tg.expand();
-        // HTTPS로 API를 호출하기 위해, EC2에서 443으로 프록시 처리한 뒤 같은 호스트로 호출
-        const API_BASE_URL = 'https://ec2-13-125-39-181.ap-northeast-2.compute.amazonaws.com';
+        // HTTP로 API를 호출 (페이지도 HTTP로 제공하면 혼합 콘텐츠 차단을 피할 수 있음)
+        const API_BASE_URL = 'http://ec2-13-125-39-181.ap-northeast-2.compute.amazonaws.com';
 
         // Escape special characters for safe HTML rendering (display only)
         function escapeHtml(value) {
