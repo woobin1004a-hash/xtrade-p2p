@@ -121,9 +121,11 @@
             border-color: rgba(239,68,68,0.45);
             background: rgba(239,68,68,0.22);
         }
-        .offer-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; }
+        .offer-line { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 3px 0; }
         .offer-k { color: #94a3b8; font-size: 13px; }
         .offer-v { color: #f8fafc; font-size: 14px; font-weight: 800; }
+        .offer-v--wrap { flex: 1; text-align: right; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }
+        .offer-copy-link { color: #60a5fa; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
         .offer-divider { border-top: 1px dashed rgba(255,255,255,0.12); margin: 10px 0; }
         .offer-actions { display: flex; gap: 8px; margin-top: 10px; }
         .offer-btn {
@@ -937,7 +939,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-account-copy-12</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-offers-history-13</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -964,8 +966,8 @@
         </div>
         <div class="myoffers-wrap">
             <div class="myoffers-tabs">
-                <button type="button" id="myOffersBuyTab" class="myoffers-tab active" onclick="setMyOffersTab('buy')">구매 USDT</button>
-                <button type="button" id="myOffersSellTab" class="myoffers-tab" onclick="setMyOffersTab('sell')">판매 USDT</button>
+                <button type="button" id="myOffersBuyTab" class="myoffers-tab active" onclick="setMyOffersTab('active')">진행중</button>
+                <button type="button" id="myOffersSellTab" class="myoffers-tab" onclick="setMyOffersTab('history')">히스토리</button>
             </div>
             <div id="myOffersList"></div>
         </div>
@@ -1571,7 +1573,7 @@
                     <div class="nav-icon-text">🎟️ My Offers <span id="myOffersCountBadge" class="menu-count-badge hidden">0</span></div>
                     <div>^</div>
                 </div>
-                <div class="nav-sub" onclick="goToMyOffers()">History</div>
+                <div class="nav-sub" onclick="goToMyOffersHistory()">History</div>
             </div>
             <div class="nav-group">
                 <div class="nav-item-main"><div class="nav-icon-text">⇄ Trader Console</div><div>^</div></div>
@@ -2237,6 +2239,9 @@
             buyMarginPct: 1.0,
             bankText: '',
             bankAccountId: '',
+            bankName: '',
+            bankAccountNumber: '',
+            bankAccountHolder: '',
             tonWalletText: '',
             tonWalletAddress: '',
             boostUsdt: 0,
@@ -2369,6 +2374,9 @@
                 network: 'TON',
                 bankAccountId: s.bankAccountId || '',
                 bankText: s.bankText || '',
+                bankName: s.bankName || '',
+                bankAccountNumber: s.bankAccountNumber || '',
+                bankAccountHolder: s.bankAccountHolder || '',
                 tonWalletAddress: s.tonWalletAddress || '',
                 tonWalletText: s.tonWalletText || '',
 
@@ -2731,6 +2739,10 @@
             listingConfirmState.buyMarginPct = listingFlowState.buyMarginPct;
             listingConfirmState.bankText = bankText;
             listingConfirmState.bankAccountId = bankAccountId;
+            // 주문 단계에서 정확한 계좌 정보를 전달하기 위해 원본 필드를 별도로 저장
+            listingConfirmState.bankName = selectedBank ? String(selectedBank.bank || '') : '';
+            listingConfirmState.bankAccountNumber = selectedBank ? String(selectedBank.accountNumber || '') : '';
+            listingConfirmState.bankAccountHolder = selectedBank ? String(selectedBank.accountHolder || '') : '';
             listingConfirmState.tonWalletText = tonWalletText;
             listingConfirmState.tonWalletAddress = tonWalletAddress;
             listingConfirmState.boostUsdt = 0;
@@ -3342,7 +3354,7 @@
             listingBankAccountId: '',
             listingTonWalletAddress: ''
         };
-        let myOffersState = { tab: 'buy', orders: [] };
+        let myOffersState = { tab: 'active', orders: [] };
         let ordersRealtimeTimer = null;
         let ordersPollingInFlight = false;
         let lastOrdersSnapshotHash = '';
@@ -3388,10 +3400,18 @@
         function parseBankTextParts(text) {
             var raw = String(text || '');
             var parts = raw.split(' | ');
+            if (parts.length >= 3) {
+                return {
+                    bankName: parts[0] || '',
+                    accountNumber: parts[1] || '',
+                    accountHolder: parts.slice(2).join(' | ') || ''
+                };
+            }
+            // 구 포맷 fallback: 값 하나만 오면 은행명으로만 처리
             return {
-                bankName: parts[0] || '',
-                accountNumber: parts[1] || '',
-                accountHolder: parts[2] || ''
+                bankName: raw || '',
+                accountNumber: '',
+                accountHolder: ''
             };
         }
 
@@ -3743,6 +3763,10 @@
             receiver.sellerName = String(orderFlowState.listingOwnerName || 'User');
             receiver.sellerBankText = String(orderFlowState.listingBankText || '');
             receiver.sellerBankAccountId = String(orderFlowState.listingBankAccountId || '');
+            var listingBank = parseBankTextParts(orderFlowState.listingBankText || '');
+            receiver.sellerBankName = listingBank.bankName || '';
+            receiver.sellerBankAccountNumber = listingBank.accountNumber || '';
+            receiver.sellerBankAccountHolder = listingBank.accountHolder || '';
             receiver.sellerTonWalletAddress = String(orderFlowState.listingTonWalletAddress || '');
             receiver.sellerApprovedAt = null;
             receiver.buyerPaidAt = null;
@@ -3821,8 +3845,8 @@
         }
 
         function setMyOffersTab(tab) {
-            myOffersState.tab = tab === 'sell' ? 'sell' : 'buy';
-            var buyActive = myOffersState.tab === 'buy';
+            myOffersState.tab = tab === 'history' ? 'history' : 'active';
+            var buyActive = myOffersState.tab === 'active';
             var buyTab = document.getElementById('myOffersBuyTab');
             var sellTab = document.getElementById('myOffersSellTab');
             if (buyTab) buyTab.classList.toggle('active', buyActive);
@@ -3843,20 +3867,30 @@
             if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             var el = document.getElementById('myOffersView');
             if (el) el.classList.remove('hidden');
+            setMyOffersTab('active');
             refreshMyOffers();
+        }
+
+        function goToMyOffersHistory() {
+            goToMyOffers();
+            setMyOffersTab('history');
         }
 
         function renderMyOffers() {
             var wrap = document.getElementById('myOffersList');
             if (!wrap) return;
             var userId = String(currentUserId || '');
-            var wantBuy = myOffersState.tab === 'buy';
+            var showHistory = myOffersState.tab === 'history';
             var rows = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).filter(function (o) {
                 var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
-                return wantBuy ? String(r.buyerId || '') === userId : String(r.sellerId || '') === userId;
+                var involved = String(r.buyerId || '') === userId || String(r.sellerId || '') === userId;
+                if (!involved) return false;
+                var st = String(r.status || '');
+                var finished = st === 'buyer_confirmed' || st === 'seller_rejected' || st === 'buyer_cancelled';
+                return showHistory ? finished : !finished;
             });
             if (!rows.length) {
-                wrap.innerHTML = '<div class="offer-empty">표시할 주문이 없습니다.</div>';
+                wrap.innerHTML = '<div class="offer-empty">' + (showHistory ? '히스토리가 없습니다.' : '진행중인 주문이 없습니다.') + '</div>';
                 return;
             }
             wrap.innerHTML = rows.map(function (o) {
@@ -3870,23 +3904,32 @@
 
                 var extra = '';
                 if (status === 'seller_approved' && youAreBuyer) {
-                    var bankParts = parseBankTextParts(r.sellerBankText || '');
+                    var bankParts = {
+                        bankName: String(r.sellerBankName || ''),
+                        accountNumber: String(r.sellerBankAccountNumber || ''),
+                        accountHolder: String(r.sellerBankAccountHolder || '')
+                    };
+                    if (!bankParts.bankName && !bankParts.accountNumber && !bankParts.accountHolder) {
+                        bankParts = parseBankTextParts(r.sellerBankText || '');
+                    }
                     var accNumEsc = escapeJsSingleQuote(bankParts.accountNumber || '');
                     extra =
                         '<div class="offer-divider"></div>' +
                         '<div class="offer-line"><div class="offer-k">은행명</div><div class="offer-v">' + escapeHtml(bankParts.bankName || '-') + '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">계좌번호</div><div class="offer-v">' +
-                            escapeHtml(bankParts.accountNumber || '-') +
-                            (bankParts.accountNumber ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + accNumEsc + '\', \'계좌번호\')">⧉</button>') : '') +
+                            (bankParts.accountNumber
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumEsc + '\', \'계좌번호\')">' + escapeHtml(bankParts.accountNumber) + '</span>')
+                                : '-') +
                         '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">입금자명</div><div class="offer-v">' + escapeHtml(bankParts.accountHolder || '-') + '</div></div>';
                 } else if (status === 'buyer_paid' && !youAreBuyer) {
                     // 구매자가 입금 완료한 뒤 판매자가 코인 전송할 수 있도록 구매자 지갑주소를 제공
                     var buyWallet = String(r.receiverWalletAddress || '');
                     var buyWalletEsc = escapeJsSingleQuote(buyWallet);
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' +
-                        escapeHtml(buyWallet || '-') +
-                        (buyWallet ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'지갑주소\')">⧉</button>') : '') +
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v offer-v--wrap">' +
+                        (buyWallet
+                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'지갑주소\')">' + escapeHtml(buyWallet) + '</span>')
+                            : '-') +
                     '</div></div>';
                 } else if (status === 'seller_deposit_checked') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
@@ -3895,9 +3938,10 @@
                 } else if (status === 'buyer_issue' && !youAreBuyer) {
                     var buyWallet2 = String(r.receiverWalletAddress || '');
                     var buyWalletEsc2 = escapeJsSingleQuote(buyWallet2);
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v">' +
-                        escapeHtml(buyWallet2 || '-') +
-                        (buyWallet2 ? (' <button class="icon-btn" type="button" onclick="copyOfferValue(\'' + buyWalletEsc2 + '\', \'지갑주소\')">⧉</button>') : '') +
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v offer-v--wrap">' +
+                        (buyWallet2
+                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc2 + '\', \'지갑주소\')">' + escapeHtml(buyWallet2) + '</span>')
+                            : '-') +
                     '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
@@ -3977,6 +4021,19 @@
             if (action === 'approve') {
                 receiver.status = 'seller_approved';
                 receiver.sellerApprovedAt = now;
+                // 판매자 승인 시점에 내 로컬 계좌정보로 정확한 전달값을 보강
+                if (!receiver.sellerBankAccountNumber || !receiver.sellerBankAccountHolder) {
+                    var banks = loadBankAccounts();
+                    var matched = (Array.isArray(banks) ? banks : []).find(function (a) {
+                        return String(a.id || '') === String(receiver.sellerBankAccountId || '');
+                    });
+                    if (matched) {
+                        receiver.sellerBankName = String(matched.bank || '');
+                        receiver.sellerBankAccountNumber = String(matched.accountNumber || '');
+                        receiver.sellerBankAccountHolder = String(matched.accountHolder || '');
+                        receiver.sellerBankText = receiver.sellerBankName + ' | ' + receiver.sellerBankAccountNumber + ' | ' + receiver.sellerBankAccountHolder;
+                    }
+                }
             } else if (action === 'reject') {
                 receiver.status = 'seller_rejected';
             } else if (action === 'paid') {
