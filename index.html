@@ -3414,6 +3414,8 @@
             // 모달 재렌더/상태 꼬임 방지를 위해 data 속성에도 저장
             var detailEl = document.getElementById('listingDetailView');
             if (detailEl && detailEl.dataset) detailEl.dataset.listingId = found.id;
+            var detailDeleteBtn = document.getElementById('detailDeleteBtn');
+            if (detailDeleteBtn && detailDeleteBtn.dataset) detailDeleteBtn.dataset.listingId = found.id;
 
             var el = document.getElementById('listingDetailView');
             if (el) el.classList.remove('hidden');
@@ -3483,15 +3485,11 @@
 
         function deleteListingFromDetail() {
             var listingId = listingDetailState && listingDetailState.listingId ? listingDetailState.listingId : null;
+            var deleteBtnEl = document.getElementById('detailDeleteBtn');
+            if (!listingId && deleteBtnEl && deleteBtnEl.dataset) listingId = deleteBtnEl.dataset.listingId || null;
             if (!listingId) {
                 var detailEl = document.getElementById('listingDetailView');
                 listingId = detailEl && detailEl.dataset ? detailEl.dataset.listingId : null;
-            }
-            if (!listingId) {
-                var missMsg = '삭제할 리스팅을 찾지 못했습니다. 다시 열어 주세요.';
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg);
-                else alert(missMsg);
-                return;
             }
             // deleteListing은 async이므로 실패 시에도 사용자에게 표시
             try {
@@ -3532,7 +3530,22 @@
         }
 
         async function deleteListing(listingId, skipConfirm) {
-            if (!listingId) return;
+            if (!listingId) {
+                // fallback: 모달/상태에서 ID를 못 찾으면 내 최신 리스팅을 서버에서 찾아 삭제 시도
+                try {
+                    var all = await fetchListingsFromSupabase();
+                    var mine = (Array.isArray(all) ? all : [])
+                        .filter(function (x) { return String(x.ownerId) === String(currentUserId); })
+                        .sort(function (a, b) { return Number(b.updatedAt || 0) - Number(a.updatedAt || 0); });
+                    if (mine.length > 0) listingId = mine[0].id;
+                } catch (e) {}
+            }
+            if (!listingId) {
+                var missMsg0 = '삭제할 리스팅 ID를 찾지 못했습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg0);
+                else alert(missMsg0);
+                return;
+            }
             var listings = loadListings();
             var idx = (Array.isArray(listings) ? listings : []).findIndex(function (l) {
                 return String(l.id) === String(listingId);
@@ -3594,6 +3607,8 @@
             if (serverDeleted) {
                 closeListingDetail();
                 loadMarketplace();
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('리스팅이 삭제되었습니다.');
+                else alert('리스팅이 삭제되었습니다.');
                 return;
             }
 
