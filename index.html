@@ -1452,6 +1452,7 @@
         // Telegram WebApp object (prevents errors on browsers without Telegram)
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg && typeof tg.expand === 'function') tg.expand();
+        const API_BASE_URL = 'http://ec2-13-125-39-181.ap-northeast-2.compute.amazonaws.com:3000';
 
         // Escape special characters for safe HTML rendering (display only)
         function escapeHtml(value) {
@@ -2534,12 +2535,33 @@
             `;
         }
 
-        function loadMarketplace() {
+        async function loadMarketplace() {
             try {
                 if (!dom.traderList) return;
 
-                var listings = loadListings();
-                listings = Array.isArray(listings) ? listings.slice() : [];
+                var listings = [];
+
+                // 서버 API 우선: 모든 사용자가 같은 리스팅 목록을 보도록 처리
+                try {
+                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
+                        if (res && res.ok) {
+                            var serverListings = await res.json();
+                            if (Array.isArray(serverListings)) {
+                                listings = serverListings.slice();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // 서버 호출 실패 시 로컬 fallback 사용
+                    listings = [];
+                }
+
+                // 서버 데이터가 비어 있거나 실패하면 기존 로컬 저장소를 fallback으로 사용
+                if (!Array.isArray(listings) || !listings.length) {
+                    listings = loadListings();
+                    listings = Array.isArray(listings) ? listings.slice() : [];
+                }
 
                 // 안전장치: G-DRAGON 가상 리스팅이 아예 없으면 즉시 생성(가격은 1450로 초기)
                 var hasGdragon = listings.some(function (l) {
