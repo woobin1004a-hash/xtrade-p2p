@@ -22,6 +22,10 @@
 
         /* ------------------ Marketplace View ------------------ */
         .section-title-wrap { padding: 25px 20px 15px 20px; }
+        #marketplaceView {
+            min-height: 100vh;
+            background: linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(124,58,237,0.06) 30%, #050505 70%);
+        }
         .section-title { font-size: 22px; font-weight: bold; margin: 0; }
         .trader-card { background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%); border: 1px solid #3d2666; border-radius: 16px; padding: 20px; margin: 0 20px 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; }
@@ -283,6 +287,14 @@
         @media (max-width: 420px) {
             .listing-confirm-layout { flex-direction: column; }
             .listing-confirm-right { width: 100%; }
+        }
+
+        /* 리스팅 상세 모달: 좌우 여백 확보 */
+        #listingDetailView .modal-dialog {
+            max-width: 520px;
+            margin: 0 auto;
+            padding-left: 16px;
+            padding-right: 16px;
         }
 
         /* 마켓 카드(리스팅) 내부 액션 버튼 */
@@ -2358,7 +2370,7 @@
                         tonWalletAddress: '',
                         tonWalletText: '—',
 
-                        boostUsdt: 0
+                        boostUsdt: 1500
                     };
 
                     listings.unshift(record);
@@ -2372,6 +2384,39 @@
                     return Number(b.createdAt || 0) - Number(a.createdAt || 0);
                 });
 
+                // 추가 안전장치: 그래도 비어 있으면 G-DRAGON을 메모리 상으로 생성해서 렌더링
+                if (!listings.length) {
+                    var basePrice2 = 1450;
+                    var sellMarginPct2 = 1.0;
+                    var buyMarginPct2 = 1.0;
+                    var sellPriceKrW2 = basePrice2 * (1 + sellMarginPct2 / 100);
+                    var buyPriceKrW2 = basePrice2 * (1 - buyMarginPct2 / 100);
+                    var now2 = Date.now();
+                    listings = [{
+                        id: 'virtual_gdragon_' + String(now2),
+                        ownerId: 'virtual_gdragon',
+                        ownerName: 'G-DRAGON',
+                        createdAt: now2,
+                        updatedAt: now2,
+                        depositUsdt: 10000,
+                        orderMinUsdt: 100,
+                        orderMaxUsdt: 10000,
+                        sellMode: true,
+                        buyMode: true,
+                        sellMarginPct: sellMarginPct2,
+                        buyMarginPct: buyMarginPct2,
+                        sellPriceKrW: sellPriceKrW2,
+                        buyPriceKrW: buyPriceKrW2,
+                        network: 'TON',
+                        bankAccountId: '',
+                        bankText: '—',
+                        tonWalletAddress: '',
+                        tonWalletText: '—',
+                        boostUsdt: 1500
+                    }];
+                    try { saveListings(listings); } catch (e) {}
+                }
+
                 if (!listings.length) {
                     dom.traderList.innerHTML =
                         "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
@@ -2383,36 +2428,19 @@
 
                 var createListingCardHtml = function (l, index) {
                     var rank = index + 1;
-                    var rankHtml = rank === 1 ? "<div class=\"rank\">👑 #" + rank + "</div>" : "";
+                    var rankHtml = "<div class=\"rank\">#" + rank + "</div>";
 
                     var ownerName = escapeHtml(l.ownerName || 'User');
                     var initial = escapeHtml(String(ownerName).charAt(0).toUpperCase() || '?');
                     var idForJs = escapeJsString(l.id);
-                    var isOwner = currentUserId != null && String(l.ownerId) === String(currentUserId);
 
-                    var depositTxt = Number(l.depositUsdt || 0).toLocaleString() + " USDT";
-                    var orderTxt = (Number(l.orderMinUsdt || 0).toLocaleString() + "~" + Number(l.orderMaxUsdt || 0).toLocaleString() + " USDT");
-
-                    var modeParts = [];
-                    if (l.sellMode) modeParts.push('매도');
-                    if (l.buyMode) modeParts.push('매수');
-                    var modeStr = modeParts.join(' + ') || '—';
-
-                    var priceLines = [];
-                    if (l.sellMode) priceLines.push("매도: " + (l.sellPriceKrW != null ? formatKrw(l.sellPriceKrW) : '—'));
-                    if (l.buyMode) priceLines.push("매수: " + (l.buyPriceKrW != null ? formatKrw(l.buyPriceKrW) : '—'));
-
-                    var boostTxt = Number(l.boostUsdt || 0).toLocaleString() + " USDT";
-                    var boostHint = l.boostUsdt > 0 ? "Boost" : "기본";
-
-                    var actionsHtml = isOwner
-                        ? `
-                        <div class="listing-card-actions" onclick="event.stopPropagation();">
-                            <button type="button" class="tiny-action-btn" onclick="event.stopPropagation(); openListingEdit('${idForJs}')">수정</button>
-                            <button type="button" class="tiny-action-btn tiny-action-btn--danger" onclick="event.stopPropagation(); deleteListing('${idForJs}')">삭제</button>
-                        </div>
-                        `
-                        : '';
+                    var buyNum = l.buyMode ? Math.floor(Number(l.buyPriceKrW || 0)) : null;
+                    var sellNum = l.sellMode ? Math.floor(Number(l.sellPriceKrW || 0)) : null;
+                    var orderMin = Math.floor(Number(l.orderMinUsdt || 0));
+                    var orderMax = Math.floor(Number(l.orderMaxUsdt || 0));
+                    var orderTxt = orderMin.toLocaleString() + "-" + orderMax.toLocaleString() + " USDT";
+                    var boostNum = Math.floor(Number(l.boostUsdt || 0));
+                    var boostTxt = boostNum.toLocaleString() + " USDT";
 
                     return `
                         <div class="trader-card" onclick="openListingDetail('${idForJs}')">
@@ -2421,17 +2449,25 @@
                                 <div class="avatar">${initial}</div>
                                 <div class="trader-name">${ownerName} <span class="verified">✔</span></div>
                             </div>
-                            <div class="limit-info">예치금: ${escapeHtml(depositTxt)}</div>
-                            <div class="limit-info" style="margin-top:6px;">주문 한도: ${escapeHtml(orderTxt)}</div>
-                            <div class="limit-info" style="margin-top:6px;">거래: ${escapeHtml(modeStr)}</div>
-                            <div class="helper-text" style="margin-top:10px;line-height:1.5;">
-                                ${priceLines.map(function (x) { return escapeHtml(x); }).join('<br/>')}
+
+                            <div class="price-row">
+                                <div class="price-col">
+                                    <div class="price-label">구매 USDT</div>
+                                    <div class="price-value">${buyNum != null ? ('₩' + buyNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
+                                </div>
+                                <div class="price-col">
+                                    <div class="price-label">판매 USDT</div>
+                                    <div class="price-value">${sellNum != null ? ('₩' + sellNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
+                                </div>
                             </div>
-                            <div class="network-info" style="margin-bottom:0;">
-                                <span class="dot purple"></span> TON &nbsp;&nbsp;
-                                <span class="dot yellow"></span> ${escapeHtml(boostHint)}: ${escapeHtml(boostTxt)}
+
+                            <div class="limit-info">주문 한도: ${escapeHtml(orderTxt)}</div>
+                            <div class="network-info" style="margin-bottom: 14px;">
+                                <span class="dot purple"></span> TON
+                                <span class="dot yellow" style="margin-left: 10px;"></span> Boost: ${escapeHtml(boostTxt)}
                             </div>
-                            ${actionsHtml}
+
+                            <button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openListingDetail('${idForJs}')">주문</button>
                         </div>
                     `;
                 };
@@ -2579,7 +2615,7 @@
                         tonWalletAddress: prev.tonWalletAddress || '',
                         tonWalletText: prev.tonWalletText || '—',
 
-                        boostUsdt: 0
+                        boostUsdt: 1500
                     };
                 } else {
                     var record = {
@@ -2606,7 +2642,7 @@
                         tonWalletAddress: '',
                         tonWalletText: '—',
 
-                        boostUsdt: 0
+                        boostUsdt: 1500
                     };
                     listings.unshift(record);
                 }
