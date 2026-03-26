@@ -106,6 +106,21 @@
             color: #d1d5db;
             background: rgba(148,163,184,0.18);
         }
+        .offer-status--active {
+            color: #e9d5ff;
+            border-color: rgba(168,85,247,0.5);
+            background: rgba(139,92,246,0.26);
+        }
+        .offer-status--done {
+            color: #bbf7d0;
+            border-color: rgba(34,197,94,0.45);
+            background: rgba(34,197,94,0.22);
+        }
+        .offer-status--reject {
+            color: #fecaca;
+            border-color: rgba(239,68,68,0.45);
+            background: rgba(239,68,68,0.22);
+        }
         .offer-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; }
         .offer-k { color: #94a3b8; font-size: 13px; }
         .offer-v { color: #f8fafc; font-size: 14px; font-weight: 800; }
@@ -922,7 +937,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-realtime-orders-9</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-order-status-10</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3329,10 +3344,19 @@
             if (s === 'seller_rejected') return '판매자 거절';
             if (s === 'buyer_paid') return '판매자 전송 대기';
             if (s === 'seller_deposit_checked') return '입금 확인 완료';
+            if (s === 'seller_payment_check_requested') return '입금 확인 요청';
             if (s === 'seller_sent') return '구매자 확인 대기';
             if (s === 'buyer_confirmed') return '거래 완료';
             if (s === 'buyer_issue') return '확인 요청';
+            if (s === 'buyer_cancelled') return '구매자 취소';
             return s;
+        }
+
+        function orderStatusTone(status) {
+            var s = String(status || '');
+            if (s === 'buyer_confirmed') return 'done';
+            if (s === 'seller_rejected' || s === 'buyer_cancelled') return 'reject';
+            return 'active';
         }
 
         function escapeHtml(s) {
@@ -3385,7 +3409,11 @@
             }
             var count = (Array.isArray(rows) ? rows : []).filter(function (o) {
                 var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
-                return String(r.buyerId || '') === userId || String(r.sellerId || '') === userId;
+                var involved = String(r.buyerId || '') === userId || String(r.sellerId || '') === userId;
+                if (!involved) return false;
+                var st = String(r.status || '');
+                // 미완료 건만 카운트(완료/거절/취소 제외)
+                return st !== 'buyer_confirmed' && st !== 'seller_rejected' && st !== 'buyer_cancelled';
             }).length;
             if (count <= 0) {
                 badge.classList.add('hidden');
@@ -3770,6 +3798,7 @@
             wrap.innerHTML = rows.map(function (o) {
                 var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
                 var status = String(r.status || 'pending_seller');
+                var statusTone = orderStatusTone(status);
                 var youAreBuyer = String(r.buyerId || '') === userId;
                 var counterName = youAreBuyer ? String(r.sellerName || '판매자') : String(r.buyerName || '구매자');
                 var total = Number(o.krw || 0).toLocaleString() + ' KRW';
@@ -3780,6 +3809,8 @@
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">판매자 계좌</div><div class="offer-v">' + escapeHtml(r.sellerBankText || '-') + '</div></div>';
                 } else if (status === 'seller_deposit_checked') {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
+                } else if (status === 'seller_payment_check_requested') {
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인을 요청했습니다.</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
                 } else if (status === 'buyer_issue') {
@@ -3791,7 +3822,7 @@
                     '<div class="offer-card">' +
                         '<div class="offer-head">' +
                             '<div class="offer-name">' + escapeHtml(counterName) + '</div>' +
-                            '<div class="offer-status">' + escapeHtml(orderStatusLabel(status)) + '</div>' +
+                            '<div class="offer-status offer-status--' + statusTone + '">' + escapeHtml(orderStatusLabel(status)) + '</div>' +
                         '</div>' +
                         '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' + Math.floor(price).toLocaleString() + ' KRW/USDT</div></div>' +
                         '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' + Number(o.usdt || 0).toLocaleString() + ' USDT</div></div>' +
@@ -3811,19 +3842,26 @@
                     '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">승인</button>';
             }
             if (youAreBuyer && status === 'seller_approved') {
-                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
+                return '' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
             }
             if (!youAreBuyer && status === 'buyer_paid') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'check_deposit\')">입금 확인</button>' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">확인요청</button>' +
                     '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
             }
             if (!youAreBuyer && status === 'seller_deposit_checked') {
                 return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
             }
+            if (youAreBuyer && status === 'seller_payment_check_requested') {
+                return '' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료(재확인)</button>';
+            }
             if (!youAreBuyer && status === 'buyer_issue') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'check_deposit\')">입금 확인</button>' +
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">확인요청</button>' +
                     '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
             }
             if (youAreBuyer && status === 'seller_sent') {
@@ -3861,6 +3899,12 @@
             } else if (action === 'check_deposit') {
                 receiver.status = 'seller_deposit_checked';
                 receiver.sellerDepositCheckedAt = now;
+            } else if (action === 'request_payment_check') {
+                receiver.status = 'seller_payment_check_requested';
+                receiver.sellerPaymentCheckRequestedAt = now;
+            } else if (action === 'cancel') {
+                receiver.status = 'buyer_cancelled';
+                receiver.buyerCancelledAt = now;
             } else if (action === 'sent') {
                 var txid = prompt('전송 TxID를 입력해주세요 (선택).') || '';
                 receiver.status = 'seller_sent';
