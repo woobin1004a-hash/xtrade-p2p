@@ -3221,12 +3221,30 @@
             closeListingDetail();
         }
 
-        function openListingDetail(listingId) {
+        async function openListingDetail(listingId) {
             if (!listingId) return;
             var listings = loadListings();
             var found = (Array.isArray(listings) ? listings : []).find(function (l) {
                 return String(l.id) === String(listingId);
             });
+
+            // localStorage에 없으면 서버에서 찾아서 상세 모달 표시
+            if (!found) {
+                try {
+                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
+                        if (res && res.ok) {
+                            var serverListings = await res.json();
+                            if (Array.isArray(serverListings)) {
+                                found = serverListings.find(function (l) {
+                                    return String(l.id) === String(listingId);
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
             if (!found) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
                 else alert('존재하지 않는 리스팅입니다.');
@@ -3298,15 +3316,33 @@
             deleteListing(listingId);
         }
 
-        function deleteListing(listingId) {
+        async function deleteListing(listingId) {
             if (!listingId) return;
             var listings = loadListings();
             var idx = (Array.isArray(listings) ? listings : []).findIndex(function (l) {
                 return String(l.id) === String(listingId);
             });
-            if (idx < 0) return;
 
-            var found = listings[idx];
+            var found = idx >= 0 ? listings[idx] : null;
+
+            // localStorage에 없으면 서버에서 찾아서 삭제 권한 판단
+            if (!found) {
+                try {
+                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                        var res2 = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
+                        if (res2 && res2.ok) {
+                            var serverListings2 = await res2.json();
+                            if (Array.isArray(serverListings2)) {
+                                found = serverListings2.find(function (l) {
+                                    return String(l.id) === String(listingId);
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            if (!found) return;
 
             // 가상 트레이더는 삭제를 막음
             if (String(found.ownerId) === 'virtual_gdragon' || String(found.ownerId) === 'virtual_superman') {
@@ -3324,9 +3360,38 @@
             var ok = window.confirm('이 리스팅을 삭제할까요?');
             if (!ok) return;
 
-            listings.splice(idx, 1);
-            saveListings(listings);
-            loadMarketplace();
+            // 1) 서버에서 삭제 시도
+            var serverDeleted = false;
+            if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                try {
+                    var delRes = await fetch(API_BASE_URL + '/api/listings/' + encodeURIComponent(listingId), { method: 'DELETE' });
+                    if (delRes && delRes.ok) serverDeleted = true;
+                    else {
+                        try {
+                            var delJson = await delRes.json();
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(delJson && delJson.reason ? delJson.reason : '삭제 실패');
+                            else alert(delJson && delJson.reason ? delJson.reason : '삭제 실패');
+                        } catch (e) {
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert('삭제 실패');
+                            else alert('삭제 실패');
+                        }
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            // 2) 서버 삭제 성공이면 목록만 갱신
+            if (serverDeleted) {
+                loadMarketplace();
+                return;
+            }
+
+            // 3) 서버 실패면 기존 로컬 삭제 fallback
+            if (idx >= 0) {
+                listings.splice(idx, 1);
+                saveListings(listings);
+                loadMarketplace();
+            }
         }
 
         function shortenAddress(address) {
