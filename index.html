@@ -2481,6 +2481,93 @@
             } catch (e) {}
         }
 
+        // --------------------------------------------------------
+        // 가상 트레이더(예: G-DRAGON) 자동 seed
+        // - 서버 구축 전 UI/테스트를 위해 최초 1회 등록
+        // - ownerId가 virtual인 경우 현재 유저 액션(수정/삭제)은 표시되지 않음
+        async function seedVirtualTraderGDragonIfNeeded() {
+            try {
+                var listings = loadListings();
+                if (!Array.isArray(listings)) listings = [];
+
+                var virtualIdx = listings.findIndex(function (l) {
+                    return String(l.ownerId) === 'virtual_gdragon';
+                });
+
+                // 매번 최신가로 갱신
+                var basePrice = await fetchBasePrice();
+                if (!Number.isFinite(Number(basePrice))) basePrice = 1450; // 시세 API 실패 시 최소값
+                var sellMarginPct = 1.0;
+                var buyMarginPct = 1.0;
+                var sellPriceKrW = basePrice * (1 + sellMarginPct / 100);
+                var buyPriceKrW = basePrice * (1 - buyMarginPct / 100);
+
+                var now = Date.now();
+
+                if (virtualIdx >= 0) {
+                    var prev = listings[virtualIdx] || {};
+                    listings[virtualIdx] = {
+                        ...prev,
+                        ownerId: 'virtual_gdragon',
+                        ownerName: 'G-DRAGON',
+                        updatedAt: now,
+
+                        depositUsdt: 10000,
+                        orderMinUsdt: 100,
+                        orderMaxUsdt: 10000,
+
+                        sellMode: true,
+                        buyMode: true,
+                        sellMarginPct: sellMarginPct,
+                        buyMarginPct: buyMarginPct,
+                        sellPriceKrW: sellPriceKrW,
+                        buyPriceKrW: buyPriceKrW,
+
+                        network: 'TON',
+                        bankAccountId: prev.bankAccountId || '',
+                        bankText: prev.bankText || '—',
+                        tonWalletAddress: prev.tonWalletAddress || '',
+                        tonWalletText: prev.tonWalletText || '—',
+
+                        boostUsdt: 0
+                    };
+                } else {
+                    var record = {
+                        id: 'virtual_gdragon_' + String(now),
+                        ownerId: 'virtual_gdragon',
+                        ownerName: 'G-DRAGON',
+                        createdAt: now,
+                        updatedAt: now,
+
+                        depositUsdt: 10000,
+                        orderMinUsdt: 100,
+                        orderMaxUsdt: 10000,
+
+                        sellMode: true,
+                        buyMode: true,
+                        sellMarginPct: sellMarginPct,
+                        buyMarginPct: buyMarginPct,
+                        sellPriceKrW: sellPriceKrW,
+                        buyPriceKrW: buyPriceKrW,
+
+                        network: 'TON',
+                        bankAccountId: '',
+                        bankText: '—',
+                        tonWalletAddress: '',
+                        tonWalletText: '—',
+
+                        boostUsdt: 0
+                    };
+                    listings.unshift(record);
+                }
+
+                saveListings(listings);
+            } catch (e) {
+                // seed 실패해도 앱 동작은 유지
+                console.warn('seedVirtualTraderGDragonIfNeeded failed:', e);
+            }
+        }
+
         // 리스팅 상세(모달)
         let listingDetailState = { listingId: null };
 
@@ -3205,6 +3292,7 @@
         (async function initPaymentAndUI() {
             bindTelegramUser();
             await syncCloudToLocal();
+            await seedVirtualTraderGDragonIfNeeded();
             loadMarketplace();
             updateMyPageKycUi();
             renderSavedWallets();
