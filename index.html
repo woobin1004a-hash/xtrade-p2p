@@ -27,7 +27,17 @@
             background: linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(124,58,237,0.06) 30%, #050505 70%);
         }
         .section-title { font-size: 22px; font-weight: bold; margin: 0; }
-        .trader-card { background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%); border: 1px solid #3d2666; border-radius: 16px; padding: 20px; margin: 0 20px 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .trader-card {
+            background:
+                radial-gradient(120% 90% at 100% 0%, rgba(168, 85, 247, 0.34) 0%, rgba(168, 85, 247, 0.0) 58%),
+                radial-gradient(95% 80% at 0% 100%, rgba(124, 58, 237, 0.26) 0%, rgba(124, 58, 237, 0.0) 60%),
+                linear-gradient(145deg, #2f1b56 0%, #24113e 46%, #140b22 100%);
+            border: 1px solid #4a2b7a;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 0 20px 20px 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+        }
         .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .rank .crown { font-size: 14px; line-height: 1; }
         .trader-card--top { padding: 26px 20px; margin: 0 20px 22px 20px; }
@@ -841,7 +851,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-virtual-hide-comma-5</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-card-gradient-6</div>
 
     <div id="marketplaceView">
         <div class="top-header">
