@@ -1,1 +1,1687 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>XTrade P2P</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <style>
+        /* Global settings */
+        body {
+            margin: 0; padding: 0; background-color: #050505; color: #ffffff;
+            font-family: 'Pretendard', 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+        }
 
+        /* ------------------ Common components ------------------ */
+        .top-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #1a1a1a; }
+        .top-header .logo { font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .menu-icon { font-size: 24px; cursor: pointer; color: #fff; }
+        .hidden { display: none !important; }
+
+        /* ------------------ Marketplace View ------------------ */
+        .section-title-wrap { padding: 25px 20px 15px 20px; }
+        .section-title { font-size: 22px; font-weight: bold; margin: 0; }
+        .trader-card { background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%); border: 1px solid #3d2666; border-radius: 16px; padding: 20px; margin: 0 20px 20px 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; }
+        .profile-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .avatar { width: 28px; height: 28px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
+        .trader-name { font-size: 18px; font-weight: bold; }
+        .verified { color: #10b981; font-size: 14px; }
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .price-col { flex: 1; }
+        .price-label { color: #cbd5e1; font-size: 13px; margin-bottom: 8px; }
+        .price-value { font-size: 22px; font-weight: bold; }
+        .price-currency { font-size: 16px; font-weight: bold; }
+        .limit-info { color: #cbd5e1; font-size: 12px; margin-bottom: 10px; }
+        .network-info { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #cbd5e1; margin-bottom: 20px; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .dot.red { background-color: #ef4444; } .dot.yellow { background-color: #eab308; } .dot.purple { background-color: #a855f7; }
+        .make-offer-btn { width: 100%; background-color: #9d4edd; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+
+        /* ------------------ Side Menu (Drawer) ------------------ */
+        .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 99; display: none; }
+        .side-menu { position: fixed; top: 0; right: -300px; width: 280px; height: 100%; background-color: #110c1a; z-index: 100; transition: right 0.3s ease; box-shadow: -5px 0 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+        .side-menu.open { right: 0; }
+        .side-header { display: flex; justify-content: flex-end; padding: 20px; }
+        .close-btn { font-size: 24px; color: #fff; cursor: pointer; background: none; border: none; padding: 0; }
+        .side-profile { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 20px 20px; border-bottom: 1px solid #2a2a2a; cursor: pointer; }
+        .side-profile-left { display: flex; align-items: center; gap: 15px; }
+        .side-avatar { width: 36px; height: 36px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; }
+        .side-name { font-weight: bold; font-size: 16px; }
+        .arrow-right { color: #888; }
+        .side-nav { padding: 20px 0; }
+        .nav-group { margin-bottom: 20px; }
+        .nav-item-main { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; cursor: pointer; color: #fff; font-size: 15px; }
+        .nav-item-main:active { background-color: #1a1a1a; }
+        .nav-icon-text { display: flex; align-items: center; gap: 15px; }
+        .nav-sub { color: #cbd5e1; font-size: 14px; padding: 10px 20px 10px 55px; cursor: pointer; }
+
+        /* ------------------ My Page View ------------------ */
+        #myPageView { padding-bottom: 50px; }
+        .mypage-profile-section { padding: 30px 20px; display: flex; align-items: center; gap: 20px; }
+        .mypage-avatar { width: 80px; height: 80px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; position: relative; }
+        .edit-badge { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background-color: #cbd5e1; border-radius: 50%; border: 2px solid #050505; }
+        .mypage-info h3 { margin: 0 0 5px 0; font-size: 20px; }
+        .mypage-info p { margin: 3px 0; color: #cbd5e1; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .edit-btn { background-color: #2a2a2a; color: #fff; border: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; margin-top: 5px; cursor: pointer; }
+        .list-section { margin-top: 20px; }
+        .list-title { font-size: 12px; color: #888; padding: 0 20px; margin-bottom: 10px; }
+        .list-item { padding: 18px 20px; font-size: 16px; border-bottom: 1px dashed #2a2a2a; display: flex; justify-content: space-between; align-items: center; background-color: #0a0a0a; cursor: pointer; }
+
+        /* ------------------ My Page Settings ------------------ */
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+        }
+        .settings-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .form-view { padding-bottom: 50px; }
+        .form-group { padding: 0 20px; margin-top: 14px; }
+        .field-label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 8px; }
+        .input, .select {
+            width: 100%;
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            color: #ffffff;
+            padding: 12px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+        }
+        .helper-text { color: #888; font-size: 12px; margin-top: 8px; }
+        .primary-btn {
+            width: calc(100% - 40px);
+            margin: 18px 20px 0 20px;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .secondary-btn {
+            width: calc(100% - 40px);
+            margin: 12px 20px 0 20px;
+            background-color: #2a2a2a;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .status-box {
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 12px;
+            color: #ffffff;
+            font-size: 13px;
+        }
+
+        /* ------------------ Saved Lists UI ------------------ */
+        .accordion-section { padding: 0 0; }
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 10px 20px;
+            cursor: pointer;
+            color: #fff;
+        }
+        .accordion-title { font-size: 18px; font-weight: bold; }
+        .accordion-count { color: #888; font-size: 14px; font-weight: bold; margin-left: 6px; }
+        .accordion-chevron { color: #888; font-size: 18px; user-select: none; }
+        .accordion-content { padding: 0 0 10px 0; }
+
+        .saved-list { padding: 0 20px; }
+        .saved-card {
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        .saved-card:first-child { margin-top: 0; }
+        .saved-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .saved-wallet-title { font-size: 16px; font-weight: bold; }
+        .saved-network-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #2a2a2a;
+            color: #5eead4;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        .saved-address {
+            margin-top: 10px;
+            color: #cbd5e1;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .star-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+            padding: 0;
+            color: #6b7280;
+        }
+        .star-btn.on { color: #22c55e; }
+
+        .delete-wallet-btn {
+            background: none;
+            border: 1px solid #2a2a2a;
+            color: #ef4444;
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .delete-wallet-btn:active { transform: scale(0.98); }
+        .add-btn {
+            width: calc(100% - 40px);
+            margin: 14px 20px 0 20px;
+            border: 1px solid #2a2a2a;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* ------------------ Modals (Bottom Sheet) ------------------ */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-dialog {
+            width: 100%;
+            background-color: #110c1a;
+            border-radius: 18px 18px 0 0;
+            padding-bottom: 24px;
+            max-width: 520px;
+        }
+        .modal-header {
+            padding: 16px 20px 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-body { padding-top: 6px; }
+
+        .field-row-with-btn {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid #2a2a2a;
+            background-color: #0a0a0a;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* Toggle Switch */
+        .switch-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 20px; margin-top: 14px; }
+        .switch-label { color: #cbd5e1; font-size: 13px; }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #374151;
+            transition: .2s;
+            border-radius: 999px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px; width: 22px;
+            left: 3px; bottom: 3px;
+            background-color: #fff;
+            transition: .2s;
+            border-radius: 50%;
+        }
+        .switch input:checked + .slider { background-color: #22c55e; }
+        .switch input:checked + .slider:before { transform: translateX(24px); }
+
+        /* ------------------ KYC 진입: 탑 트레이더 행 오른쪽 작은 리스팅 버튼 ------------------ */
+        .section-title-wrap.section-title-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+        .section-title-row .section-title {
+            flex: 1;
+            min-width: 0;
+            font-size: 20px;
+            margin: 0;
+        }
+        .listing-register-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex-shrink: 0;
+            width: auto;
+            max-width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(180deg, #4c1d95 0%, #3b0764 100%);
+            color: #ede9fe;
+            border: none;
+            padding: 5px 12px 5px 6px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(76, 29, 149, 0.45);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .listing-register-btn__icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(167, 139, 250, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+        }
+        .listing-register-btn:active { transform: scale(0.98); }
+        #kycView { padding-bottom: 32px; }
+        .kyc-body { padding: 8px 20px 24px; }
+        .kyc-headline { font-size: 22px; font-weight: bold; margin: 8px 0 8px; }
+        .kyc-sub { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+        .kyc-upload-block { margin-bottom: 16px; }
+        .kyc-upload-label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+        .kyc-upload-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 120px;
+            padding: 16px;
+            background: #0a0a0a;
+            border: 2px dashed #3d2666;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .kyc-upload-zone.has-file { border-style: solid; border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+        .kyc-upload-zone .kyc-upload-icon { font-size: 28px; opacity: 0.9; }
+        .kyc-upload-zone .kyc-upload-hint { font-size: 12px; color: #64748b; text-align: center; }
+        .kyc-upload-zone .kyc-file-name { font-size: 13px; color: #a78bfa; word-break: break-all; text-align: center; max-width: 100%; }
+        .kyc-file-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+        .kyc-bullets { margin: 20px 0 24px; padding-left: 18px; color: #94a3b8; font-size: 13px; line-height: 1.6; }
+        .kyc-bullets li { margin-bottom: 8px; }
+        .kyc-submit-btn {
+            width: 100%;
+            margin: 0;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .kyc-submit-btn:disabled {
+            background: #3f3f46;
+            color: #a1a1aa;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .kyc-err { color: #f87171; font-size: 12px; margin-top: 6px; }
+        #kycCompleteView {
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 24px 48px;
+            text-align: center;
+        }
+        .kyc-complete-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+        }
+        .kyc-complete-icon-wrap span { color: #fff; font-size: 36px; font-weight: bold; line-height: 1; }
+        .kyc-complete-title { font-size: 22px; font-weight: bold; margin: 0 0 16px; }
+        .kyc-complete-desc { color: #94a3b8; font-size: 14px; line-height: 1.65; margin: 0 0 32px; max-width: 340px; }
+        .kyc-complete-actions { width: 100%; max-width: 400px; }
+    </style>
+</head>
+<body>
+
+    <div id="marketplaceView">
+        <div class="top-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                Marketplace
+            </div>
+            <div class="menu-icon" onclick="openMenu()">☰</div>
+        </div>
+        <div class="section-title-wrap section-title-row">
+            <h2 class="section-title">탑 트레이더</h2>
+            <button type="button" class="listing-register-btn" onclick="openKycFlow()" aria-label="리스팅">
+                <span class="listing-register-btn__icon" aria-hidden="true">+</span>
+                <span>리스팅</span>
+            </button>
+        </div>
+        <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
+    </div>
+
+    <!-- KYC: 리스팅 등록 전 신원 인증 (데모 플로우) -->
+    <div id="kycView" class="hidden">
+        <div class="settings-header">
+            <button type="button" class="back-btn" onclick="closeKycFlow()" aria-label="뒤로">←</button>
+            <span class="settings-title">신원 인증</span>
+        </div>
+        <div class="kyc-body">
+            <h3 class="kyc-headline">신원을 인증하세요</h3>
+            <p class="kyc-sub">리스팅을 생성하려면 KYC 신원 인증이 필요합니다.</p>
+
+            <div class="kyc-upload-block">
+                <span class="kyc-upload-label">① 신분증 업로드</span>
+                <label class="kyc-upload-zone" id="kycZoneId" for="kycIdFile">
+                    <span class="kyc-upload-icon">⬆</span>
+                    <span class="kyc-upload-hint">파일 크기 제한: 최대 20MB</span>
+                    <span class="kyc-file-name" id="kycIdFileName"></span>
+                </label>
+                <input type="file" id="kycIdFile" class="kyc-file-input" accept="image/*,.pdf" onchange="onKycFileChange('id')" />
+                <p class="kyc-err hidden" id="kycIdErr"></p>
+            </div>
+
+            <div class="kyc-upload-block">
+                <span class="kyc-upload-label">② 신분증을 들고 있는 셀카 업로드</span>
+                <label class="kyc-upload-zone" id="kycZoneSelfie" for="kycSelfieFile">
+                    <span class="kyc-upload-icon">⬆</span>
+                    <span class="kyc-upload-hint">파일 크기 제한: 최대 20MB</span>
+                    <span class="kyc-file-name" id="kycSelfieFileName"></span>
+                </label>
+                <input type="file" id="kycSelfieFile" class="kyc-file-input" accept="image/*,.pdf" onchange="onKycFileChange('selfie')" />
+                <p class="kyc-err hidden" id="kycSelfieErr"></p>
+            </div>
+
+            <ul class="kyc-bullets">
+                <li>밝은 곳에서 촬영하여 신분증의 모든 정보가 선명하게 보이도록 해 주세요.</li>
+                <li>이미지는 흐림·반사·잘림 없이 선명해야 합니다.</li>
+                <li>심사는 통상 24~48시간이 소요될 수 있습니다. (데모에서는 즉시 안내만 표시됩니다.)</li>
+            </ul>
+
+            <button type="button" class="kyc-submit-btn" id="kycSubmitBtn" disabled onclick="submitKycDemo()">제출하기</button>
+        </div>
+    </div>
+
+    <div id="kycCompleteView" class="hidden">
+        <div class="kyc-complete-icon-wrap"><span>✓</span></div>
+        <h2 class="kyc-complete-title">제출 완료</h2>
+        <p class="kyc-complete-desc">
+            서류 제출이 완료되었습니다. 인증은 보통 24~48시간 이내에 완료됩니다. 인증이 완료되면 이메일로 안내드립니다. 인증 승인 후 리스팅을 생성할 수 있습니다.
+        </p>
+        <div class="kyc-complete-actions">
+            <button type="button" class="primary-btn" style="width:100%;margin:0;" onclick="goToMarketplaceFromKyc()">마켓플레이스로 이동</button>
+        </div>
+    </div>
+
+    <div id="myPageView" class="hidden">
+        <div class="top-header">
+            <div class="logo">👤 My Page</div>
+            <div class="menu-icon" onclick="openMenu()">☰</div>
+        </div>
+
+        <div class="mypage-profile-section">
+            <div class="mypage-avatar" id="myPageAvatarInitial">?
+                <div class="edit-badge"></div>
+            </div>
+            <div class="mypage-info">
+                <h3 id="myPageName">Loading...</h3>
+                <p>✉️ <span style="color:#888;">Email not registered</span></p>
+                <p>✈️ <span id="myPageTgHandle">@Loading...</span></p>
+                <button class="edit-btn">✎ Edit</button>
+            </div>
+        </div>
+
+        <div id="myPageSettingsMainView" class="list-section">
+            <div class="list-title">Payment</div>
+
+            <div class="accordion-section">
+                <div class="accordion-header" onclick="toggleAccordion('wallets')">
+                    <div>
+                        <span class="accordion-title">Saved Wallets</span>
+                        <span class="accordion-count" id="savedWalletsCount">(0)</span>
+                    </div>
+                    <div class="accordion-chevron" id="walletsChevron">˄</div>
+                </div>
+                <div id="walletsAccordionContent" class="accordion-content">
+                    <div id="tonWalletCards" class="saved-list"></div>
+                    <button class="add-btn" onclick="openWalletSettings()">+ Add TON</button>
+                </div>
+            </div>
+
+            <div class="accordion-section">
+                <div class="accordion-header" onclick="toggleAccordion('banks')">
+                    <div>
+                        <span class="accordion-title">Saved Bank Accounts</span>
+                        <span class="accordion-count" id="savedBankAccountsCount">(0)</span>
+                    </div>
+                    <div class="accordion-chevron" id="banksChevron">˄</div>
+                </div>
+                <div id="banksAccordionContent" class="accordion-content">
+                    <div id="bankAccountCards" class="saved-list"></div>
+                    <button class="add-btn" onclick="openBankAccountsSettings()">+ Add Bank Account</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="walletSettingsView" class="modal-overlay hidden" onclick="closeIfOverlayClicked(event)">
+            <div class="modal-dialog" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title">Add TON Wallet</div>
+                    <button class="modal-close" onclick="showMyPageSettingsMain()">×</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group" style="margin-top: 0;">
+                        <span class="field-label">Network</span>
+                        <div class="status-box">TON</div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Connection Status</span>
+                        <div id="tonWalletStatusText" class="status-box">Not connected yet.</div>
+                        <div id="tonConnectFallback" class="helper-text hidden">TON Connect library could not be loaded. Please try again shortly.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">TON Wallet Connection</span>
+                        <div id="tonConnectButtonRoot" style="display:none;"></div>
+                        <button class="secondary-btn" onclick="openTonConnectModal()">TON Wallet Connect</button>
+                        <div class="helper-text">You can connect first, then the wallet address will be filled automatically.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Wallet Address</span>
+                        <div class="field-row-with-btn">
+                            <input id="walletAddressInput" class="input" placeholder="e.g., UQ... or EQ..." />
+                            <button class="icon-btn" type="button" onclick="copyTonWalletAddress()">⧉</button>
+                        </div>
+                        <div class="helper-text">Tip: if you connected above, this will auto-fill.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Wallet Label</span>
+                        <input id="walletLabelInput" class="input" placeholder="e.g., Main Wallet" />
+                    </div>
+
+                    <div class="switch-row">
+                        <span class="switch-label">Set as default</span>
+                        <label class="switch">
+                            <input id="setDefaultTonWalletSwitch" type="checkbox" />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <button class="primary-btn" onclick="saveTonWallet()">Save</button>
+                    <button class="secondary-btn" onclick="disconnectTonWallet()">Disconnect</button>
+                    <button id="tonWalletDeleteBtn" class="delete-wallet-btn" style="margin: 12px 20px 0 20px; width: calc(100% - 40px); display: none;" onclick="deleteTonWalletFromModal()">Delete</button>
+
+                    <div id="walletSaveMsg" class="helper-text" style="padding: 0 20px;">&nbsp;</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bankAccountsSettingsView" class="modal-overlay hidden" onclick="closeIfOverlayClicked(event)">
+            <div class="modal-dialog" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title">Add Bank Account</div>
+                    <button class="modal-close" onclick="showMyPageSettingsMain()">×</button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="form-group" style="margin-top: 0;">
+                        <span class="field-label">Bank</span>
+                        <select id="bankNameSelect" class="select">
+                            <option value="Kookmin Bank">Kookmin Bank</option>
+                            <option value="Shinhan Bank">Shinhan Bank</option>
+                            <option value="Hana Bank">Hana Bank</option>
+                            <option value="Woori Bank">Woori Bank</option>
+                            <option value="NongHyup Bank">NongHyup Bank</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Account Number</span>
+                        <input id="bankAccountNumberInput" class="input" placeholder="e.g., 123-456-789012" />
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Account Holder</span>
+                        <input id="bankAccountHolderInput" class="input" placeholder="e.g., Hong Gil-dong" />
+                    </div>
+
+                    <div class="form-group">
+                        <span class="field-label">Label</span>
+                        <input id="bankAccountLabelInput" class="input" placeholder="e.g., Salary Account" />
+                    </div>
+
+                    <div class="switch-row">
+                        <span class="switch-label">Set as default</span>
+                        <label class="switch">
+                            <input id="setDefaultBankAccountSwitch" type="checkbox" />
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <button class="primary-btn" onclick="saveBankAccount()">Save</button>
+                    <button id="bankAccountDeleteBtn" class="delete-wallet-btn" style="display:none; width: calc(100% - 40px); margin: 12px 20px 0 20px;" onclick="deleteBankAccountFromModal()">Delete</button>
+                    <div id="bankSaveMsg" class="helper-text" style="padding: 0 20px;">&nbsp;</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+    <div class="side-menu" id="sideMenu">
+        <div class="side-header"><button class="close-btn" onclick="closeMenu()">✕</button></div>
+        
+        <div class="side-profile" onclick="goToMyPage()">
+            <div class="side-profile-left">
+                <div class="side-avatar" id="sideAvatarInitial">?</div>
+                <div class="side-name" id="sideName">Loading...</div>
+            </div>
+            <div class="arrow-right">›</div>
+        </div>
+
+        <div class="side-nav">
+            <div class="nav-item-main" onclick="goToMarketplace()">
+                <div class="nav-icon-text">📊 Marketplace</div>
+            </div>
+            <div class="nav-group">
+                <div class="nav-item-main"><div class="nav-icon-text">🎟️ My Offers</div><div>^</div></div>
+                <div class="nav-sub">History</div>
+            </div>
+            <div class="nav-group">
+                <div class="nav-item-main"><div class="nav-icon-text">⇄ Trader Console</div><div>^</div></div>
+                <div class="nav-sub">History</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp object (prevents errors on browsers without Telegram)
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg && typeof tg.expand === 'function') tg.expand();
+
+        // Escape special characters for safe HTML rendering (display only)
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Escape special characters for JS-string usage (onclick only)
+        function escapeJsString(value) {
+            return String(value)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
+        // Bind Telegram user info into the UI
+        function bindTelegramUser() {
+            let userName = 'Web Test User';
+            let userHandle = 'No username';
+            let userInitial = '?';
+
+            // If Telegram provided user info successfully
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+                const u = tg.initDataUnsafe.user;
+                const firstName = u.first_name || 'User';
+                userName = u.username || firstName;
+                userHandle = u.username ? '@' + u.username : '@' + firstName;
+                userInitial = userName.charAt(0).toUpperCase();
+            }
+
+            // Bind user info into specific DOM targets
+            const sideName = document.getElementById('sideName');
+            const sideAvatarInitial = document.getElementById('sideAvatarInitial');
+            const myPageName = document.getElementById('myPageName');
+            const myPageAvatarInitial = document.getElementById('myPageAvatarInitial');
+            const myPageTgHandle = document.getElementById('myPageTgHandle');
+
+            if (sideName) sideName.innerText = userName;
+            if (sideAvatarInitial) sideAvatarInitial.innerText = userInitial;
+            if (myPageName) myPageName.innerText = userName;
+            if (myPageAvatarInitial) myPageAvatarInitial.innerText = userInitial;
+            if (myPageTgHandle) myPageTgHandle.innerText = userHandle;
+        }
+
+        // --------------------------------------------------------
+        // Screen switching logic (keeps existing global function names)
+        const dom = {
+            marketplaceView: document.getElementById('marketplaceView'),
+            myPageView: document.getElementById('myPageView'),
+            kycView: document.getElementById('kycView'),
+            kycCompleteView: document.getElementById('kycCompleteView'),
+            kycIdFile: document.getElementById('kycIdFile'),
+            kycSelfieFile: document.getElementById('kycSelfieFile'),
+            myPageSettingsMainView: document.getElementById('myPageSettingsMainView'),
+            walletSettingsView: document.getElementById('walletSettingsView'),
+            bankAccountsSettingsView: document.getElementById('bankAccountsSettingsView'),
+            sideMenu: document.getElementById('sideMenu'),
+            menuOverlay: document.getElementById('menuOverlay'),
+            traderList: document.getElementById('traderList'),
+
+            // Saved Lists
+            savedWalletsCount: document.getElementById('savedWalletsCount'),
+            walletsChevron: document.getElementById('walletsChevron'),
+            walletsAccordionContent: document.getElementById('walletsAccordionContent'),
+            tonWalletCards: document.getElementById('tonWalletCards'),
+            savedBankAccountsCount: document.getElementById('savedBankAccountsCount'),
+            banksChevron: document.getElementById('banksChevron'),
+            banksAccordionContent: document.getElementById('banksAccordionContent'),
+            bankAccountCards: document.getElementById('bankAccountCards'),
+
+            tonWalletStatusText: document.getElementById('tonWalletStatusText'),
+            tonConnectFallback: document.getElementById('tonConnectFallback'),
+            tonConnectButtonRoot: document.getElementById('tonConnectButtonRoot'),
+            walletAddressInput: document.getElementById('walletAddressInput'),
+            walletLabelInput: document.getElementById('walletLabelInput'),
+            setDefaultTonWalletSwitch: document.getElementById('setDefaultTonWalletSwitch'),
+            walletSaveMsg: document.getElementById('walletSaveMsg'),
+            bankNameSelect: document.getElementById('bankNameSelect'),
+            bankAccountNumberInput: document.getElementById('bankAccountNumberInput'),
+            bankAccountHolderInput: document.getElementById('bankAccountHolderInput'),
+            bankAccountLabelInput: document.getElementById('bankAccountLabelInput'),
+            setDefaultBankAccountSwitch: document.getElementById('setDefaultBankAccountSwitch'),
+            bankSaveMsg: document.getElementById('bankSaveMsg'),
+        };
+
+        // --------------------------------------------------------
+        // My Page settings tab switching
+        function showMyPageSettingsMain() {
+            if (dom.myPageSettingsMainView) dom.myPageSettingsMainView.classList.remove('hidden');
+            if (dom.walletSettingsView) dom.walletSettingsView.classList.add('hidden');
+            if (dom.bankAccountsSettingsView) dom.bankAccountsSettingsView.classList.add('hidden');
+        }
+
+        function showMyPageSettingsWallet() {
+            if (dom.myPageSettingsMainView) dom.myPageSettingsMainView.classList.add('hidden');
+            if (dom.walletSettingsView) dom.walletSettingsView.classList.remove('hidden');
+            if (dom.bankAccountsSettingsView) dom.bankAccountsSettingsView.classList.add('hidden');
+        }
+
+        function showMyPageSettingsBank() {
+            if (dom.myPageSettingsMainView) dom.myPageSettingsMainView.classList.add('hidden');
+            if (dom.walletSettingsView) dom.walletSettingsView.classList.add('hidden');
+            if (dom.bankAccountsSettingsView) dom.bankAccountsSettingsView.classList.remove('hidden');
+        }
+
+        function openMenu() {
+            if (!dom.sideMenu || !dom.menuOverlay) return;
+            dom.menuOverlay.style.display = 'block';
+            setTimeout(() => dom.sideMenu.classList.add('open'), 10);
+        }
+
+        function closeMenu() {
+            if (!dom.sideMenu || !dom.menuOverlay) return;
+            dom.sideMenu.classList.remove('open');
+            setTimeout(() => dom.menuOverlay.style.display = 'none', 300);
+        }
+
+        function goToMyPage() {
+            closeMenu();
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.remove('hidden');
+            showMyPageSettingsMain(); // Keep the default settings view on entry
+        }
+
+        function goToMarketplace() {
+            closeMenu();
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+        }
+
+        // --------------------------------------------------------
+        // KYC (리스팅 등록) — 데모: 서버 업로드 없음, 제출 후 텔레그램 알림만
+        const KYC_MAX_BYTES = 20 * 1024 * 1024;
+        let kycAlertTimer = null;
+
+        function clearKycAlertTimer() {
+            if (kycAlertTimer) {
+                clearTimeout(kycAlertTimer);
+                kycAlertTimer = null;
+            }
+        }
+
+        function resetKycForm() {
+            if (dom.kycIdFile) dom.kycIdFile.value = '';
+            if (dom.kycSelfieFile) dom.kycSelfieFile.value = '';
+            const idName = document.getElementById('kycIdFileName');
+            const selfieName = document.getElementById('kycSelfieFileName');
+            if (idName) idName.textContent = '';
+            if (selfieName) selfieName.textContent = '';
+            const zId = document.getElementById('kycZoneId');
+            const zS = document.getElementById('kycZoneSelfie');
+            if (zId) zId.classList.remove('has-file');
+            if (zS) zS.classList.remove('has-file');
+            const e1 = document.getElementById('kycIdErr');
+            const e2 = document.getElementById('kycSelfieErr');
+            if (e1) { e1.textContent = ''; e1.classList.add('hidden'); }
+            if (e2) { e2.textContent = ''; e2.classList.add('hidden'); }
+            const btn = document.getElementById('kycSubmitBtn');
+            if (btn) btn.disabled = true;
+        }
+
+        function onKycFileChange(which) {
+            const input = which === 'id' ? dom.kycIdFile : dom.kycSelfieFile;
+            const errEl = document.getElementById(which === 'id' ? 'kycIdErr' : 'kycSelfieErr');
+            const zone = document.getElementById(which === 'id' ? 'kycZoneId' : 'kycZoneSelfie');
+            const nameEl = document.getElementById(which === 'id' ? 'kycIdFileName' : 'kycSelfieFileName');
+            const f = input && input.files && input.files[0];
+
+            if (!f) {
+                if (nameEl) nameEl.textContent = '';
+                if (zone) zone.classList.remove('has-file');
+                if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+            } else if (f.size > KYC_MAX_BYTES) {
+                if (errEl) {
+                    errEl.textContent = '파일이 20MB를 초과했습니다.';
+                    errEl.classList.remove('hidden');
+                }
+                if (nameEl) nameEl.textContent = f.name;
+                if (zone) zone.classList.add('has-file');
+            } else {
+                if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
+                if (nameEl) nameEl.textContent = f.name;
+                if (zone) zone.classList.add('has-file');
+            }
+
+            const idF = dom.kycIdFile && dom.kycIdFile.files && dom.kycIdFile.files[0];
+            const sF = dom.kycSelfieFile && dom.kycSelfieFile.files && dom.kycSelfieFile.files[0];
+            const idOk = idF && idF.size <= KYC_MAX_BYTES;
+            const selfieOk = sF && sF.size <= KYC_MAX_BYTES;
+            const btn = document.getElementById('kycSubmitBtn');
+            if (btn) btn.disabled = !(idOk && selfieOk);
+        }
+
+        function openKycFlow() {
+            closeMenu();
+            clearKycAlertTimer();
+            if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.kycView) dom.kycView.classList.remove('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            resetKycForm();
+        }
+
+        function closeKycFlow() {
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+            resetKycForm();
+        }
+
+        function goToMarketplaceFromKyc() {
+            clearKycAlertTimer();
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.myPageView) dom.myPageView.classList.add('hidden');
+            if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
+            resetKycForm();
+        }
+
+        function submitKycDemo() {
+            const idF = dom.kycIdFile && dom.kycIdFile.files && dom.kycIdFile.files[0];
+            const sF = dom.kycSelfieFile && dom.kycSelfieFile.files && dom.kycSelfieFile.files[0];
+            if (!idF || !sF || idF.size > KYC_MAX_BYTES || sF.size > KYC_MAX_BYTES) return;
+
+            if (dom.kycView) dom.kycView.classList.add('hidden');
+            if (dom.kycCompleteView) dom.kycCompleteView.classList.remove('hidden');
+
+            clearKycAlertTimer();
+            // 제출 완료 화면을 본 뒤 약 2초 후 텔레그램 네이티브 알림 (채팅 말풍선이 아님 — 봇 API 필요)
+            kycAlertTimer = setTimeout(function () {
+                kycAlertTimer = null;
+                var msg = 'KYC인증이 완료 되었습니다';
+                if (tg && typeof tg.showAlert === 'function') {
+                    tg.showAlert(msg);
+                } else {
+                    window.alert(msg);
+                }
+                if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+                    try { tg.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+                }
+            }, 2000);
+        }
+
+        // --------------------------------------------------------
+        // Marketplace trader list generation
+        const UPBIT_TICKER_URL = 'https://api.upbit.com/v1/ticker?markets=KRW-USDT';
+        /** CoinGecko — 브라우저 CORS가 Upbit보다 잘 열려 있는 경우가 많음 */
+        const COINGECKO_USDT_KRW = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=krw';
+        /** 모든 시세 API 실패 시 참고용 (대략적인 KRW/USDT 구간) */
+        const FALLBACK_KRW_USDT = 1450;
+        const TRADER_NAMES = ['NAKNEXTCO', 'LUCAS', 'CryptoKing', 'WhaleHunter', 'TonyTrader'];
+
+        /**
+         * KRW 기준 USDT 참고가. Upbit → CoinGecko → 고정값 순으로 시도.
+         * (텔레그램 웹뷰·일부 환경에서는 Upbit가 CORS로 막혀 실패할 수 있음)
+         */
+        async function fetchBasePrice() {
+            try {
+                const response = await fetch(UPBIT_TICKER_URL, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const basePrice = data && data[0] ? Number(data[0].trade_price) : NaN;
+                    if (Number.isFinite(basePrice) && basePrice > 0) return basePrice;
+                }
+            } catch (e) {
+                console.warn('Upbit 시세 실패 (CORS/네트워크 등):', e);
+            }
+
+            try {
+                const response = await fetch(COINGECKO_USDT_KRW, { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    const p = data && data.tether && typeof data.tether.krw === 'number' ? data.tether.krw : NaN;
+                    if (Number.isFinite(p) && p > 0) return p;
+                }
+            } catch (e) {
+                console.warn('CoinGecko 시세 실패:', e);
+            }
+
+            console.warn('시세 API 모두 실패 — 참고 고정가 사용:', FALLBACK_KRW_USDT);
+            return FALLBACK_KRW_USDT;
+        }
+
+        function createTraderCardHtml(rawName, index, basePrice) {
+            const displayName = escapeHtml(rawName);
+            const rank = index + 1;
+            const initial = escapeHtml(rawName.charAt(0));
+
+            const buyPrice = Math.floor(basePrice * (1 + (Math.random() * 5) / 100));
+            const sellPrice = Math.floor(basePrice * (1 - (Math.random() * 5) / 100));
+            const rankHtml = rank === 1 ? `<div class="rank">👑 #${rank}</div>` : '';
+
+            // onclick uses a JS string, so escape it separately
+            const nameForJs = escapeJsString(rawName);
+
+            return `
+                <div class="trader-card">
+                    ${rankHtml}
+                    <div class="profile-row">
+                        <div class="avatar">${initial}</div>
+                        <div class="trader-name">${displayName} <span class="verified">✔</span></div>
+                    </div>
+                    <div class="price-row">
+                        <div class="price-col">
+                            <div class="price-label">Buy USDT</div>
+                            <div class="price-value">₩${buyPrice.toLocaleString()} <span class="price-currency">KRW</span></div>
+                        </div>
+                        <div class="price-col">
+                            <div class="price-label">Sell USDT</div>
+                            <div class="price-value">₩${sellPrice.toLocaleString()} <span class="price-currency">KRW</span></div>
+                        </div>
+                    </div>
+                    <div class="limit-info">Order Limit: 10-1,000 USDT</div>
+                    <div class="network-info">
+                        <span class="dot red"></span> TRON &nbsp;&nbsp;
+                        <span class="dot yellow"></span> BNB &nbsp;&nbsp;
+                        <span class="dot purple"></span> SOL
+                    </div>
+                    <button class="make-offer-btn" onclick="alert('${nameForJs} is requesting a trade.')">Make Offer</button>
+                </div>
+            `;
+        }
+
+        async function loadMarketplace() {
+            try {
+                const basePrice = await fetchBasePrice();
+                const html = TRADER_NAMES.map((rawName, index) =>
+                    createTraderCardHtml(rawName, index, basePrice)
+                ).join('');
+                if (dom.traderList) dom.traderList.innerHTML = html;
+            } catch (error) {
+                if (dom.traderList) {
+                    dom.traderList.innerHTML = "<div style='text-align: center; color: #94a3b8; padding: 30px; font-size: 14px;'>목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
+                }
+                console.error('loadMarketplace error:', error);
+            }
+        }
+
+        // --------------------------------------------------------
+        // Payment: Saved Wallets / Bank Accounts UI + Modals
+        const STORAGE = {
+            TON_WALLETS: 'tonWallets',
+            DEFAULT_TON_WALLET_ADDRESS: 'defaultTonWalletAddress',
+            // Backward compatibility with the earlier prototype that stored only defaultTonWallet
+            LEGACY_DEFAULT_TON_WALLET: 'defaultTonWallet',
+
+            BANK_ACCOUNTS: 'bankAccounts',
+            DEFAULT_BANK_ACCOUNT_ID: 'defaultBankAccountId'
+        };
+
+        // --------------------------------------------------------
+        // Telegram CloudStorage (PC/모바일 간 동기화용)
+        // localStorage는 기기별로 따로 저장되지만, CloudStorage는 텔레그램 사용자 기준으로 공유됩니다.
+        const cloudStorage = tg && tg.CloudStorage ? tg.CloudStorage : null;
+
+        function cloudSupported() {
+            return !!cloudStorage && typeof cloudStorage.getItems === 'function';
+        }
+
+        function cloudGetItems(keys) {
+            return new Promise((resolve) => {
+                if (!cloudSupported()) return resolve({});
+                cloudStorage.getItems(keys, (err, res) => {
+                    if (err || !res) return resolve({});
+                    resolve(res);
+                });
+            });
+        }
+
+        function cloudSetItem(key, value) {
+            return new Promise((resolve) => {
+                if (!cloudSupported()) return resolve();
+                cloudStorage.setItem(key, value, () => resolve());
+            });
+        }
+
+        function cloudRemoveItems(keys) {
+            return new Promise((resolve) => {
+                if (!cloudSupported()) return resolve();
+                cloudStorage.removeItems(keys, () => resolve());
+            });
+        }
+
+        async function syncCloudToLocal() {
+            if (!cloudSupported()) return;
+            const keys = [
+                STORAGE.TON_WALLETS,
+                STORAGE.DEFAULT_TON_WALLET_ADDRESS,
+                STORAGE.LEGACY_DEFAULT_TON_WALLET,
+                STORAGE.BANK_ACCOUNTS,
+                STORAGE.DEFAULT_BANK_ACCOUNT_ID
+            ];
+
+            const values = await cloudGetItems(keys);
+            keys.forEach((k) => {
+                // CloudStorage에서 없는 키는 빈 문자열로 올 수 있습니다.
+                if (typeof values[k] !== 'undefined' && values[k] !== '') {
+                    localStorage.setItem(k, values[k]);
+                }
+            });
+        }
+
+        function safeParseJson(value, fallback) {
+            try {
+                return JSON.parse(value);
+            } catch (e) {
+                return fallback;
+            }
+        }
+
+        function shortenAddress(address) {
+            const s = String(address || '');
+            if (s.length <= 12) return s;
+            return s.slice(0, 6) + '...' + s.slice(-6);
+        }
+
+        function maskAccountNumber(accountNumber) {
+            const s = String(accountNumber || '');
+            if (s.length <= 6) return '•••';
+            return s.slice(0, 2) + '•••' + s.slice(-4);
+        }
+
+        function loadTonWallets() {
+            let wallets = safeParseJson(localStorage.getItem(STORAGE.TON_WALLETS) || '[]', []);
+            if (wallets.length === 0) {
+                const legacy = safeParseJson(localStorage.getItem(STORAGE.LEGACY_DEFAULT_TON_WALLET) || 'null', null);
+                if (legacy && legacy.address) {
+                    wallets = [{
+                        address: legacy.address,
+                        label: legacy.label || 'TON Wallet',
+                        network: 'TON',
+                        updatedAt: legacy.updatedAt || Date.now()
+                    }];
+                }
+            }
+            return wallets;
+        }
+
+        function getDefaultTonWalletAddress() {
+            const direct = localStorage.getItem(STORAGE.DEFAULT_TON_WALLET_ADDRESS);
+            if (direct) return direct;
+
+            const legacy = safeParseJson(localStorage.getItem(STORAGE.LEGACY_DEFAULT_TON_WALLET) || 'null', null);
+            if (legacy && legacy.address) return legacy.address;
+            return null;
+        }
+
+        function setDefaultTonWalletAddress(address) {
+            if (!address) return;
+            const wallets = loadTonWallets();
+            const found = wallets.find(w => w.address === address);
+
+            localStorage.setItem(STORAGE.DEFAULT_TON_WALLET_ADDRESS, address);
+            // Legacy value (so older UI/logic won't break)
+            try {
+                localStorage.setItem(
+                    STORAGE.LEGACY_DEFAULT_TON_WALLET,
+                    JSON.stringify({ address, label: found && found.label ? found.label : 'TON Wallet', updatedAt: Date.now() })
+                );
+            } catch (e) {
+                // ignore
+            }
+
+            // CloudStorage에도 저장(동기화)
+            cloudSetItem(STORAGE.DEFAULT_TON_WALLET_ADDRESS, address);
+            if (found && found.label) {
+                cloudSetItem(
+                    STORAGE.LEGACY_DEFAULT_TON_WALLET,
+                    JSON.stringify({ address, label: found.label, updatedAt: Date.now() })
+                );
+            } else {
+                cloudSetItem(
+                    STORAGE.LEGACY_DEFAULT_TON_WALLET,
+                    JSON.stringify({ address, label: 'TON Wallet', updatedAt: Date.now() })
+                );
+            }
+
+            renderSavedWallets();
+        }
+
+        function deleteTonWallet(address) {
+            if (!address) return;
+            const ok = window.confirm('Delete this TON wallet?');
+            if (!ok) return;
+
+            const wallets = loadTonWallets();
+            const next = wallets.filter(w => w.address !== address);
+
+            try {
+                localStorage.setItem(STORAGE.TON_WALLETS, JSON.stringify(next));
+            } catch (e) {
+                // 저장 실패 시에도 UI는 일단 갱신하지 않음
+                alert('Failed to delete.');
+                return;
+            }
+
+            cloudSetItem(STORAGE.TON_WALLETS, JSON.stringify(next));
+
+            // If the deleted wallet was default, clear default
+            const currentDefault = getDefaultTonWalletAddress();
+            if (currentDefault && currentDefault === address) {
+                localStorage.removeItem(STORAGE.DEFAULT_TON_WALLET_ADDRESS);
+                localStorage.removeItem(STORAGE.LEGACY_DEFAULT_TON_WALLET);
+                cloudRemoveItems([STORAGE.DEFAULT_TON_WALLET_ADDRESS, STORAGE.LEGACY_DEFAULT_TON_WALLET]);
+            }
+
+            renderSavedWallets();
+        }
+
+        function renderSavedWallets() {
+            const wallets = loadTonWallets();
+            const defaultAddress = getDefaultTonWalletAddress();
+
+            if (dom.savedWalletsCount) dom.savedWalletsCount.innerText = '(' + wallets.length + ')';
+
+            if (!dom.tonWalletCards) return;
+            if (!wallets.length) {
+                dom.tonWalletCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>No wallets saved.</div>";
+                return;
+            }
+
+            dom.tonWalletCards.innerHTML = wallets.map(w => {
+                const label = w.label || 'TON Wallet';
+                const shortAddr = shortenAddress(w.address);
+                const isDefault = w.address === defaultAddress;
+                const addrForJs = escapeJsString(w.address);
+
+                return `
+                    <div class="saved-card" onclick="editTonWallet('${addrForJs}')">
+                        <div class="saved-card-top">
+                            <div>
+                                <div class="saved-wallet-title">${escapeHtml(label)}</div>
+                                <div class="saved-network-badge">TON</div>
+                                <div class="saved-address">${escapeHtml(shortAddr)}</div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button class="star-btn ${isDefault ? 'on' : ''}" onclick="event.stopPropagation(); setDefaultTonWalletAddress('${addrForJs}')">
+                                    ${isDefault ? '★' : '☆'}
+                                </button>
+                                <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteTonWallet('${addrForJs}')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadBankAccounts() {
+            return safeParseJson(localStorage.getItem(STORAGE.BANK_ACCOUNTS) || '[]', []);
+        }
+
+        function setDefaultBankAccount(id) {
+            if (!id) return;
+            localStorage.setItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID, id);
+            cloudSetItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID, id);
+            renderSavedBankAccounts();
+        }
+
+        function deleteBankAccount(id) {
+            if (!id) return;
+            const ok = window.confirm('Delete this bank account?');
+            if (!ok) return;
+
+            const accounts = loadBankAccounts();
+            const next = accounts.filter(a => String(a.id) !== String(id));
+
+            try {
+                localStorage.setItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(next));
+            } catch (e) {
+                alert('Failed to delete.');
+                return;
+            }
+
+            const defaultId = localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+            if (defaultId && String(defaultId) === String(id)) {
+                localStorage.removeItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+            }
+
+            cloudSetItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(next));
+            if (defaultId && String(defaultId) === String(id)) {
+                cloudRemoveItems([STORAGE.DEFAULT_BANK_ACCOUNT_ID]);
+            }
+
+            renderSavedBankAccounts();
+        }
+
+        function renderSavedBankAccounts() {
+            const accounts = loadBankAccounts();
+            const defaultId = localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+
+            if (dom.savedBankAccountsCount) dom.savedBankAccountsCount.innerText = '(' + accounts.length + ')';
+            if (!dom.bankAccountCards) return;
+
+            if (!accounts.length) {
+                dom.bankAccountCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>No bank accounts saved.</div>";
+                return;
+            }
+
+            dom.bankAccountCards.innerHTML = accounts.map(a => {
+                const label = a.label || 'Bank Account';
+                const bank = a.bank || 'Bank';
+                const masked = maskAccountNumber(a.accountNumber);
+                const holder = a.accountHolder || '';
+                const isDefault = String(a.id) === String(defaultId);
+                const idForJs = escapeJsString(a.id);
+
+                return `
+                    <div class="saved-card" onclick="editBankAccount('${idForJs}')">
+                        <div class="saved-card-top">
+                            <div>
+                                <div class="saved-wallet-title">${escapeHtml(label)}</div>
+                                <div class="saved-network-badge">${escapeHtml(bank)}</div>
+                                <div class="saved-address">Account: ${escapeHtml(masked)}</div>
+                                <div class="saved-address" style="margin-top: 6px;">${escapeHtml(holder)}</div>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button class="star-btn ${isDefault ? 'on' : ''}" onclick="event.stopPropagation(); setDefaultBankAccount('${idForJs}')">
+                                    ${isDefault ? '★' : '☆'}
+                                </button>
+                                <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteBankAccount('${idForJs}')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleAccordion(kind) {
+            if (kind === 'wallets') {
+                if (!dom.walletsAccordionContent) return;
+                const willHide = dom.walletsAccordionContent.classList.toggle('hidden');
+                if (dom.walletsChevron) dom.walletsChevron.innerText = willHide ? '˅' : '˄';
+                return;
+            }
+            if (kind === 'banks') {
+                if (!dom.banksAccordionContent) return;
+                const willHide = dom.banksAccordionContent.classList.toggle('hidden');
+                if (dom.banksChevron) dom.banksChevron.innerText = willHide ? '˅' : '˄';
+                return;
+            }
+        }
+
+        function closeIfOverlayClicked(event) {
+            if (!event) return;
+            if (event.target !== event.currentTarget) return;
+            showMyPageSettingsMain();
+        }
+
+        // --------------------------------------------------------
+        // TonConnect (TON wallet connect modal + connection status)
+        let tonConnectUIInstance = null;
+
+        function updateTonWalletStatusText(nextText) {
+            if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
+        }
+
+        // TonConnectUI.account 값은 경우에 따라 "문자열 주소"가 아니라 객체로 올 수 있습니다.
+        // 따라서 주소만 안정적으로 추출해서 input에 넣어야 `[object Object]` 문제가 사라집니다.
+        function getTonAddressFromAccount(account) {
+            if (!account) return '';
+            if (typeof account === 'string') return account;
+            if (typeof account === 'object') {
+                if (typeof account.address === 'string') return account.address;
+                if (typeof account.accountAddress === 'string') return account.accountAddress;
+                if (typeof account.publicAddress === 'string') return account.publicAddress;
+            }
+            return '';
+        }
+
+        function initTonConnectUIIfNeeded() {
+            if (tonConnectUIInstance) return;
+
+            // Stop if TonConnect UI failed to load (or CDN blocked)
+            if (!window.TON_CONNECT_UI || !window.TON_CONNECT_UI.TonConnectUI) {
+                if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
+                updateTonWalletStatusText('Failed to load TON Connect library.');
+                return;
+            }
+
+            // 현재 페이지 위치(index.html) 기준으로 상대 경로를 구성합니다.
+            // GitHub Pages는 /repo/ 형태로 서브경로 배포가 많아서 origin 고정이면 깨집니다.
+            const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
+
+            try {
+                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl,
+                    buttonRootId: 'tonConnectButtonRoot'
+                });
+            } catch (e) {
+                if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
+                updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
+                return;
+            }
+
+            // Detect connection status changes
+            tonConnectUIInstance.onStatusChange(() => {
+                const account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+                const address = getTonAddressFromAccount(account);
+                const isWalletModalOpen = dom.walletSettingsView && !dom.walletSettingsView.classList.contains('hidden');
+
+                if (address) {
+                    updateTonWalletStatusText('Connected: ' + address);
+                    if (isWalletModalOpen && dom.walletAddressInput) {
+                        dom.walletAddressInput.value = address;
+                    }
+                } else {
+                    updateTonWalletStatusText('Not connected yet.');
+                }
+
+                if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
+            });
+        }
+
+        async function openTonConnectModal() {
+            // 연결 시마다 인스턴스를 새로 만들어서,
+            // manifest를 업로드/수정한 직후 새로고침 없이도 반영되게 합니다.
+            tonConnectUIInstance = null;
+            initTonConnectUIIfNeeded();
+            if (!tonConnectUIInstance || typeof tonConnectUIInstance.openModal !== 'function') return;
+            try {
+                await tonConnectUIInstance.openModal();
+            } catch (e) {
+                if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = 'Failed to open wallet modal.';
+            }
+        }
+
+        async function copyTonWalletAddress() {
+            if (!dom.walletAddressInput) return;
+            const value = dom.walletAddressInput.value ? dom.walletAddressInput.value.trim() : '';
+            if (!value) return;
+
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(value);
+                    if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copied!';
+                    return;
+                }
+            } catch (e) {
+                // fallback below
+            }
+
+            // Fallback for environments without clipboard API
+            const tmp = document.createElement('textarea');
+            tmp.value = value;
+            tmp.style.position = 'fixed';
+            tmp.style.left = '-9999px';
+            document.body.appendChild(tmp);
+            tmp.focus();
+            tmp.select();
+            try {
+                document.execCommand('copy');
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copied!';
+            } catch (e) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copy failed.';
+            } finally {
+                document.body.removeChild(tmp);
+            }
+        }
+
+        let tonWalletEditAddress = null;
+        let bankEditId = null;
+
+        function showTonWalletDeleteButton(show) {
+            const btn = document.getElementById('tonWalletDeleteBtn');
+            if (!btn) return;
+            btn.style.display = show ? 'block' : 'none';
+        }
+
+        function deleteTonWalletFromModal() {
+            if (!tonWalletEditAddress) return;
+            deleteTonWallet(tonWalletEditAddress);
+            tonWalletEditAddress = null;
+            showTonWalletDeleteButton(false);
+        }
+
+        function showBankAccountDeleteButton(show) {
+            const btn = document.getElementById('bankAccountDeleteBtn');
+            if (!btn) return;
+            btn.style.display = show ? 'block' : 'none';
+        }
+
+        function deleteBankAccountFromModal() {
+            if (!bankEditId) return;
+            deleteBankAccount(bankEditId);
+            bankEditId = null;
+            showBankAccountDeleteButton(false);
+        }
+
+        function openWalletSettings() {
+            if (dom.myPageSettingsMainView) dom.myPageSettingsMainView.classList.remove('hidden');
+            if (dom.walletSettingsView) dom.walletSettingsView.classList.remove('hidden');
+            if (dom.bankAccountsSettingsView) dom.bankAccountsSettingsView.classList.add('hidden');
+
+            // Add mode (not editing an existing wallet)
+            tonWalletEditAddress = null;
+            if (dom.walletAddressInput) dom.walletAddressInput.readOnly = false;
+            showTonWalletDeleteButton(false);
+
+            initTonConnectUIIfNeeded();
+
+            // Prefill connected address (if any)
+            const connected = getTonAddressFromAccount(
+                tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
+            );
+            if (dom.walletAddressInput) dom.walletAddressInput.value = connected;
+            if (dom.walletLabelInput) dom.walletLabelInput.value = '';
+
+            const defaultAddress = getDefaultTonWalletAddress();
+            if (dom.setDefaultTonWalletSwitch) dom.setDefaultTonWalletSwitch.checked = connected && connected === defaultAddress;
+
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '&nbsp;';
+        }
+
+        // Edit existing TON wallet (label only; address is read-only)
+        function editTonWallet(address) {
+            if (!address) return;
+            openWalletSettings();
+            tonWalletEditAddress = address;
+            showTonWalletDeleteButton(true);
+
+            const wallets = loadTonWallets();
+            const found = wallets.find(w => w.address === address);
+
+            if (dom.walletAddressInput) {
+                dom.walletAddressInput.value = address;
+                dom.walletAddressInput.readOnly = true;
+            }
+            if (dom.walletLabelInput) dom.walletLabelInput.value = (found && found.label) ? found.label : '';
+
+            const defaultAddress = getDefaultTonWalletAddress();
+            if (dom.setDefaultTonWalletSwitch) dom.setDefaultTonWalletSwitch.checked = address === defaultAddress;
+
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '&nbsp;';
+        }
+
+        function disconnectTonWallet() {
+            if (!tonConnectUIInstance) {
+                updateTonWalletStatusText('Not connected.');
+                return;
+            }
+            tonConnectUIInstance.disconnect().catch(() => {
+                // UI updates via onStatusChange
+            });
+        }
+
+        function saveTonWallet() {
+            const address = dom.walletAddressInput ? dom.walletAddressInput.value.trim() : '';
+            const label = dom.walletLabelInput ? dom.walletLabelInput.value.trim() : '';
+            const setDefault = dom.setDefaultTonWalletSwitch ? dom.setDefaultTonWalletSwitch.checked : false;
+
+            if (!address) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Please enter wallet address.';
+                return;
+            }
+
+            const wallets = loadTonWallets();
+            const idx = wallets.findIndex(w => w.address === address);
+            const nextLabel = label || (idx >= 0 && wallets[idx].label ? wallets[idx].label : 'TON Wallet');
+
+            if (idx >= 0) {
+                wallets[idx] = { ...wallets[idx], address, label: nextLabel, network: 'TON', updatedAt: Date.now() };
+            } else {
+                wallets.unshift({ address, label: nextLabel, network: 'TON', updatedAt: Date.now() });
+            }
+
+            try {
+                localStorage.setItem(STORAGE.TON_WALLETS, JSON.stringify(wallets));
+            } catch (e) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Failed to save. Please check browser settings.';
+                return;
+            }
+            cloudSetItem(STORAGE.TON_WALLETS, JSON.stringify(wallets));
+
+            const currentDefault = getDefaultTonWalletAddress();
+            if (setDefault || !currentDefault) setDefaultTonWalletAddress(address);
+            else renderSavedWallets();
+
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Saved!';
+            showMyPageSettingsMain();
+        }
+
+        function openBankAccountsSettings() {
+            bankEditId = null; // Add mode
+            if (dom.myPageSettingsMainView) dom.myPageSettingsMainView.classList.remove('hidden');
+            if (dom.bankAccountsSettingsView) dom.bankAccountsSettingsView.classList.remove('hidden');
+            if (dom.walletSettingsView) dom.walletSettingsView.classList.add('hidden');
+
+            if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = '&nbsp;';
+
+            if (dom.bankAccountNumberInput) dom.bankAccountNumberInput.value = '';
+            if (dom.bankAccountHolderInput) dom.bankAccountHolderInput.value = '';
+            if (dom.bankAccountLabelInput) dom.bankAccountLabelInput.value = '';
+            if (dom.setDefaultBankAccountSwitch) dom.setDefaultBankAccountSwitch.checked = false;
+            showBankAccountDeleteButton(false);
+        }
+
+        // Edit existing bank account
+        function editBankAccount(id) {
+            if (!id) return;
+            openBankAccountsSettings();
+            bankEditId = String(id);
+
+            const accounts = loadBankAccounts();
+            const found = accounts.find(a => String(a.id) === String(id));
+            if (!found) return;
+
+            if (dom.bankNameSelect) {
+                const bankValue = found.bank || '';
+                const hasOption = Array.from(dom.bankNameSelect.options).some(o => o.value === bankValue);
+                if (!hasOption && bankValue) {
+                    const opt = document.createElement('option');
+                    opt.value = bankValue;
+                    opt.textContent = bankValue;
+                    dom.bankNameSelect.appendChild(opt);
+                }
+                dom.bankNameSelect.value = bankValue;
+            }
+            if (dom.bankAccountNumberInput) dom.bankAccountNumberInput.value = found.accountNumber || '';
+            if (dom.bankAccountHolderInput) dom.bankAccountHolderInput.value = found.accountHolder || '';
+            if (dom.bankAccountLabelInput) dom.bankAccountLabelInput.value = found.label || '';
+
+            const defaultId = localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+            if (dom.setDefaultBankAccountSwitch) dom.setDefaultBankAccountSwitch.checked = String(found.id) === String(defaultId);
+
+            if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = '&nbsp;';
+            showBankAccountDeleteButton(true);
+        }
+
+        function saveBankAccount() {
+            const bank = dom.bankNameSelect ? dom.bankNameSelect.value : '';
+            const accountNumber = dom.bankAccountNumberInput ? dom.bankAccountNumberInput.value.trim() : '';
+            const accountHolder = dom.bankAccountHolderInput ? dom.bankAccountHolderInput.value.trim() : '';
+            const label = dom.bankAccountLabelInput ? dom.bankAccountLabelInput.value.trim() : '';
+            const setDefault = dom.setDefaultBankAccountSwitch ? dom.setDefaultBankAccountSwitch.checked : false;
+
+            if (!bank || !accountNumber || !accountHolder) {
+                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Please fill bank / account number / account holder.';
+                return;
+            }
+
+            const payload = {
+                id: bankEditId ? String(bankEditId) : String(Date.now()),
+                bank,
+                accountNumber,
+                accountHolder,
+                label: label || 'Bank Account',
+                updatedAt: Date.now()
+            };
+
+            const accounts = loadBankAccounts();
+            if (bankEditId) {
+                const idx = accounts.findIndex(a => String(a.id) === String(bankEditId));
+                if (idx >= 0) accounts[idx] = { ...accounts[idx], ...payload };
+                else accounts.push(payload);
+            } else {
+                accounts.push(payload);
+            }
+
+            try {
+                localStorage.setItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(accounts));
+            } catch (e) {
+                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Failed to save. Please check browser settings.';
+                return;
+            }
+
+            cloudSetItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(accounts));
+
+            const hasDefault = !!localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+            if (setDefault || !hasDefault) setDefaultBankAccount(payload.id);
+            else renderSavedBankAccounts();
+
+            if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Saved!';
+            showMyPageSettingsMain();
+        }
+
+        // --------------------------------------------------------
+        // Initialization
+        (async function initPaymentAndUI() {
+            bindTelegramUser();
+            loadMarketplace();
+            await syncCloudToLocal();
+            renderSavedWallets();
+            renderSavedBankAccounts();
+        })();
+    </script>
+</body>
+</html>
