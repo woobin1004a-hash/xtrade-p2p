@@ -166,6 +166,125 @@
         }
         .listing-field { margin-bottom: 14px; }
 
+        /* ------------------ 리스팅 상세/결제 Flow ------------------ */
+        .listing-confirm-layout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 0 16px 32px 16px;
+            box-sizing: border-box;
+        }
+        .listing-confirm-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .listing-confirm-right {
+            width: 360px;
+            flex-shrink: 0;
+        }
+        .listing-boost-card {
+            border-radius: 18px;
+            border: 1px solid rgba(124,58,237,0.22);
+            background: linear-gradient(145deg, rgba(26,18,40,0.95) 0%, rgba(15,11,20,0.92) 100%);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            padding: 16px 14px 18px 14px;
+        }
+        .listing-boost-title {
+            font-size: 15px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            color: #ede9fe;
+            letter-spacing: -0.02em;
+        }
+        .listing-boost-step {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(8,8,10,0.35);
+            padding: 12px;
+            margin-top: 12px;
+        }
+        .boost-step-btn {
+            width: 58px;
+            height: 42px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            background: rgba(255,255,255,0.08);
+            color: #e2e8f0;
+            font-weight: 900;
+            font-size: 13px;
+        }
+        .boost-step-btn:active { transform: scale(0.98); }
+        .boost-value {
+            flex: 1;
+            text-align: center;
+            color: #fff;
+            font-size: 22px;
+            font-weight: 1000;
+            letter-spacing: -0.02em;
+        }
+        .listing-confirm-card {
+            border-radius: 18px;
+            border: 1px solid rgba(124,58,237,0.22);
+            background: linear-gradient(145deg, rgba(26,18,40,0.95) 0%, rgba(15,11,20,0.92) 100%);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            padding: 16px 14px 18px 14px;
+        }
+        .listing-confirm-title {
+            font-size: 14px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: #f3e8ff;
+        }
+        .confirm-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .confirm-line:first-of-type { border-top: none; padding-top: 0; }
+        .confirm-label {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 900;
+        }
+        .confirm-value {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 900;
+            text-align: right;
+        }
+        .confirm-subtitle {
+            margin-top: 14px;
+            font-size: 14px;
+            font-weight: 1000;
+            color: #ede9fe;
+        }
+        .listing-pay-btn {
+            width: 100%;
+            margin-top: 16px;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .listing-pay-btn:active { transform: scale(0.98); }
+
+        @media (max-width: 420px) {
+            .listing-confirm-layout { flex-direction: column; }
+            .listing-confirm-right { width: 100%; }
+        }
+
         .listing-three-cards {
             display: flex;
             gap: 10px;
@@ -713,14 +832,7 @@
                 </div>
                 <div class="listing-field">
                     <label class="field-label">지원 네트워크</label>
-                    <div class="listing-network-row listing-network-row--sell">
-                        <button type="button" class="network-chip" data-network="BTC" onclick="selectListingNetwork(this)">BTC</button>
-                        <button type="button" class="network-chip" data-network="ETH" onclick="selectListingNetwork(this)">ETH</button>
-                        <button type="button" class="network-chip" data-network="SOL" onclick="selectListingNetwork(this)">SOL</button>
-                        <button type="button" class="network-chip" data-network="BNB" onclick="selectListingNetwork(this)">BNB</button>
-                        <button type="button" class="network-chip" data-network="POL" onclick="selectListingNetwork(this)">POL</button>
-                        <button type="button" class="network-chip" data-network="TRON" onclick="selectListingNetwork(this)">TRON</button>
-                    </div>
+                    <div class="status-box">TON</div>
                 </div>
                 <div class="listing-field" style="margin-bottom:0;">
                     <label class="field-label">입금 계좌</label>
@@ -762,14 +874,7 @@
                 </div>
                 <div class="listing-field">
                     <label class="field-label">지원 네트워크</label>
-                    <div class="listing-network-row listing-network-row--buy">
-                        <button type="button" class="network-chip" data-network="BTC" onclick="selectListingNetwork(this)">BTC</button>
-                        <button type="button" class="network-chip" data-network="ETH" onclick="selectListingNetwork(this)">ETH</button>
-                        <button type="button" class="network-chip" data-network="SOL" onclick="selectListingNetwork(this)">SOL</button>
-                        <button type="button" class="network-chip" data-network="BNB" onclick="selectListingNetwork(this)">BNB</button>
-                        <button type="button" class="network-chip" data-network="POL" onclick="selectListingNetwork(this)">POL</button>
-                        <button type="button" class="network-chip" data-network="TRON" onclick="selectListingNetwork(this)">TRON</button>
-                    </div>
+                    <div class="status-box">TON</div>
                 </div>
                 <div class="listing-field" style="margin-bottom:0;">
                     <label class="field-label">입금 지갑</label>
@@ -781,6 +886,98 @@
             </div>
 
             <button class="primary-btn" onclick="submitListingCreate()" style="width:100%;margin:0;">리스팅 생성</button>
+        </div>
+    </div>
+
+    <!-- 리스팅 상세/결제 (부스트) -->
+    <div id="listingConfirmView" class="hidden">
+        <div class="top-header">
+            <div class="logo">💳 결제</div>
+            <button type="button" class="back-btn" onclick="backToListingCreate()" aria-label="뒤로">←</button>
+        </div>
+
+        <div class="listing-confirm-layout">
+            <div class="listing-confirm-left">
+                <div class="listing-boost-card">
+                    <div class="listing-boost-title">부스트 금액 입력</div>
+                    <div class="helper-text" style="margin-top:0;">
+                        부스트를 사용하면 리스팅 노출에 더 도움을 받을 수 있습니다. (데모 UI)
+                    </div>
+
+                    <div class="listing-boost-step">
+                        <button class="boost-step-btn" type="button" onclick="adjustListingBoost(-100)">-100</button>
+                        <div class="boost-value"><span id="listingBoostUsdtText">0</span> USDT</div>
+                        <button class="boost-step-btn" type="button" onclick="adjustListingBoost(100)">+100</button>
+                    </div>
+
+                    <div class="helper-text" style="margin-top:12px;">
+                        최소 0 USDT, 단위 100 USDT
+                    </div>
+                </div>
+            </div>
+
+            <div class="listing-confirm-right">
+                <div class="listing-confirm-card">
+                    <div class="listing-confirm-title">리스팅 상세</div>
+
+                    <div class="confirm-line">
+                        <span class="confirm-label">예치 금액</span>
+                        <span class="confirm-value" id="confirmDepositText">—</span>
+                    </div>
+                    <div class="confirm-line">
+                        <span class="confirm-label">주문 한도</span>
+                        <span class="confirm-value" id="confirmOrderText">—</span>
+                    </div>
+
+                    <div id="confirmSellBlock" class="confirm-block hidden">
+                        <div class="confirm-subtitle">매도</div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">매도 가격</span>
+                            <span class="confirm-value" id="confirmSellPriceText">—</span>
+                        </div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">네트워크</span>
+                            <span class="confirm-value">TON</span>
+                        </div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">입금 계좌</span>
+                            <span class="confirm-value" id="confirmSellBankText">—</span>
+                        </div>
+                    </div>
+
+                    <div id="confirmBuyBlock" class="confirm-block hidden" style="margin-top:14px;">
+                        <div class="confirm-subtitle">매수</div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">매수 가격</span>
+                            <span class="confirm-value" id="confirmBuyPriceText">—</span>
+                        </div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">네트워크</span>
+                            <span class="confirm-value">TON</span>
+                        </div>
+                        <div class="confirm-line">
+                            <span class="confirm-label">입금 지갑</span>
+                            <span class="confirm-value" id="confirmBuyWalletText">—</span>
+                        </div>
+                    </div>
+
+                    <div class="confirm-subtitle" style="margin-top:18px;">결제 요약</div>
+                    <div class="confirm-line">
+                        <span class="confirm-label">예치금</span>
+                        <span class="confirm-value" id="confirmCheckoutDepositText">—</span>
+                    </div>
+                    <div class="confirm-line">
+                        <span class="confirm-label">부스트</span>
+                        <span class="confirm-value" id="confirmCheckoutBoostText">—</span>
+                    </div>
+                    <div class="confirm-line">
+                        <span class="confirm-label">총액</span>
+                        <span class="confirm-value" id="confirmCheckoutTotalText">—</span>
+                    </div>
+
+                    <button type="button" class="listing-pay-btn" onclick="submitListingBoostPayment()">결제하기</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1099,6 +1296,21 @@
             listingBuyPriceText: document.getElementById('listingBuyPriceText'),
             listingBankAccountSelect: document.getElementById('listingBankAccountSelect'),
             listingTonWalletSelect: document.getElementById('listingTonWalletSelect'),
+
+            // 리스팅 상세/결제 Flow
+            listingConfirmView: document.getElementById('listingConfirmView'),
+            listingBoostUsdtText: document.getElementById('listingBoostUsdtText'),
+            confirmDepositText: document.getElementById('confirmDepositText'),
+            confirmOrderText: document.getElementById('confirmOrderText'),
+            confirmSellBlock: document.getElementById('confirmSellBlock'),
+            confirmSellPriceText: document.getElementById('confirmSellPriceText'),
+            confirmSellBankText: document.getElementById('confirmSellBankText'),
+            confirmBuyBlock: document.getElementById('confirmBuyBlock'),
+            confirmBuyPriceText: document.getElementById('confirmBuyPriceText'),
+            confirmBuyWalletText: document.getElementById('confirmBuyWalletText'),
+            confirmCheckoutDepositText: document.getElementById('confirmCheckoutDepositText'),
+            confirmCheckoutBoostText: document.getElementById('confirmCheckoutBoostText'),
+            confirmCheckoutTotalText: document.getElementById('confirmCheckoutTotalText'),
         };
 
         // localStorage / CloudStorage 키 (KYC·지갑 등) — KYC 제출 로직보다 먼저 정의
@@ -1190,6 +1402,7 @@
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.remove('hidden');
             showMyPageSettingsMain(); // Keep the default settings view on entry
             refreshMyPageSummary();
@@ -1202,6 +1415,7 @@
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
         }
 
@@ -1303,6 +1517,7 @@
             if (dom.marketplaceView) dom.marketplaceView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.kycView) dom.kycView.classList.remove('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             resetKycForm();
@@ -1313,6 +1528,7 @@
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
             resetKycForm();
         }
@@ -1323,6 +1539,7 @@
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
             resetKycForm();
         }
@@ -1363,7 +1580,11 @@
         const LISTING_ORDER_MIN_USDT = 10;
         let listingFlowState = {
             basePriceKrW: null, // KRW 기준 USDT(테더) 시장 가격
-            selectedNetwork: 'BTC'
+            selectedNetwork: 'TON', // 고정 네트워크
+            sellPriceKrW: null, // 계산된 매도 가격(KRW)
+            buyPriceKrW: null, // 계산된 매수 가격(KRW)
+            sellMarginPct: 1.0,
+            buyMarginPct: 1.0
         };
         let listingInitPromise = null;
 
@@ -1435,16 +1656,110 @@
                     if (dom.listingTonWalletSelect) dom.listingTonWalletSelect.innerHTML = '<option value="">지갑 로드 실패</option>';
                 }
 
-                // 4) 네트워크 기본 선택 + 가격 계산
-                setListingActiveNetwork(listingFlowState.selectedNetwork);
+                // 4) 가격 계산
+                listingFlowState.selectedNetwork = 'TON';
                 recalcListingPrices();
-                updateListingTradeUi();
             })();
             return listingInitPromise;
         }
 
+        // --------------------------------------------------------
+        // 리스팅 상세/결제 (부스트) Flow
+        const LISTING_BOOST_UNIT_USDT = 100; // 단위: 100 USDT
+        const LISTING_BOOST_MIN_USDT = 0;   // 최소: 0 USDT
+        let listingConfirmState = {
+            depositUsdt: 0,
+            orderMinUsdt: LISTING_ORDER_MIN_USDT,
+            orderMaxUsdt: 0,
+            sellMode: true,
+            buyMode: true,
+            network: 'TON',
+            sellPriceKrW: null,
+            buyPriceKrW: null,
+            sellMarginPct: 1.0,
+            buyMarginPct: 1.0,
+            bankText: '',
+            tonWalletText: '',
+            boostUsdt: 0,
+            boostMaxUsdt: 0
+        };
+
+        function backToListingCreate() {
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
+            if (dom.listingCreateView) dom.listingCreateView.classList.remove('hidden');
+        }
+
+        function updateListingConfirmUi() {
+            if (!dom.listingConfirmView) return;
+
+            var s = listingConfirmState;
+
+            if (dom.confirmDepositText) dom.confirmDepositText.textContent = Number(s.depositUsdt).toLocaleString() + ' USDT';
+            if (dom.confirmOrderText) dom.confirmOrderText.textContent = s.orderMinUsdt + '-' + s.orderMaxUsdt + ' USDT';
+
+            // 매도/매수 블록 토글
+            if (dom.confirmSellBlock) dom.confirmSellBlock.classList.toggle('hidden', !s.sellMode);
+            if (dom.confirmBuyBlock) dom.confirmBuyBlock.classList.toggle('hidden', !s.buyMode);
+
+            if (dom.confirmSellPriceText) {
+                var sellT = s.sellPriceKrW != null ? formatKrw(s.sellPriceKrW) : '—';
+                if (Number.isFinite(Number(s.sellMarginPct))) sellT += ' · ' + Number(s.sellMarginPct).toFixed(1) + '%';
+                dom.confirmSellPriceText.textContent = sellT;
+            }
+            if (dom.confirmBuyPriceText) {
+                var buyT = s.buyPriceKrW != null ? formatKrw(s.buyPriceKrW) : '—';
+                if (Number.isFinite(Number(s.buyMarginPct))) buyT += ' · ' + Number(s.buyMarginPct).toFixed(1) + '%';
+                dom.confirmBuyPriceText.textContent = buyT;
+            }
+
+            if (dom.confirmSellBankText) dom.confirmSellBankText.textContent = s.bankText || '—';
+            if (dom.confirmBuyWalletText) dom.confirmBuyWalletText.textContent = s.tonWalletText || '—';
+
+            if (dom.listingBoostUsdtText) dom.listingBoostUsdtText.textContent = Number(s.boostUsdt).toLocaleString();
+
+            if (dom.confirmCheckoutDepositText) dom.confirmCheckoutDepositText.textContent = Number(s.depositUsdt).toLocaleString() + ' USDT';
+            if (dom.confirmCheckoutBoostText) dom.confirmCheckoutBoostText.textContent = Number(s.boostUsdt).toLocaleString() + ' USDT';
+            if (dom.confirmCheckoutTotalText) dom.confirmCheckoutTotalText.textContent = (Number(s.depositUsdt) + Number(s.boostUsdt)).toLocaleString() + ' USDT';
+        }
+
+        function openListingConfirmViewFromCreate() {
+            // 입력 검증은 submitListingCreate()에서 이미 수행한다고 가정
+            if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.remove('hidden');
+            updateListingConfirmUi();
+        }
+
+        function adjustListingBoost(delta) {
+            var s = listingConfirmState;
+            var next = Number(s.boostUsdt) + Number(delta);
+            if (!Number.isFinite(next)) next = 0;
+
+            // 단위 100USDT 고정
+            next = Math.round(next / LISTING_BOOST_UNIT_USDT) * LISTING_BOOST_UNIT_USDT;
+
+            if (next < LISTING_BOOST_MIN_USDT) next = LISTING_BOOST_MIN_USDT;
+            if (s.boostMaxUsdt > 0 && next > s.boostMaxUsdt) next = s.boostMaxUsdt;
+
+            s.boostUsdt = next;
+            updateListingConfirmUi();
+        }
+
+        function submitListingBoostPayment() {
+            // 실제 결제는 이후 TonConnect + 백엔드(또는 컨트랙트) 연동이 필요
+            var msg = '결제 요청(데모)\\n\\n총액: ' +
+                (Number(listingConfirmState.depositUsdt) + Number(listingConfirmState.boostUsdt)).toLocaleString() +
+                ' USDT\\n\\n현재는 UI 흐름만 제공됩니다.';
+
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+            else window.alert(msg);
+
+            // 결제 완료 가정: 결제 화면 닫기
+            backToListingCreate();
+        }
+
         function closeListingCreateFlow() {
             if (dom.listingCreateView) dom.listingCreateView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
@@ -1470,6 +1785,7 @@
             if (dom.myPageView) dom.myPageView.classList.add('hidden');
             if (dom.kycView) dom.kycView.classList.add('hidden');
             if (dom.kycCompleteView) dom.kycCompleteView.classList.add('hidden');
+            if (dom.listingConfirmView) dom.listingConfirmView.classList.add('hidden');
 
             if (dom.listingCreateView) dom.listingCreateView.classList.remove('hidden');
 
@@ -1559,12 +1875,16 @@
             var sellMargin = dom.listingSellMarginInput ? parseFloat(dom.listingSellMarginInput.value) : 1.0;
             if (!Number.isFinite(sellMargin)) sellMargin = 1.0;
             var sellPrice = base * (1 + (sellMargin / 100));
+            listingFlowState.sellPriceKrW = sellPrice;
+            listingFlowState.sellMarginPct = sellMargin;
             if (dom.listingSellPriceText) dom.listingSellPriceText.textContent = formatKrw(sellPrice);
 
             // 매수(USDT 매수): 시장가 - 마진(%)
             var buyMargin = dom.listingBuyMarginInput ? parseFloat(dom.listingBuyMarginInput.value) : 1.0;
             if (!Number.isFinite(buyMargin)) buyMargin = 1.0;
             var buyPrice = base * (1 - (buyMargin / 100));
+            listingFlowState.buyPriceKrW = buyPrice;
+            listingFlowState.buyMarginPct = buyMargin;
             if (dom.listingBuyPriceText) dom.listingBuyPriceText.textContent = formatKrw(buyPrice);
         }
 
@@ -1644,17 +1964,31 @@
                 return;
             }
 
-            var modeParts = [];
-            if (sellMode) modeParts.push('매도');
-            if (buyMode) modeParts.push('매수');
-            var modeStr = modeParts.join(' + ');
-            var summary = '리스팅 생성 완료 (데모)\\n등록 유형: ' + modeStr + '\\n네트워크: ' + (net || '-') + '\\n예치금: ' + deposit + ' USDT\\n주문 한도: ' + min + ' ~ ' + max + ' USDT';
-            if (sellMode) summary += '\\n은행계좌: ' + bankId;
-            if (buyMode) summary += '\\n입금지갑: ' + tonWallet;
-            if (tg && typeof tg.showAlert === 'function') tg.showAlert(summary);
-            else alert(summary);
+            // 리스팅 상세/결제 화면으로 이동
+            var bankText = '';
+            if (dom.listingBankAccountSelect && dom.listingBankAccountSelect.selectedIndex >= 0) {
+                bankText = dom.listingBankAccountSelect.options[dom.listingBankAccountSelect.selectedIndex].textContent || '';
+            }
+            var tonWalletText = '';
+            if (dom.listingTonWalletSelect && dom.listingTonWalletSelect.selectedIndex >= 0) {
+                tonWalletText = dom.listingTonWalletSelect.options[dom.listingTonWalletSelect.selectedIndex].textContent || '';
+            }
 
-            closeListingCreateFlow();
+            listingConfirmState.depositUsdt = deposit;
+            listingConfirmState.orderMaxUsdt = max;
+            listingConfirmState.sellMode = !!sellMode;
+            listingConfirmState.buyMode = !!buyMode;
+            listingConfirmState.network = 'TON';
+            listingConfirmState.sellPriceKrW = listingFlowState.sellPriceKrW;
+            listingConfirmState.buyPriceKrW = listingFlowState.buyPriceKrW;
+            listingConfirmState.sellMarginPct = listingFlowState.sellMarginPct;
+            listingConfirmState.buyMarginPct = listingFlowState.buyMarginPct;
+            listingConfirmState.bankText = bankText;
+            listingConfirmState.tonWalletText = tonWalletText;
+            listingConfirmState.boostUsdt = 0;
+            listingConfirmState.boostMaxUsdt = Math.floor(deposit / LISTING_BOOST_UNIT_USDT) * LISTING_BOOST_UNIT_USDT;
+
+            openListingConfirmViewFromCreate();
         }
 
         // --------------------------------------------------------
