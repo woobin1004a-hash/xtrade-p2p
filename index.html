@@ -1452,8 +1452,101 @@
         // Telegram WebApp object (prevents errors on browsers without Telegram)
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg && typeof tg.expand === 'function') tg.expand();
-        // HTTP로 API를 호출 (페이지도 HTTP로 제공하면 혼합 콘텐츠 차단을 피할 수 있음)
-        const API_BASE_URL = 'http://ec2-13-125-39-181.ap-northeast-2.compute.amazonaws.com';
+        // Supabase REST 연결 정보
+        const SUPABASE_URL = 'https://fasigdxixqvgxurineyo.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
+
+        function supabaseHeaders(extra) {
+            var base = {
+                'apikey': SUPABASE_PUBLISHABLE_KEY,
+                'Authorization': 'Bearer ' + SUPABASE_PUBLISHABLE_KEY,
+                'Content-Type': 'application/json'
+            };
+            if (extra && typeof extra === 'object') {
+                Object.keys(extra).forEach(function (k) { base[k] = extra[k]; });
+            }
+            return base;
+        }
+
+        function toSupabaseListing(record) {
+            return {
+                id: String(record.id || ''),
+                owner_id: String(record.ownerId || ''),
+                owner_name: String(record.ownerName || 'User'),
+                boost_usdt: Number(record.boostUsdt || 0),
+                sell_mode: !!record.sellMode,
+                buy_mode: !!record.buyMode,
+                sell_margin_pct: Number(record.sellMarginPct || 0),
+                buy_margin_pct: Number(record.buyMarginPct || 0),
+                sell_price_krw: Number(record.sellPriceKrW || 0),
+                buy_price_krw: Number(record.buyPriceKrW || 0),
+                deposit_usdt: Number(record.depositUsdt || 0),
+                order_min_usdt: Number(record.orderMinUsdt || 10),
+                order_max_usdt: Number(record.orderMaxUsdt || 0),
+                network: 'TON',
+                bank_account_id: String(record.bankAccountId || ''),
+                bank_text: String(record.bankText || ''),
+                ton_wallet_address: String(record.tonWalletAddress || ''),
+                ton_wallet_text: String(record.tonWalletText || ''),
+                created_at: Number(record.createdAt || Date.now()),
+                updated_at: Number(record.updatedAt || Date.now())
+            };
+        }
+
+        function fromSupabaseListing(row) {
+            return {
+                id: row.id,
+                ownerId: row.owner_id,
+                ownerName: row.owner_name,
+                boostUsdt: Number(row.boost_usdt || 0),
+                sellMode: !!row.sell_mode,
+                buyMode: !!row.buy_mode,
+                sellMarginPct: Number(row.sell_margin_pct || 0),
+                buyMarginPct: Number(row.buy_margin_pct || 0),
+                sellPriceKrW: Number(row.sell_price_krw || 0),
+                buyPriceKrW: Number(row.buy_price_krw || 0),
+                depositUsdt: Number(row.deposit_usdt || 0),
+                orderMinUsdt: Number(row.order_min_usdt || 0),
+                orderMaxUsdt: Number(row.order_max_usdt || 0),
+                network: row.network || 'TON',
+                bankAccountId: row.bank_account_id || '',
+                bankText: row.bank_text || '',
+                tonWalletAddress: row.ton_wallet_address || '',
+                tonWalletText: row.ton_wallet_text || '',
+                createdAt: Number(row.created_at || 0),
+                updatedAt: Number(row.updated_at || 0)
+            };
+        }
+
+        async function fetchListingsFromSupabase() {
+            var url = SUPABASE_URL + '/rest/v1/listings?select=*&order=boost_usdt.desc,created_at.desc';
+            var res = await fetch(url, { headers: supabaseHeaders(), cache: 'no-store' });
+            if (!res.ok) throw new Error('supabase listings ' + res.status);
+            var rows = await res.json();
+            return (Array.isArray(rows) ? rows : []).map(fromSupabaseListing);
+        }
+
+        async function upsertListingToSupabase(record) {
+            var url = SUPABASE_URL + '/rest/v1/listings?on_conflict=id';
+            var payload = [toSupabaseListing(record)];
+            var res = await fetch(url, {
+                method: 'POST',
+                headers: supabaseHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('supabase upsert ' + res.status);
+            return res.json();
+        }
+
+        async function deleteListingFromSupabase(listingId) {
+            var url = SUPABASE_URL + '/rest/v1/listings?id=eq.' + encodeURIComponent(String(listingId || ''));
+            var res = await fetch(url, {
+                method: 'DELETE',
+                headers: supabaseHeaders({ 'Prefer': 'return=representation' })
+            });
+            if (!res.ok) throw new Error('supabase delete ' + res.status);
+            return res.json();
+        }
 
         // Escape special characters for safe HTML rendering (display only)
         function escapeHtml(value) {
@@ -2132,17 +2225,11 @@
 
             // 1) 서버 먼저 저장 시도 (성공하면 서버 목록이 갱신됨)
             var serverPosted = false;
-            if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                try {
-                    var res = await fetch(API_BASE_URL + '/api/listings', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(record)
-                    });
-                    if (res && res.ok) serverPosted = true;
-                } catch (e) {
-                    serverPosted = false;
-                }
+            try {
+                await upsertListingToSupabase(record);
+                serverPosted = true;
+            } catch (e) {
+                serverPosted = false;
             }
 
             // 2) 로컬에도 저장(서버 실패 시 fallback, 그리고 즉시 수정 프리필용)
@@ -2223,17 +2310,10 @@
             // 로컬에 없으면 서버 목록에서 찾아서 편집 가능하게 처리
             if (!found) {
                 try {
-                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
-                        if (res && res.ok) {
-                            var serverListings = await res.json();
-                            if (Array.isArray(serverListings)) {
-                                found = serverListings.find(function (l) {
-                                    return String(l.id) === String(listingId);
-                                });
-                            }
-                        }
-                    }
+                    var serverListings = await fetchListingsFromSupabase();
+                    found = (Array.isArray(serverListings) ? serverListings : []).find(function (l) {
+                        return String(l.id) === String(listingId);
+                    });
                 } catch (e) {}
             }
 
@@ -2576,19 +2656,12 @@
 
                 var listings = [];
 
-                // 서버 API 우선: 모든 사용자가 같은 리스팅 목록을 보도록 처리
+                // Supabase 우선: 모든 사용자가 같은 리스팅 목록을 보도록 처리
                 try {
-                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
-                        if (res && res.ok) {
-                            var serverListings = await res.json();
-                            if (Array.isArray(serverListings)) {
-                                listings = serverListings.slice();
-                            }
-                        }
-                    }
+                    var serverListings = await fetchListingsFromSupabase();
+                    if (Array.isArray(serverListings)) listings = serverListings.slice();
                 } catch (e) {
-                    // 서버 호출 실패 시 로컬 fallback 사용
+                    // Supabase 호출 실패 시 로컬 fallback 사용
                     listings = [];
                 }
 
@@ -3250,32 +3323,32 @@
             (async function () {
                 var posted = false;
                 var errDetail = '';
-                if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                    try {
-                        var res = await fetch(API_BASE_URL + '/api/orders', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                listingId: orderFlowState.listingId,
-                                side: orderFlowState.side,
-                                usdt: usdt,
-                                krw: krw,
-                                receiver: receiver
-                            })
-                        });
-                        if (res && res.ok) {
-                            posted = true;
-                        } else {
-                            errDetail = 'HTTP ' + (res ? res.status : 'unknown');
-                            try {
-                                var txt = await res.text();
-                                if (txt) errDetail += ' · ' + txt;
-                            } catch (e) {}
-                        }
-                    } catch (e) {
-                        posted = false;
-                        errDetail = String(e && e.message ? e.message : e);
+                try {
+                    var res = await fetch(SUPABASE_URL + '/rest/v1/orders', {
+                        method: 'POST',
+                        headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
+                        body: JSON.stringify([{
+                            id: String(Date.now()),
+                            listing_id: String(orderFlowState.listingId || ''),
+                            side: String(orderFlowState.side || ''),
+                            usdt: Number(usdt || 0),
+                            krw: Number(krw || 0),
+                            receiver: receiver,
+                            created_at: Number(Date.now())
+                        }])
+                    });
+                    if (res && res.ok) {
+                        posted = true;
+                    } else {
+                        errDetail = 'HTTP ' + (res ? res.status : 'unknown');
+                        try {
+                            var txt = await res.text();
+                            if (txt) errDetail += ' · ' + txt;
+                        } catch (e) {}
                     }
+                } catch (e) {
+                    posted = false;
+                    errDetail = String(e && e.message ? e.message : e);
                 }
 
                 // 서버 저장 성공/실패를 확실히 구분해서 안내(캐시/네트워크 이슈도 확인 가능)
@@ -3320,17 +3393,10 @@
             // localStorage에 없으면 서버에서 찾아서 상세 모달 표시
             if (!found) {
                 try {
-                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
-                        if (res && res.ok) {
-                            var serverListings = await res.json();
-                            if (Array.isArray(serverListings)) {
-                                found = serverListings.find(function (l) {
-                                    return String(l.id) === String(listingId);
-                                });
-                            }
-                        }
-                    }
+                    var serverListings = await fetchListingsFromSupabase();
+                    found = (Array.isArray(serverListings) ? serverListings : []).find(function (l) {
+                        return String(l.id) === String(listingId);
+                    });
                 } catch (e) {}
             }
 
@@ -3417,17 +3483,10 @@
             // localStorage에 없으면 서버에서 찾아서 삭제 권한 판단
             if (!found) {
                 try {
-                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                        var res2 = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
-                        if (res2 && res2.ok) {
-                            var serverListings2 = await res2.json();
-                            if (Array.isArray(serverListings2)) {
-                                found = serverListings2.find(function (l) {
-                                    return String(l.id) === String(listingId);
-                                });
-                            }
-                        }
-                    }
+                    var serverListings2 = await fetchListingsFromSupabase();
+                    found = (Array.isArray(serverListings2) ? serverListings2 : []).find(function (l) {
+                        return String(l.id) === String(listingId);
+                    });
                 } catch (e) {}
             }
 
@@ -3451,22 +3510,11 @@
 
             // 1) 서버에서 삭제 시도
             var serverDeleted = false;
-            if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
-                try {
-                    var delRes = await fetch(API_BASE_URL + '/api/listings/' + encodeURIComponent(listingId), { method: 'DELETE' });
-                    if (delRes && delRes.ok) serverDeleted = true;
-                    else {
-                        try {
-                            var delJson = await delRes.json();
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(delJson && delJson.reason ? delJson.reason : '삭제 실패');
-                            else alert(delJson && delJson.reason ? delJson.reason : '삭제 실패');
-                        } catch (e) {
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert('삭제 실패');
-                            else alert('삭제 실패');
-                        }
-                        return;
-                    }
-                } catch (e) {}
+            try {
+                await deleteListingFromSupabase(listingId);
+                serverDeleted = true;
+            } catch (e) {
+                serverDeleted = false;
             }
 
             // 2) 서버 삭제 성공이면 목록만 갱신
