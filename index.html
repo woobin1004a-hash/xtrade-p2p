@@ -67,6 +67,43 @@
         .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
         .dot.red { background-color: #ef4444; } .dot.yellow { background-color: #eab308; } .dot.purple { background-color: #a855f7; }
         .make-offer-btn { width: 100%; background-color: #9d4edd; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .marketplace-footer {
+            margin: 26px 16px 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            color: #cbd5e1;
+        }
+        .marketplace-footer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .marketplace-footer-brand { font-size: 26px; font-weight: 900; letter-spacing: 0.2px; }
+        .marketplace-footer-actions { display: flex; align-items: center; gap: 18px; }
+        .marketplace-footer-action {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #f1f5f9; font-size: 18px; font-weight: 800;
+            background: transparent; border: none; padding: 0; cursor: pointer;
+        }
+        .marketplace-footer-links { display: flex; flex-direction: column; gap: 10px; }
+        .marketplace-footer-link {
+            background: transparent; border: none; color: #cbd5e1;
+            padding: 0; text-align: left; font-size: 16px; cursor: pointer;
+        }
+        .theme-light { background: #f6f7fb; color: #121826; }
+        .theme-light #marketplaceView { background: #f6f7fb; color: #111827; }
+        .theme-light .top-header { border-bottom-color: #d8deea; }
+        .theme-light .section-title { color: #111827; }
+        .theme-light .trader-card {
+            background: linear-gradient(145deg, #ebe8ff 0%, #ddd8ff 55%, #cfc8ff 100%);
+            border-color: #bbb1ff;
+            color: #0f172a;
+        }
+        .theme-light .price-label, .theme-light .limit-info, .theme-light .network-info { color: #334155; }
+        .theme-light .marketplace-footer { border-top-color: #d8deea; color: #334155; }
+        .theme-light .marketplace-footer-action, .theme-light .marketplace-footer-link { color: #1e293b; }
         .myoffers-view { min-height: 100vh; background: #07060d; }
         .myoffers-wrap { padding: 14px 16px 80px; }
         .myoffers-tabs {
@@ -939,24 +976,42 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-offers-history-13</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-footer-theme-lang-14</div>
 
     <div id="marketplaceView">
         <div class="top-header">
             <div class="logo">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
-                Marketplace
+                <span id="marketplaceLogoText">마켓플레이스</span>
             </div>
             <div class="menu-icon" onclick="openMenu()">☰</div>
         </div>
         <div class="section-title-wrap section-title-row">
-            <h2 class="section-title">탑 트레이더</h2>
+            <h2 class="section-title" id="topTraderTitle">탑 트레이더</h2>
             <button type="button" class="listing-register-btn" onclick="openListingCreateFlow()" aria-label="리스팅">
                 <span class="listing-register-btn__icon" aria-hidden="true">+</span>
-                <span>리스팅</span>
+                <span id="listingBtnText">리스팅</span>
             </button>
         </div>
         <div id="traderList"><div style="text-align: center; color: #888; padding: 50px;">Updating prices...</div></div>
+        <div class="marketplace-footer">
+            <div class="marketplace-footer-top">
+                <div class="marketplace-footer-brand">XTRADERS</div>
+                <div class="marketplace-footer-actions">
+                    <span class="marketplace-footer-action" aria-hidden="true">✉</span>
+                    <button type="button" class="marketplace-footer-action" onclick="toggleThemeMode()">
+                        <span>◐</span><span id="footerThemeText">테마</span>
+                    </button>
+                    <button type="button" class="marketplace-footer-action" onclick="toggleLanguageMode()">
+                        <span>🌐</span><span id="footerLanguageText">한국어</span>
+                    </button>
+                </div>
+            </div>
+            <div class="marketplace-footer-links">
+                <button type="button" id="footerPrivacyBtn" class="marketplace-footer-link" onclick="showPreparingNotice()">개인정보 처리방침</button>
+                <button type="button" id="footerTermsBtn" class="marketplace-footer-link" onclick="showPreparingNotice()">이용약관</button>
+            </div>
+        </div>
     </div>
 
     <div id="myOffersView" class="myoffers-view hidden">
@@ -3361,6 +3416,78 @@
         let sellerAlertedOrderIds = {};
         const ORDER_REALTIME_INTERVAL_MS = 3000;
         const STORAGE_ORDER_SELLER_ALERTED = 'orderSellerAlertedIdsV1';
+        const UI_THEME_STORAGE_KEY = 'uiThemeMode';
+        const UI_LANG_STORAGE_KEY = 'uiLangMode';
+        let uiThemeMode = 'dark';
+        let uiLangMode = 'ko';
+
+        const UI_TEXTS = {
+            ko: {
+                marketplace: '마켓플레이스',
+                topTrader: '탑 트레이더',
+                listing: '리스팅',
+                footerTheme: '테마',
+                footerLanguage: '한국어',
+                privacy: '개인정보 처리방침',
+                terms: '이용약관',
+                preparing: '준비중입니다.'
+            },
+            en: {
+                marketplace: 'Marketplace',
+                topTrader: 'Top Traders',
+                listing: 'Listing',
+                footerTheme: 'Theme',
+                footerLanguage: 'English',
+                privacy: 'Privacy Policy',
+                terms: 'Terms of Service',
+                preparing: 'Coming soon.'
+            }
+        };
+
+        function getUiTexts() {
+            return uiLangMode === 'en' ? UI_TEXTS.en : UI_TEXTS.ko;
+        }
+
+        function applyThemeMode() {
+            var isLight = uiThemeMode === 'light';
+            document.body.classList.toggle('theme-light', isLight);
+            try { localStorage.setItem(UI_THEME_STORAGE_KEY, uiThemeMode); } catch (e) {}
+        }
+
+        function applyLanguageMode() {
+            var txt = getUiTexts();
+            var el1 = document.getElementById('marketplaceLogoText');
+            var el2 = document.getElementById('topTraderTitle');
+            var el3 = document.getElementById('listingBtnText');
+            var el4 = document.getElementById('footerThemeText');
+            var el5 = document.getElementById('footerLanguageText');
+            var el6 = document.getElementById('footerPrivacyBtn');
+            var el7 = document.getElementById('footerTermsBtn');
+            if (el1) el1.textContent = txt.marketplace;
+            if (el2) el2.textContent = txt.topTrader;
+            if (el3) el3.textContent = txt.listing;
+            if (el4) el4.textContent = txt.footerTheme;
+            if (el5) el5.textContent = txt.footerLanguage;
+            if (el6) el6.textContent = txt.privacy;
+            if (el7) el7.textContent = txt.terms;
+            try { localStorage.setItem(UI_LANG_STORAGE_KEY, uiLangMode); } catch (e) {}
+        }
+
+        function showPreparingNotice() {
+            var msg = getUiTexts().preparing;
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+            else alert(msg);
+        }
+
+        function toggleThemeMode() {
+            uiThemeMode = uiThemeMode === 'light' ? 'dark' : 'light';
+            applyThemeMode();
+        }
+
+        function toggleLanguageMode() {
+            uiLangMode = uiLangMode === 'en' ? 'ko' : 'en';
+            applyLanguageMode();
+        }
 
         function orderStatusLabel(status) {
             var s = String(status || 'pending_seller');
@@ -4954,6 +5081,14 @@
         (async function initPaymentAndUI() {
             try {
                 bindTelegramUser();
+                try {
+                    var savedTheme = localStorage.getItem(UI_THEME_STORAGE_KEY);
+                    var savedLang = localStorage.getItem(UI_LANG_STORAGE_KEY);
+                    if (savedTheme === 'light' || savedTheme === 'dark') uiThemeMode = savedTheme;
+                    if (savedLang === 'ko' || savedLang === 'en') uiLangMode = savedLang;
+                } catch (ePrefs) {}
+                applyThemeMode();
+                applyLanguageMode();
                 loadSellerAlertedOrderIds();
                 // 삭제 버튼 이벤트를 JS로도 한 번 더 바인딩(웹뷰별 onclick 누락 이슈 대응)
                 try {
