@@ -80,21 +80,22 @@
             gap: 12px;
             margin-bottom: 16px;
         }
-        .marketplace-footer-brand { font-size: 26px; font-weight: 900; letter-spacing: 0.2px; }
+        .marketplace-footer-brand { font-size: 17px; font-weight: 900; letter-spacing: 0.2px; }
         .marketplace-footer-actions { display: flex; align-items: center; gap: 18px; }
         .marketplace-footer-action {
             display: inline-flex; align-items: center; gap: 6px;
-            color: #f1f5f9; font-size: 18px; font-weight: 800;
+            color: #f1f5f9; font-size: 12px; font-weight: 800;
             background: transparent; border: none; padding: 0; cursor: pointer;
         }
         .marketplace-footer-links { display: flex; flex-direction: column; gap: 10px; }
         .marketplace-footer-link {
             background: transparent; border: none; color: #cbd5e1;
-            padding: 0; text-align: left; font-size: 16px; cursor: pointer;
+            padding: 0; text-align: left; font-size: 11px; cursor: pointer;
         }
         .theme-light { background: #f6f7fb; color: #121826; }
         .theme-light #marketplaceView { background: #f6f7fb; color: #111827; }
-        .theme-light .top-header { border-bottom-color: #d8deea; }
+        .theme-light .top-header { border-bottom-color: #d8deea; color: #111827; }
+        .theme-light .menu-icon { color: #111827; }
         .theme-light .section-title { color: #111827; }
         .theme-light .trader-card {
             background: linear-gradient(145deg, #ebe8ff 0%, #ddd8ff 55%, #cfc8ff 100%);
@@ -104,6 +105,39 @@
         .theme-light .price-label, .theme-light .limit-info, .theme-light .network-info { color: #334155; }
         .theme-light .marketplace-footer { border-top-color: #d8deea; color: #334155; }
         .theme-light .marketplace-footer-action, .theme-light .marketplace-footer-link { color: #1e293b; }
+        .theme-light #myOffersView { background: #f6f7fb; color: #0f172a; }
+        .theme-light #myOffersView .offer-card {
+            background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%);
+            border-color: #d6ccff;
+        }
+        .theme-light #myOffersView .offer-k { color: #475569; }
+        .theme-light #myOffersView .offer-v { color: #0f172a; }
+        .theme-light #myOffersView .offer-empty { color: #64748b; }
+        .theme-light #myOffersView .myoffers-tab { color: #64748b; }
+        .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+        .theme-light .side-menu { background-color: #f8fafc; color: #0f172a; box-shadow: -5px 0 15px rgba(15, 23, 42, 0.15); }
+        .theme-light .close-btn,
+        .theme-light .side-name,
+        .theme-light .nav-item-main,
+        .theme-light .nav-sub { color: #0f172a; }
+        .theme-light .nav-item-main:active { background-color: #e2e8f0; }
+        .theme-light .arrow-right,
+        .theme-light .accordion-count,
+        .theme-light .accordion-chevron { color: #64748b; }
+        .theme-light #myPageView { background: #f6f7fb; color: #0f172a; }
+        .theme-light #myPageView .mypage-info p { color: #334155; }
+        .theme-light #myPageView .mypage-summary-card,
+        .theme-light #myPageView .accordion-header,
+        .theme-light #myPageView .saved-wallet-card,
+        .theme-light #myPageView .list-item { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .accordion-title,
+        .theme-light #myPageView .saved-wallet-title,
+        .theme-light #myPageView .list-item-title,
+        .theme-light #myPageView .mypage-summary-value { color: #0f172a; }
+        .theme-light #myPageView .mypage-summary-label,
+        .theme-light #myPageView .saved-wallet-sub,
+        .theme-light #myPageView .saved-wallet-row,
+        .theme-light #myPageView .list-item-desc { color: #475569; }
         .myoffers-view { min-height: 100vh; background: #07060d; }
         .myoffers-wrap { padding: 14px 16px 80px; }
         .myoffers-tabs {
@@ -976,7 +1010,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-footer-theme-lang-14</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-lightmode-fix-15</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3437,7 +3471,7 @@
                 topTrader: 'Top Traders',
                 listing: 'Listing',
                 footerTheme: 'Theme',
-                footerLanguage: 'English',
+                footerLanguage: 'EN',
                 privacy: 'Privacy Policy',
                 terms: 'Terms of Service',
                 preparing: 'Coming soon.'
