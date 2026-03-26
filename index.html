@@ -3248,6 +3248,7 @@
             // 데모도 서버에 저장 시도(서버 없으면 로컬 알림만)
             (async function () {
                 var posted = false;
+                var errDetail = '';
                 if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
                     try {
                         var res = await fetch(API_BASE_URL + '/api/orders', {
@@ -3261,16 +3262,25 @@
                                 receiver: receiver
                             })
                         });
-                        if (res && res.ok) posted = true;
+                        if (res && res.ok) {
+                            posted = true;
+                        } else {
+                            errDetail = 'HTTP ' + (res ? res.status : 'unknown');
+                            try {
+                                var txt = await res.text();
+                                if (txt) errDetail += ' · ' + txt;
+                            } catch (e) {}
+                        }
                     } catch (e) {
                         posted = false;
+                        errDetail = String(e && e.message ? e.message : e);
                     }
                 }
 
                 // 서버 저장 성공/실패를 확실히 구분해서 안내(캐시/네트워크 이슈도 확인 가능)
                 var msg = posted
                     ? (sideTxt + ' 주문이 서버에 저장되었습니다.')
-                    : (sideTxt + ' 주문 저장이 실패했습니다. 데모로만 처리됩니다.');
+                    : (sideTxt + ' 주문 저장이 실패했습니다. 데모로만 처리됩니다.' + (errDetail ? (' · ' + errDetail) : ''));
 
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                 else alert(msg);
