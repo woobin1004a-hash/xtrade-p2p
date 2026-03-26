@@ -3493,7 +3493,6 @@
                 else alert(missMsg);
                 return;
             }
-            closeListingDetail();
             // deleteListing은 async이므로 실패 시에도 사용자에게 표시
             try {
                 var p = deleteListing(listingId);
@@ -3509,6 +3508,27 @@
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
                 else alert(msg2);
             }
+        }
+
+        function confirmDeleteAsync(message) {
+            return new Promise(function (resolve) {
+                try {
+                    // 텔레그램 WebApp 환경에서는 네이티브 confirm 대신 showConfirm 사용
+                    if (tg && typeof tg.showConfirm === 'function') {
+                        tg.showConfirm(String(message || ''), function (ok) {
+                            resolve(!!ok);
+                        });
+                        return;
+                    }
+                } catch (e) {}
+
+                try {
+                    var ok = window.confirm(String(message || '삭제할까요?'));
+                    resolve(!!ok);
+                } catch (e2) {
+                    resolve(false);
+                }
+            });
         }
 
         async function deleteListing(listingId) {
@@ -3553,7 +3573,7 @@
                 return;
             }
 
-            var ok = window.confirm('이 리스팅을 삭제할까요?');
+            var ok = await confirmDeleteAsync('이 리스팅을 삭제할까요?');
             if (!ok) return;
 
             // 1) 서버에서 삭제 시도
@@ -3569,6 +3589,7 @@
 
             // 2) 서버 삭제 성공이면 목록만 갱신
             if (serverDeleted) {
+                closeListingDetail();
                 loadMarketplace();
                 return;
             }
@@ -3577,6 +3598,7 @@
             if (idx >= 0) {
                 listings.splice(idx, 1);
                 saveListings(listings);
+                closeListingDetail();
                 loadMarketplace();
                 var fbMsg = '서버 삭제 실패로 로컬에서만 삭제되었습니다.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(fbMsg);
