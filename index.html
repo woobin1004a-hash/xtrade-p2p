@@ -3490,7 +3490,12 @@
                 } catch (e) {}
             }
 
-            if (!found) return;
+            if (!found) {
+                var missMsg = '삭제 대상 리스팅을 찾지 못했습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg);
+                else alert(missMsg);
+                return;
+            }
 
             // 가상 트레이더는 삭제를 막음
             if (String(found.ownerId) === 'virtual_gdragon' || String(found.ownerId) === 'virtual_superman') {
@@ -3499,7 +3504,10 @@
                 return;
             }
 
-            if (String(found.ownerId) !== String(currentUserId)) {
+            // 소유자 판정 보강: ownerId 우선, 보조로 ownerName까지 확인(텔레그램 user binding 이슈 대비)
+            var isOwnerById = String(found.ownerId) === String(currentUserId);
+            var isOwnerByName = String(found.ownerName || '') === String(currentUserName || '');
+            if (!isOwnerById && !isOwnerByName) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 삭제할 수 있습니다.');
                 else alert('본인의 리스팅만 삭제할 수 있습니다.');
                 return;
@@ -3510,11 +3518,13 @@
 
             // 1) 서버에서 삭제 시도
             var serverDeleted = false;
+            var serverDeleteErr = '';
             try {
                 await deleteListingFromSupabase(listingId);
                 serverDeleted = true;
             } catch (e) {
                 serverDeleted = false;
+                serverDeleteErr = String(e && e.message ? e.message : e);
             }
 
             // 2) 서버 삭제 성공이면 목록만 갱신
@@ -3528,7 +3538,16 @@
                 listings.splice(idx, 1);
                 saveListings(listings);
                 loadMarketplace();
+                var fbMsg = '서버 삭제 실패로 로컬에서만 삭제되었습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(fbMsg);
+                else alert(fbMsg);
+                return;
             }
+
+            // 서버/로컬 모두 실패 시 사용자에게 이유를 명확히 표시
+            var failMsg = '삭제 실패: 서버 응답을 확인해 주세요.' + (serverDeleteErr ? (' (' + serverDeleteErr + ')') : '');
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(failMsg);
+            else alert(failMsg);
         }
 
         function shortenAddress(address) {
