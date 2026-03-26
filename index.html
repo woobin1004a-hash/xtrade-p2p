@@ -2071,7 +2071,7 @@
             updateListingConfirmUi();
         }
 
-        function submitListingBoostPayment() {
+        async function submitListingBoostPayment() {
             // 데모: 결제 즉시 완료 처리 → 리스팅 등록(또는 수정)
             if (localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) !== '1') {
                 openKycFlow();
@@ -2129,6 +2129,22 @@
                 boostUsdt: Number(s.boostUsdt || 0)
             };
 
+            // 1) 서버 먼저 저장 시도 (성공하면 서버 목록이 갱신됨)
+            var serverPosted = false;
+            if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                try {
+                    var res = await fetch(API_BASE_URL + '/api/listings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(record)
+                    });
+                    if (res && res.ok) serverPosted = true;
+                } catch (e) {
+                    serverPosted = false;
+                }
+            }
+
+            // 2) 로컬에도 저장(서버 실패 시 fallback, 그리고 즉시 수정 프리필용)
             if (isEdit && existingIdx >= 0) {
                 listings[existingIdx] = record;
             } else {
@@ -2138,9 +2154,9 @@
             saveListings(listings);
             closeListingDetail();
             if (tg && typeof tg.showAlert === 'function') {
-                tg.showAlert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료(데모)!');
+                tg.showAlert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!');
             } else {
-                alert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료(데모)!');
+                alert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!');
             }
 
             // 마켓으로 복귀하고 목록 갱신
@@ -2198,10 +2214,28 @@
 
         // --------------------------------------------------------
         // 리스팅 편집
-        function openListingEdit(listingId) {
+        async function openListingEdit(listingId) {
             if (!listingId) return;
             var listings = loadListings();
             var found = listings.find(function (l) { return String(l.id) === String(listingId); });
+
+            // 로컬에 없으면 서버 목록에서 찾아서 편집 가능하게 처리
+            if (!found) {
+                try {
+                    if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                        var res = await fetch(API_BASE_URL + '/api/listings', { cache: 'no-store' });
+                        if (res && res.ok) {
+                            var serverListings = await res.json();
+                            if (Array.isArray(serverListings)) {
+                                found = serverListings.find(function (l) {
+                                    return String(l.id) === String(listingId);
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
             if (!found) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
                 else alert('존재하지 않는 리스팅입니다.');
