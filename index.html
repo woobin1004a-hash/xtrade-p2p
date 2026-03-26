@@ -841,7 +841,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-input-overflow-fix-4</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-virtual-hide-comma-5</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2326,7 +2326,7 @@
             // 기본: 매도·매수 모두 선택 (최소 하나는 항상 유지)
             if (dom.listingModeSell) dom.listingModeSell.checked = true;
             if (dom.listingModeBuy) dom.listingModeBuy.checked = true;
-            if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = String(LISTING_ORDER_MIN_USDT);
+            if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = formatListingNumber(LISTING_ORDER_MIN_USDT);
             if (dom.listingOrderMaxInput) dom.listingOrderMaxInput.value = '';
             if (dom.listingDepositUsdtInput) dom.listingDepositUsdtInput.value = '';
             updateListingTradeUi();
@@ -2390,9 +2390,9 @@
             listingInitPromise = null;
             listingFlowState.basePriceKrW = null;
             initListingCreateData().then(function () {
-                if (dom.listingDepositUsdtInput) dom.listingDepositUsdtInput.value = String(found.depositUsdt || '');
-                if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = String(found.orderMinUsdt || LISTING_ORDER_MIN_USDT);
-                if (dom.listingOrderMaxInput) dom.listingOrderMaxInput.value = String(found.orderMaxUsdt || '');
+                if (dom.listingDepositUsdtInput) dom.listingDepositUsdtInput.value = Number(found.depositUsdt || 0) > 0 ? formatListingNumber(found.depositUsdt) : '';
+                if (dom.listingOrderMinInput) dom.listingOrderMinInput.value = formatListingNumber(found.orderMinUsdt || LISTING_ORDER_MIN_USDT);
+                if (dom.listingOrderMaxInput) dom.listingOrderMaxInput.value = Number(found.orderMaxUsdt || 0) > 0 ? formatListingNumber(found.orderMaxUsdt) : '';
 
                 if (dom.listingModeSell) dom.listingModeSell.checked = !!found.sellMode;
                 if (dom.listingModeBuy) dom.listingModeBuy.checked = !!found.buyMode;
@@ -2455,10 +2455,13 @@
 
         /** 예치금 변경 시 주문 최대값 상한 안내·클램프 */
         function onListingDepositInput() {
-            var d = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
+            var d = dom.listingDepositUsdtInput ? parseListingNumber(dom.listingDepositUsdtInput.value) : NaN;
+            if (dom.listingDepositUsdtInput) {
+                dom.listingDepositUsdtInput.value = Number.isFinite(d) && d > 0 ? formatListingNumber(d) : '';
+            }
             if (dom.listingOrderHint) {
                 if (Number.isFinite(d) && d >= LISTING_ORDER_MIN_USDT) {
-                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금(' + d + ' USDT) 이하입니다.';
+                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금(' + formatListingNumber(d) + ' USDT) 이하입니다.';
                 } else {
                     dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금을 넘을 수 없습니다.';
                 }
@@ -2467,11 +2470,15 @@
         }
 
         function onListingOrderMaxInput() {
-            var deposit = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
-            var maxVal = dom.listingOrderMaxInput ? parseFloat(dom.listingOrderMaxInput.value) : NaN;
+            var deposit = dom.listingDepositUsdtInput ? parseListingNumber(dom.listingDepositUsdtInput.value) : NaN;
+            var maxVal = dom.listingOrderMaxInput ? parseListingNumber(dom.listingOrderMaxInput.value) : NaN;
             if (!Number.isFinite(deposit) || deposit < LISTING_ORDER_MIN_USDT) return;
             if (Number.isFinite(maxVal) && maxVal > deposit && dom.listingOrderMaxInput) {
-                dom.listingOrderMaxInput.value = String(deposit);
+                dom.listingOrderMaxInput.value = formatListingNumber(deposit);
+                return;
+            }
+            if (dom.listingOrderMaxInput) {
+                dom.listingOrderMaxInput.value = Number.isFinite(maxVal) && maxVal > 0 ? formatListingNumber(maxVal) : '';
             }
         }
 
@@ -2533,9 +2540,9 @@
                 return;
             }
 
-            var deposit = dom.listingDepositUsdtInput ? parseFloat(dom.listingDepositUsdtInput.value) : NaN;
+            var deposit = dom.listingDepositUsdtInput ? parseListingNumber(dom.listingDepositUsdtInput.value) : NaN;
             var min = LISTING_ORDER_MIN_USDT;
-            var max = dom.listingOrderMaxInput ? parseFloat(dom.listingOrderMaxInput.value) : NaN;
+            var max = dom.listingOrderMaxInput ? parseListingNumber(dom.listingOrderMaxInput.value) : NaN;
             var sellMode = dom.listingModeSell && dom.listingModeSell.checked;
             var buyMode = dom.listingModeBuy && dom.listingModeBuy.checked;
 
@@ -2546,7 +2553,7 @@
                 return;
             }
             if (!Number.isFinite(max) || max < min || max > deposit) {
-                var msg2 = '주문 한도: 최소 ' + min + ' USDT, 최대는 예치금(' + deposit + ' USDT) 이하로 입력해 주세요.';
+                var msg2 = '주문 한도: 최소 ' + min + ' USDT, 최대는 예치금(' + formatListingNumber(deposit) + ' USDT) 이하로 입력해 주세요.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
                 else alert(msg2);
                 return;
@@ -2874,6 +2881,21 @@
                     return;
                 }
 
+                // 가상 리스팅은 데이터로 유지하되, 마켓플레이스 화면에서는 숨김 처리
+                var visibleListings = listings.filter(function (l) {
+                    var oid = String(l && l.ownerId || '');
+                    return oid !== 'virtual_gdragon' && oid !== 'virtual_superman';
+                });
+
+                if (!visibleListings.length) {
+                    dom.traderList.innerHTML =
+                        "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
+                        "아직 등록된 리스팅이 없습니다.<br/>" +
+                        "리스팅을 생성해 거래를 시작해 보세요." +
+                        "</div>";
+                    return;
+                }
+
                 var createListingCardHtml = function (l, index) {
                     var rank = index + 1;
                     var rankHtml = rank === 1
@@ -2930,7 +2952,7 @@
                     `;
                 };
 
-                dom.traderList.innerHTML = listings.map(createListingCardHtml).join('');
+                dom.traderList.innerHTML = visibleListings.map(createListingCardHtml).join('');
             } catch (error) {
                 if (dom.traderList) {
                     dom.traderList.innerHTML =
@@ -3199,6 +3221,19 @@
             if (!raw) return 0;
             var n = Number(raw);
             return Number.isFinite(n) ? n : 0;
+        }
+
+        function parseListingNumber(value) {
+            var raw = String(value == null ? '' : value).replace(/,/g, '').trim();
+            if (!raw) return NaN;
+            var n = Number(raw);
+            return Number.isFinite(n) ? n : NaN;
+        }
+
+        function formatListingNumber(value) {
+            var n = Number(value || 0);
+            if (!Number.isFinite(n)) return '';
+            return Math.floor(n).toLocaleString();
         }
 
         function formatOrderNumber(value, digits) {
