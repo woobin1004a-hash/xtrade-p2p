@@ -3231,9 +3231,51 @@
 
         function submitOrderDemo() {
             var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
-            if (tg && typeof tg.showAlert === 'function') tg.showAlert(sideTxt + ' 주문이 접수되었습니다(데모).');
-            else alert(sideTxt + ' 주문이 접수되었습니다(데모).');
-            closeOrderFlow();
+
+            var usdt = parseOrderNumber(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
+            var krw = parseOrderNumber(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
+
+            // 수취 정보
+            var receiver = {};
+            if (orderFlowState.side === 'buy') {
+                receiver.receiverWalletAddress = dom.orderBuyReceiveWalletInput ? dom.orderBuyReceiveWalletInput.value : '';
+                receiver.depositName = dom.orderBuyDepositNameInput ? dom.orderBuyDepositNameInput.value : '';
+            } else {
+                receiver.receiveAccountNumber = dom.orderSellReceiveAccountInput ? dom.orderSellReceiveAccountInput.value : '';
+                receiver.receiverWalletAddress = dom.orderSellWalletAddressInput ? dom.orderSellWalletAddressInput.value : '';
+            }
+
+            // 데모도 서버에 저장 시도(서버 없으면 로컬 알림만)
+            (async function () {
+                var posted = false;
+                if (typeof API_BASE_URL === 'string' && API_BASE_URL) {
+                    try {
+                        var res = await fetch(API_BASE_URL + '/api/orders', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                listingId: orderFlowState.listingId,
+                                side: orderFlowState.side,
+                                usdt: usdt,
+                                krw: krw,
+                                receiver: receiver
+                            })
+                        });
+                        if (res && res.ok) posted = true;
+                    } catch (e) {
+                        posted = false;
+                    }
+                }
+
+                if (tg && typeof tg.showAlert === 'function') {
+                    tg.showAlert(sideTxt + ' 주문이 ' + (posted ? '서버에 저장되었습니다.' : '접수되었습니다(데모).'));
+                } else {
+                    alert(sideTxt + ' 주문이 ' + (posted ? '서버에 저장되었습니다.' : '접수되었습니다(데모).'));
+                }
+
+                closeOrderFlow();
+                loadMarketplace();
+            })();
         }
 
         // 리스팅 상세(모달)
