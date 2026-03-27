@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-reconnect-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-ret-back-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5767,6 +5767,22 @@
             });
         }
 
+        function ensureWalletReturnBack(link) {
+            var s = String(link || '').trim();
+            if (!s) return '';
+            try {
+                var u = new URL(s);
+                // Tonkeeper 승인 후 텔레그램 미니앱으로 복귀하도록 ret=back 강제
+                if (!u.searchParams.get('ret')) {
+                    u.searchParams.set('ret', 'back');
+                }
+                return u.toString();
+            } catch (e) {
+                // URL 파싱 실패 시 원본 사용
+                return s;
+            }
+        }
+
         async function openTonConnectModal() {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
@@ -5793,6 +5809,7 @@
                         bridgeUrl: 'https://bridge.tonapi.io/bridge'
                     };
                     var link = tonConnectUIInstance.connector.connect(source) || '';
+                    link = ensureWalletReturnBack(link);
                     if (!link) throw new Error('Tonkeeper 연결 링크 생성에 실패했습니다.');
 
                     // iOS 단말별 차이를 줄이기 위해 openLink와 location 이동을 순차 시도
