@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-mobile-modal-scroll</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-remove-connection-status</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1866,12 +1866,6 @@
                     <div class="form-group" style="margin-top: 0;">
                         <span class="field-label">Network</span>
                         <div class="status-box">TON</div>
-                    </div>
-
-                    <div class="form-group">
-                        <span class="field-label">Connection Status</span>
-                        <div id="tonWalletStatusText" class="status-box">Not connected yet.</div>
-                        <div id="tonConnectFallback" class="helper-text hidden">TON Connect library could not be loaded. Please try again shortly.</div>
                     </div>
 
                     <div class="form-group">
@@ -5805,9 +5799,9 @@
                 throw new Error('TonWeb 주소 파서를 불러오지 못했습니다.');
             }
             try {
-                var a = new window.TonWeb.utils.Address(s);
-                // 사용자 친화 주소(48자) 형태로 통일
-                return a.toString(true, true, true);
+                // 주소 파싱만 통해 유효성을 검증하고, 표시는 사용자가 본 원본 형식을 유지
+                new window.TonWeb.utils.Address(s);
+                return s;
             } catch (e) {
                 throw new Error('TON 주소 형식이 올바르지 않습니다. (48자 user-friendly 주소)');
             }
