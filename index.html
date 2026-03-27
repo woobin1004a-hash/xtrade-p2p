@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-telegram-openlink</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-mobile-deeplink</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2020,25 +2020,65 @@
         (function installTelegramOpenForTonConnect() {
             if (!tg || typeof tg.openLink !== 'function') return;
             var origOpen = window.open;
-            window.open = function (url, target, features) {
-                if (typeof url !== 'string' || !url.length) return origOpen.apply(window, arguments);
-                try {
-                    var isHttp = /^https?:\/\//i.test(url);
-                    var isTon = /^ton:/i.test(url);
-                    var isTc = /^tc:/i.test(url);
-                    if (isHttp) {
+            // 모바일 WebView에서 스킴/도메인별로 가장 성공률 높은 방식으로 외부 앱/링크를 엽니다.
+            function openExternalByBestEffort(url) {
+                var isHttp = /^https?:\/\//i.test(url);
+                var isTelegramScheme = /^tg:/i.test(url);
+                var isTon = /^ton:/i.test(url);
+                var isTc = /^tc:/i.test(url);
+
+                // 1) ton:/tc: 는 openLink가 무시되는 단말이 있어 location 이동을 우선 사용
+                if (isTon || isTc) {
+                    try {
+                        window.location.href = url;
+                        return true;
+                    } catch (eLocTon) {
+                        try {
+                            tg.openLink(url, { try_instant_view: false });
+                            return true;
+                        } catch (eOpenTon) {
+                            return false;
+                        }
+                    }
+                }
+
+                // 2) 텔레그램 링크는 전용 API 우선 사용
+                if (isTelegramScheme) {
+                    try {
+                        tg.openLink(url, { try_instant_view: false });
+                        return true;
+                    } catch (eTgScheme) {
+                        return false;
+                    }
+                }
+
+                // 3) http(s) 링크는 t.me 전용 API 또는 openLink 사용
+                if (isHttp) {
+                    try {
                         var parsed = new URL(url);
                         var isTelegramTme = parsed.hostname === 't.me' || parsed.hostname.endsWith('.t.me');
                         if (isTelegramTme && typeof tg.openTelegramLink === 'function') {
                             tg.openTelegramLink(url);
-                        } else if (parsed.origin !== window.location.origin) {
-                            tg.openLink(url, { try_instant_view: false });
-                        } else {
-                            return origOpen.apply(window, arguments);
+                            return true;
                         }
-                    } else if (isTon || isTc) {
-                        tg.openLink(url, { try_instant_view: false });
-                    } else {
+                        if (parsed.origin !== window.location.origin) {
+                            tg.openLink(url, { try_instant_view: false });
+                            return true;
+                        }
+                        return false;
+                    } catch (eHttp) {
+                        return false;
+                    }
+                }
+
+                return false;
+            }
+
+            window.open = function (url, target, features) {
+                if (typeof url !== 'string' || !url.length) return origOpen.apply(window, arguments);
+                try {
+                    var opened = openExternalByBestEffort(url);
+                    if (!opened) {
                         return origOpen.apply(window, arguments);
                     }
                     return {
