@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-pin-ui-2-0-9</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-tonkeeper-direct</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5752,6 +5752,54 @@
             });
         }
 
+        async function tryOpenTonkeeperDirectOnIos() {
+            if (!tg || String(tg.platform || '').toLowerCase() !== 'ios') return false;
+            if (!tonConnectUIInstance) return false;
+            if (typeof tonConnectUIInstance.getWallets !== 'function') return false;
+            if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') return false;
+
+            var wallets = [];
+            try {
+                wallets = await tonConnectUIInstance.getWallets();
+            } catch (e) {
+                return false;
+            }
+
+            var tonkeeper = (wallets || []).find(function (w) {
+                return (
+                    w &&
+                    String(w.appName || '').toLowerCase() === 'tonkeeper' &&
+                    typeof w.universalLink === 'string' &&
+                    !!String(w.universalLink).trim() &&
+                    typeof w.bridgeUrl === 'string' &&
+                    !!String(w.bridgeUrl).trim()
+                );
+            });
+            if (!tonkeeper) return false;
+
+            var deep = '';
+            try {
+                deep = tonConnectUIInstance.connector.connect({
+                    universalLink: tonkeeper.universalLink,
+                    bridgeUrl: tonkeeper.bridgeUrl
+                }) || '';
+            } catch (eConnect) {
+                return false;
+            }
+            if (!deep) return false;
+
+            if (typeof tg.openLink === 'function') {
+                tg.openLink(deep, { try_instant_view: false });
+                return true;
+            }
+            try {
+                window.location.href = deep;
+                return true;
+            } catch (eHref) {
+                return false;
+            }
+        }
+
         async function openTonConnectModal() {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
@@ -5769,6 +5817,11 @@
                 tonConnectFillUntilMs = 0;
             }, 4000);
             try {
+                // iOS Telegram에서 지갑 선택 모달 버튼이 무반응인 경우가 있어 Tonkeeper 직접 오픈을 먼저 시도
+                var openedTonkeeperOnIos = await tryOpenTonkeeperDirectOnIos();
+                if (openedTonkeeperOnIos) {
+                    return;
+                }
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
