@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-openmodal-restore</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-direct-tonkeeper-priority</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5638,6 +5638,8 @@
         // --------------------------------------------------------
         // TonConnect (TON wallet connect modal + connection status)
         let tonConnectUIInstance = null;
+        /** iOS Telegram 원클릭 연결용 Tonkeeper 소스 캐시 */
+        let tonkeeperSourceForIos = null;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5714,6 +5716,35 @@
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot'
                 });
+                // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
+                if (typeof tonConnectUIInstance.getWallets === 'function') {
+                    tonConnectUIInstance.getWallets()
+                        .then(function (wallets) {
+                            var tonkeeper = (wallets || []).find(function (w) {
+                                return (
+                                    w &&
+                                    String(w.appName || '').toLowerCase() === 'tonkeeper' &&
+                                    typeof w.universalLink === 'string' &&
+                                    !!String(w.universalLink).trim() &&
+                                    typeof w.bridgeUrl === 'string' &&
+                                    !!String(w.bridgeUrl).trim()
+                                );
+                            });
+                            tonkeeperSourceForIos = tonkeeper
+                                ? { universalLink: tonkeeper.universalLink, bridgeUrl: tonkeeper.bridgeUrl }
+                                : {
+                                    // 캐시 실패 시 사용할 Tonkeeper 기본 엔드포인트
+                                    universalLink: 'https://app.tonkeeper.com/ton-connect',
+                                    bridgeUrl: 'https://bridge.tonapi.io/bridge'
+                                };
+                        })
+                        .catch(function () {
+                            tonkeeperSourceForIos = {
+                                universalLink: 'https://app.tonkeeper.com/ton-connect',
+                                bridgeUrl: 'https://bridge.tonapi.io/bridge'
+                            };
+                        });
+                }
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
@@ -5736,6 +5767,37 @@
             });
         }
 
+        function openTonkeeperDirectForIosFromClick() {
+            if (!tg || String(tg.platform || '').toLowerCase() !== 'ios') return false;
+            if (!tonConnectUIInstance || !tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') return false;
+            if (typeof tg.openLink !== 'function') return false;
+
+            var source = tonkeeperSourceForIos || {
+                universalLink: 'https://app.tonkeeper.com/ton-connect',
+                bridgeUrl: 'https://bridge.tonapi.io/bridge'
+            };
+            var link = '';
+            try {
+                // 사용자 클릭 이벤트 스택 안에서 즉시 링크 생성/오픈해야 iOS WebView 차단을 줄일 수 있음
+                link = tonConnectUIInstance.connector.connect(source) || '';
+            } catch (eConnect) {
+                return false;
+            }
+            if (!link) return false;
+
+            try {
+                tg.openLink(link, { try_instant_view: false });
+                return true;
+            } catch (eOpen) {
+                try {
+                    window.location.href = link;
+                    return true;
+                } catch (eHref) {
+                    return false;
+                }
+            }
+        }
+
         async function openTonConnectModal() {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
@@ -5748,6 +5810,10 @@
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
             try {
+                // iOS Telegram: 모달 내 지갑 버튼 무반응 이슈를 피하기 위해 Tonkeeper 직접 오픈을 우선
+                if (openTonkeeperDirectForIosFromClick()) {
+                    return;
+                }
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
