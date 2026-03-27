@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-mobile-deeplink</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-rollback</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2016,86 +2016,7 @@
         // 미니앱 준비 완료 신호(미호출 시 일부 API·링크 동작이 불안정할 수 있음)
         if (tg && typeof tg.ready === 'function') tg.ready();
 
-        // TonConnect는 지갑 연결 시 window.open(딥링크/HTTPS)을 쓰는데, 텔레그램 미니앱 WebView에서는 막히거나 무반응인 경우가 많음 → WebApp API로 열기
-        (function installTelegramOpenForTonConnect() {
-            if (!tg || typeof tg.openLink !== 'function') return;
-            var origOpen = window.open;
-            // 모바일 WebView에서 스킴/도메인별로 가장 성공률 높은 방식으로 외부 앱/링크를 엽니다.
-            function openExternalByBestEffort(url) {
-                var isHttp = /^https?:\/\//i.test(url);
-                var isTelegramScheme = /^tg:/i.test(url);
-                var isTon = /^ton:/i.test(url);
-                var isTc = /^tc:/i.test(url);
-
-                // 1) ton:/tc: 는 openLink가 무시되는 단말이 있어 location 이동을 우선 사용
-                if (isTon || isTc) {
-                    try {
-                        window.location.href = url;
-                        return true;
-                    } catch (eLocTon) {
-                        try {
-                            tg.openLink(url, { try_instant_view: false });
-                            return true;
-                        } catch (eOpenTon) {
-                            return false;
-                        }
-                    }
-                }
-
-                // 2) 텔레그램 링크는 전용 API 우선 사용
-                if (isTelegramScheme) {
-                    try {
-                        tg.openLink(url, { try_instant_view: false });
-                        return true;
-                    } catch (eTgScheme) {
-                        return false;
-                    }
-                }
-
-                // 3) http(s) 링크는 t.me 전용 API 또는 openLink 사용
-                if (isHttp) {
-                    try {
-                        var parsed = new URL(url);
-                        var isTelegramTme = parsed.hostname === 't.me' || parsed.hostname.endsWith('.t.me');
-                        if (isTelegramTme && typeof tg.openTelegramLink === 'function') {
-                            tg.openTelegramLink(url);
-                            return true;
-                        }
-                        if (parsed.origin !== window.location.origin) {
-                            tg.openLink(url, { try_instant_view: false });
-                            return true;
-                        }
-                        return false;
-                    } catch (eHttp) {
-                        return false;
-                    }
-                }
-
-                return false;
-            }
-
-            window.open = function (url, target, features) {
-                if (typeof url !== 'string' || !url.length) return origOpen.apply(window, arguments);
-                try {
-                    var opened = openExternalByBestEffort(url);
-                    if (!opened) {
-                        return origOpen.apply(window, arguments);
-                    }
-                    return {
-                        closed: false,
-                        close: function () {},
-                        focus: function () {},
-                        location: { href: url }
-                    };
-                } catch (e) {
-                    try {
-                        return origOpen.apply(window, arguments);
-                    } catch (e2) {
-                        return null;
-                    }
-                }
-            };
-        })();
+        // iOS 텔레그램에서는 window.open 가로채기가 TonConnect 기본 흐름과 충돌할 수 있어, SDK 기본 동작을 유지합니다.
         // Supabase REST 연결 정보
         const SUPABASE_URL = 'https://fasigdxixqvgxurineyo.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
