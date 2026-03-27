@@ -1061,6 +1061,9 @@
             border-radius: 18px 18px 0 0;
             padding-bottom: 24px;
             max-width: 520px;
+            max-height: 88vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
         .modal-header {
             padding: 16px 20px 8px 20px;
@@ -1081,6 +1084,10 @@
         }
 
         .modal-body { padding-top: 6px; }
+        #walletSettingsView .modal-body,
+        #bankAccountsSettingsView .modal-body {
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        }
 
         .field-row-with-btn {
             display: flex;
@@ -1324,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-address-guard</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-mobile-modal-scroll</div>
 
     <div id="marketplaceView">
         <div class="top-header">
