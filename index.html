@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-tonkeeper-single-modal</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-openmodal-restore</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5748,11 +5748,6 @@
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
             try {
-                var platform = tg ? String(tg.platform || '').toLowerCase() : '';
-                // iOS에서는 지갑 목록 모달 버튼이 무반응인 경우가 있어 Tonkeeper 단일 모달을 우선 시도
-                if (platform === 'ios' && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
-                    await tonConnectUIInstance.openSingleWalletModal('tonkeeper');
-                } else
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
