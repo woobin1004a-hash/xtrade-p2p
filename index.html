@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-force-ret-back</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-manual-return-restore</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5640,6 +5640,8 @@
         let tonConnectUIInstance = null;
         /** iOS Telegram 원클릭 연결용 Tonkeeper 소스 캐시 */
         let tonkeeperSourceForIos = null;
+        /** 수동 복귀 시 연결 복원 훅 중복 방지 */
+        let tonRestoreHooksBound = false;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5745,6 +5747,16 @@
                             };
                         });
                 }
+                // iOS 자동 복귀 실패 대비: 사용자가 텔레그램으로 수동 복귀하면 연결 상태 즉시 복원
+                if (!tonRestoreHooksBound) {
+                    tonRestoreHooksBound = true;
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'visible') restoreTonConnectionSafe();
+                    });
+                    window.addEventListener('focus', function () {
+                        restoreTonConnectionSafe();
+                    });
+                }
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
@@ -5778,6 +5790,16 @@
             } catch (e) {
                 // URL 파싱 실패 시 원본 사용
                 return s;
+            }
+        }
+
+        async function restoreTonConnectionSafe() {
+            if (!tonConnectUIInstance || !tonConnectUIInstance.connector) return;
+            if (typeof tonConnectUIInstance.connector.restoreConnection !== 'function') return;
+            try {
+                await tonConnectUIInstance.connector.restoreConnection();
+            } catch (e) {
+                // 복원 실패는 무시하고 다음 복귀 시 재시도
             }
         }
 
@@ -5820,6 +5842,9 @@
                     } catch (eOpen) {}
                     if (!opened) {
                         try { window.location.href = link; } catch (eHref) {}
+                    }
+                    if (tg && typeof tg.showAlert === 'function') {
+                        tg.showAlert('Tonkeeper에서 Connect 완료 후, 자동 복귀가 안 되면 텔레그램으로 돌아오세요. 돌아오면 연결 상태를 자동 복원합니다.');
                     }
                     return;
                 }
