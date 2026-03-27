@@ -131,23 +131,55 @@
         .theme-light .accordion-count,
         .theme-light .accordion-chevron { color: #64748b; }
         .theme-light #myPageView { background: #f6f7fb; color: #0f172a; }
+        .theme-light #myPageView .top-header { border-bottom-color: #e2e8f0; color: #0f172a; }
         .theme-light #myPageView .mypage-info p { color: #334155; }
-        .theme-light #myPageView .mypage-summary-card,
-        .theme-light #myPageView .accordion-header,
-        .theme-light #myPageView .saved-wallet-card,
-        .theme-light #myPageView .list-item { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+        /* KYC 요약 카드: 다크 그라데이션은 background 한 번에 덮어써야 함 */
+        .theme-light #myPageView .mypage-summary-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myPageView .mypage-summary-row + .mypage-summary-row { border-top-color: #e2e8f0; }
+        .theme-light #myPageView .mypage-summary-label { color: #475569; }
+        .theme-light #myPageView .mypage-summary-value { color: #0f172a; }
+        .theme-light #myPageView .mypage-summary-badge--ok { background: #dcfce7; color: #166534; }
+        .theme-light #myPageView .mypage-summary-badge--pending { background: #fee2e2; color: #b91c1c; }
+        .theme-light #myPageView .kyc-reset-btn {
+            background: #fff1f2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+        }
+        .theme-light #myPageView .accordion-header { color: #0f172a; }
         .theme-light #myPageView .accordion-title,
         .theme-light #myPageView .saved-wallet-title,
         .theme-light #myPageView .list-item-title,
         .theme-light #myPageView .mypage-summary-value { color: #0f172a; }
-        .theme-light #myPageView .mypage-summary-label,
+        /* 실제 DOM 클래스는 saved-card (saved-wallet-card 아님) */
+        .theme-light #myPageView .saved-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+        }
+        .theme-light #myPageView .saved-address { color: #334155; }
+        .theme-light #myPageView .saved-network-badge {
+            border-color: #99f6e4;
+            color: #0f766e;
+            background: #f0fdfa;
+        }
+        .theme-light #myPageView .add-btn {
+            background: #ffffff;
+            color: #5b21b6;
+            border: 1px solid #c4b5fd;
+        }
+        .theme-light #myPageView .add-btn:active { background: #f5f3ff; }
+        .theme-light #myPageView .list-item { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .list-title { color: #64748b; }
         .theme-light #myPageView .saved-wallet-sub,
         .theme-light #myPageView .saved-wallet-row,
         .theme-light #myPageView .list-item-desc { color: #475569; }
         .theme-light #myPageView .mypage-info h3 { color: #0f172a; }
         .theme-light #myPageView .edit-btn { background-color: #e2e8f0; color: #0f172a; }
         .theme-light #myPageView .accordion-count { color: #64748b; }
-        .theme-light #myPageView .saved-wallet-badge { background: #dcfce7; color: #166534; }
         .theme-light #myPageView .star-btn { color: #64748b; }
         .theme-light #myPageView .star-btn.on { color: #16a34a; }
         .theme-light #myPageView .delete-wallet-btn { border-color: #fecaca; color: #b91c1c; background: #fff1f2; }
@@ -159,7 +191,18 @@
             border-color: #cbd5e1;
         }
         .theme-light #myPageView .field-label { color: #334155; }
-        .theme-light #myPageView .modal-dialog { background: #f8fafc; border-color: #dbeafe; }
+        .theme-light #myPageView .modal-dialog { background: #ffffff; border: 1px solid #e2e8f0; }
+        .theme-light #myPageView .modal-header { border-bottom-color: #e2e8f0; }
+        .theme-light #myPageView .modal-title { color: #0f172a; }
+        .theme-light #myPageView .modal-close { color: #0f172a; }
+        .theme-light #myPageView .status-box {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light #myPageView .settings-header { border-bottom-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .back-btn { color: #0f172a; }
+        .theme-light #myPageView .settings-title { color: #0f172a; }
         .theme-light .order-flow-view { background: #f6f7fb; color: #0f172a; }
         .theme-light .order-flow-header { background: #f8fafc; border-bottom-color: #d8deea; }
         .theme-light .order-flow-title, .theme-light .order-flow-back { color: #0f172a; }
@@ -1049,7 +1092,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-lightmode-readability-16</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-usdt-balance-18</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2001,11 +2044,44 @@
 
         /** TonAPI 공개 API: TON 지갑 주소의 USDT(제톤) 잔액 */
         const TONAPI_ACCOUNT_JETTONS = 'https://tonapi.io/v2/accounts/';
-        function fetchJettonUsdtBalance(address) {
-            if (!address || !String(address).trim()) return Promise.resolve(null);
+        /** TON 메인넷 Tether USD(USDT) 제톤 마스터(주소 일치로도 판별) */
+        var USDT_JETTON_MASTER_MAINNET = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+
+        function normalizeJettonSymbol(sym) {
+            return String(sym || '')
+                .toUpperCase()
+                .replace(/₮/g, 'T')
+                .trim();
+        }
+
+        function isLikelyUsdtJetton(j) {
+            if (!j || typeof j !== 'object') return false;
+            var sym = normalizeJettonSymbol(j.symbol);
+            var name = String(j.name || '').toUpperCase();
+            var addr = String(j.address || '').trim();
+            if (addr && addr.toLowerCase() === USDT_JETTON_MASTER_MAINNET.toLowerCase()) return true;
+            if (sym === 'USDT' || sym.indexOf('USDT') !== -1) return true;
+            if (name.indexOf('TETHER') !== -1) return true;
+            if (name.indexOf('USDT') !== -1) return true;
+            return false;
+        }
+
+        function parseJettonBalanceNumber(b, j) {
+            var raw = b.balance;
+            if (raw == null) raw = '0';
+            var rawStr = String(raw);
+            var dec = typeof j.decimals === 'number' ? j.decimals : 6;
+            var n = Number(rawStr) / Math.pow(10, dec);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        /** TonAPI jettons 한 번 조회 */
+        function fetchJettonUsdtBalanceOnce(address) {
             var url = TONAPI_ACCOUNT_JETTONS + encodeURIComponent(address.trim()) + '/jettons';
-            return fetch(url, { cache: 'no-store' })
+            return fetch(url, { cache: 'no-store', mode: 'cors' })
                 .then(function (res) {
+                    // 계정이 체인에 없거나 제톤 지갑이 없을 때 404가 올 수 있음 → 0으로 처리
+                    if (res.status === 404) return { balances: [] };
                     if (!res.ok) throw new Error('tonapi ' + res.status);
                     return res.json();
                 })
@@ -2014,16 +2090,21 @@
                     for (var i = 0; i < list.length; i++) {
                         var b = list[i];
                         var j = b.jetton || {};
-                        var sym = String(j.symbol || '').toUpperCase();
-                        if (sym === 'USDT' || sym === 'USD₮' || (j.name && String(j.name).indexOf('Tether') !== -1)) {
-                            var raw = String(b.balance != null ? b.balance : '0');
-                            var dec = typeof j.decimals === 'number' ? j.decimals : 6;
-                            var n = Number(raw) / Math.pow(10, dec);
-                            return Number.isFinite(n) ? n : 0;
+                        if (isLikelyUsdtJetton(j)) {
+                            return parseJettonBalanceNumber(b, j);
                         }
                     }
                     return 0;
                 });
+        }
+
+        /** USDT 잔액 조회(일시 오류 시 1회 재시도) */
+        function fetchJettonUsdtBalance(address) {
+            if (!address || !String(address).trim()) return Promise.resolve(null);
+            var trimmed = String(address).trim();
+            return fetchJettonUsdtBalanceOnce(trimmed).catch(function () {
+                return fetchJettonUsdtBalanceOnce(trimmed);
+            });
         }
 
         /** 마이페이지 배지: KYC 2차 완료 여부 */
@@ -2084,6 +2165,10 @@
             if (dom.myPageView) dom.myPageView.classList.remove('hidden');
             showMyPageSettingsMain(); // Keep the default settings view on entry
             refreshMyPageSummary();
+            // TonConnect 복원이 늦을 수 있어 잠시 후 잔액 재조회
+            setTimeout(function () {
+                try { refreshMyPageUsdtBalance(); } catch (e) {}
+            }, 800);
         }
 
         function goToMarketplace() {
@@ -4806,17 +4891,19 @@
             return '';
         }
 
-        /** 마이페이지: 기본 지갑(없으면 첫 저장 지갑, 그다음 TonConnect 연결 주소)의 TON USDT 잔액 */
+        /** 마이페이지: TonConnect로 연결된 지갑 우선 → 기본 저장 지갑 → 첫 저장 지갑 순으로 USDT 잔액 표시 */
         function refreshMyPageUsdtBalance() {
             var el = dom.mypageUsdtBalance || document.getElementById('mypageUsdtBalance');
             if (!el) return;
-            var addr = getDefaultTonWalletAddress();
+            try { initTonConnectUIIfNeeded(); } catch (eInit) {}
+            var addr = null;
+            if (tonConnectUIInstance) {
+                addr = getTonAddressFromAccount(tonConnectUIInstance.account);
+            }
+            if (!addr) addr = getDefaultTonWalletAddress();
             if (!addr) {
                 var list = loadTonWallets();
                 if (list && list.length && list[0].address) addr = list[0].address;
-            }
-            if (!addr && tonConnectUIInstance) {
-                addr = getTonAddressFromAccount(tonConnectUIInstance.account);
             }
             if (!addr) {
                 el.textContent = '저장된 지갑 없음';
