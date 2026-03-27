@@ -4047,8 +4047,11 @@
                     tonRestoreHooksBound = true;
                     document.addEventListener('visibilitychange', function () {
                         if (document.visibilityState === 'visible') {
-                            // Tonkeeper로 넘어가 전송 서명 중일 때 closeModal 하면 전송이 취소될 수 있음
+                            // 전송 서명 중: closeModal 만 생략 — 복귀 시 restoreConnection 이 없으면 브리지가 서명 결과를 못 넘김
                             if (tonSendTransactionInFlight) {
+                                try {
+                                    restoreTonConnectionSafe();
+                                } catch (eRestoreWhileSend) {}
                                 return;
                             }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4059,6 +4062,9 @@
                     });
                     window.addEventListener('focus', function () {
                         if (tonSendTransactionInFlight) {
+                            try {
+                                restoreTonConnectionSafe();
+                            } catch (eRestoreFocusSend) {}
                             return;
                         }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
