@@ -1886,6 +1886,12 @@
         let orderSubmittedOverlayAction = 'myOffers';
         /** TonConnect sendTransaction 대기 중 — 이 때 closeModal·포커스 정리하면 전송이 취소될 수 있음 */
         let tonSendTransactionInFlight = false;
+        /** 전송하기 클릭 후 Tonkeeper로 나갔다 텔레그램 복귀 시 주문 완료 처리용 */
+        let tonOrderSendPending = null;
+        /** 텔레그램 복귀 경로에서 이미 patchOrder 했으면 await 이후 중복 저장 방지 */
+        let tonOrderSendResolvedByReturn = false;
+        /** 복귀 시 tryComplete 디바운스 */
+        let tonTelegramReturnCompleteTimer = null;
 
         const UI_TEXTS = {
             ko: {
@@ -2558,6 +2564,98 @@
             } catch (e3) {}
         }
 
+        /**
+         * Tonkeeper에서 전송 후 텔레그램으로 복귀했을 때:
+         * Open Wallet 모달을 닫고, 주문을 전송 완료 상태로 저장합니다(sendTransaction 대기와 무관).
+         */
+        async function tryCompleteTonOrderSendOnTelegramReturn() {
+            var p = tonOrderSendPending;
+            if (!p || !p.orderId) return;
+            var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
+                return String(o.id) === String(p.orderId);
+            });
+            if (!target) {
+                tonOrderSendPending = null;
+                return;
+            }
+            var receiver = Object.assign({}, (target.receiver && typeof target.receiver === 'object') ? target.receiver : {});
+            var uid0 = String(currentUserId || '');
+            var youAreSeller0 = String(receiver.sellerId || '') === uid0;
+            if (!youAreSeller0) {
+                tonOrderSendPending = null;
+                return;
+            }
+            var st = String(receiver.status || '');
+            if (p.side === 'sell') {
+                if (st !== 'buyer_approved_sell' && st !== 'sell_buyer_issue_coin' && st !== 'sell_buyer_pending_coin_ack') {
+                    tonOrderSendPending = null;
+                    return;
+                }
+            } else {
+                if (st !== 'buyer_paid' && st !== 'seller_deposit_checked' && st !== 'buyer_issue') {
+                    tonOrderSendPending = null;
+                    return;
+                }
+            }
+            var now = Number(Date.now());
+            if (p.side === 'sell') {
+                receiver.status = 'sell_coin_sent';
+                receiver.sellerSentAt = now;
+                receiver.txid = 'TELEGRAM_RETURN_ASSUMED_OK';
+            } else {
+                receiver.status = 'seller_sent';
+                receiver.sellerSentAt = now;
+                receiver.txid = 'TELEGRAM_RETURN_ASSUMED_OK';
+            }
+            receiver.updatedAt = now;
+            tonOrderSendResolvedByReturn = true;
+            try {
+                await patchOrderReceiverToSupabase(p.orderId, receiver);
+                await refreshMyOffers();
+            } catch (e) {
+                tonOrderSendResolvedByReturn = false;
+                var msg = '텔레그램 복귀 후 전송 완료 반영 실패: ' + String(e && e.message ? e.message : e);
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+                return;
+            }
+            tonOrderSendPending = null;
+            try {
+                closeTonConnectModalOnly();
+                forceCloseTonConnectUI();
+            } catch (e2) {}
+        }
+
+        /** Tonkeeper → 텔레그램 복귀·포커스 시: 모달 정리 + 전송 완료 처리(디바운스) */
+        function scheduleTonOrderSendCompleteOnTelegramReturn() {
+            if (!tonOrderSendPending || !tonOrderSendPending.orderId) {
+                try {
+                    closeTonConnectModalOnly();
+                    forceCloseTonConnectUI();
+                } catch (e) {}
+                return;
+            }
+            try {
+                closeTonConnectModalOnly();
+                forceCloseTonConnectUI();
+                setTimeout(function () {
+                    try {
+                        closeTonConnectModalOnly();
+                        forceCloseTonConnectUI();
+                    } catch (e1) {}
+                }, 180);
+            } catch (e0) {}
+            if (tonTelegramReturnCompleteTimer) {
+                try {
+                    clearTimeout(tonTelegramReturnCompleteTimer);
+                } catch (eClr) {}
+            }
+            tonTelegramReturnCompleteTimer = setTimeout(function () {
+                tonTelegramReturnCompleteTimer = null;
+                tryCompleteTonOrderSendOnTelegramReturn();
+            }, 400);
+        }
+
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
         function closeOrderSubmittedModalAndGoToMyOffers() {
             var overlay = document.getElementById('orderSubmittedOverlay');
@@ -2922,7 +3020,7 @@
                                 : '-') +
                             '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">예금주</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     } else if (status === 'sell_buyer_issue_coin' && youAreBuyer) {
                         extra =
                             '<div class="offer-divider"></div>' +
@@ -2946,7 +3044,7 @@
                             (r.sellerCoinIssueReply
                                 ? ('<div class="offer-line"><div class="offer-k">내 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '') +
-                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     } else if (status === 'sell_buyer_pending_coin_ack' && youAreBuyer) {
                         extra =
                             '<div class="offer-divider"></div>' +
@@ -2954,7 +3052,7 @@
                             (r.sellerCoinIssueReply
                                 ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '') +
-                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     }
                 } else if (status === 'seller_approved' && youAreBuyer) {
                     var bankParts = {
@@ -2993,7 +3091,7 @@
                             : '-') +
                     '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                 } else if (status === 'buyer_issue' && youAreBuyer) {
                     extra =
                         '<div class="offer-divider"></div>' +
@@ -3197,13 +3295,24 @@
                         if (sellToAddress.indexOf('.....') !== -1) {
                             throw new Error('구매자 수취 지갑이 마스킹 주소입니다. 원본 주소로 다시 주문해 주세요.');
                         }
-                        txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt);
+                        txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt, { orderId: String(orderId), side: 'sell' });
+                        if (tonOrderSendResolvedByReturn) {
+                            tonOrderSendResolvedByReturn = false;
+                            tonOrderSendPending = null;
+                            return;
+                        }
                     } catch (sendErrSell) {
+                        if (tonOrderSendResolvedByReturn) {
+                            tonOrderSendResolvedByReturn = false;
+                            tonOrderSendPending = null;
+                            return;
+                        }
                         if (isTonTxTimeoutAfterApprovalError(sendErrSell)) {
                             txidSell = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
                         } else {
                         var completedSell = await confirmManualTransferCompletion(sendErrSell);
                         if (!completedSell) {
+                            tonOrderSendPending = null;
                             var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
                             if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgSell);
                             else alert(sendMsgSell);
@@ -3212,6 +3321,7 @@
                         txidSell = 'MANUAL_CONFIRMED_TX';
                         }
                     }
+                    tonOrderSendPending = null;
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
                     receiver.txid = String(txidSell || 'TESTNET_TX_SENT').trim();
@@ -3317,13 +3427,24 @@
                     if (buyToAddress.indexOf('.....') !== -1) {
                         throw new Error('구매자 지갑 주소가 마스킹되어 전송할 수 없습니다. 원본 주소로 다시 주문해 주세요.');
                     }
-                    txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt);
+                    txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt, { orderId: String(orderId), side: 'buy' });
+                    if (tonOrderSendResolvedByReturn) {
+                        tonOrderSendResolvedByReturn = false;
+                        tonOrderSendPending = null;
+                        return;
+                    }
                 } catch (sendErrBuy) {
+                    if (tonOrderSendResolvedByReturn) {
+                        tonOrderSendResolvedByReturn = false;
+                        tonOrderSendPending = null;
+                        return;
+                    }
                     if (isTonTxTimeoutAfterApprovalError(sendErrBuy)) {
                         txid = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
                     } else {
                     var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
                     if (!completedBuy) {
+                        tonOrderSendPending = null;
                         var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
                         if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgBuy);
                         else alert(sendMsgBuy);
@@ -3332,6 +3453,7 @@
                     txid = 'MANUAL_CONFIRMED_TX';
                     }
                 }
+                tonOrderSendPending = null;
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
                 receiver.txid = String(txid || 'TESTNET_TX_SENT').trim();
@@ -4059,6 +4181,10 @@
                             return;
                         }
                         if (document.visibilityState === 'visible') {
+                            // 톤키퍼 전송 후 텔레그램 복귀: Open Wallet 모달 닫기 + 주문 전송완료(대기 중이면)
+                            if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                                scheduleTonOrderSendCompleteOnTelegramReturn();
+                            }
                             // 전송 서명 중: restore를 너무 자주 호출하면 커넥터 상태가 흔들려 지갑 쪽 요청이 꼬일 수 있어 디바운스
                             if (tonSendTransactionInFlight) {
                                 if (tonRestoreWhileSendTimer) {
@@ -4085,6 +4211,9 @@
                         }
                     });
                     window.addEventListener('focus', function () {
+                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                            scheduleTonOrderSendCompleteOnTelegramReturn();
+                        }
                         if (tonSendTransactionInFlight) {
                             if (tonRestoreWhileSendTimer) {
                                 try {
@@ -4106,6 +4235,11 @@
                             try { tonConnectUIInstance.closeModal(); } catch (eCloseFocus) {}
                         }
                         restoreTonConnectionSafe();
+                    });
+                    window.addEventListener('pageshow', function () {
+                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                            scheduleTonOrderSendCompleteOnTelegramReturn();
+                        }
                     });
                 }
             } catch (e) {
@@ -4355,12 +4489,16 @@
             throw new Error('설정에서 테스트넷 USDT 마스터 주소를 먼저 저장해 주세요.');
         }
 
-        async function sendUsdtJettonOnTestnet(toAddress, usdtAmount) {
+        async function sendUsdtJettonOnTestnet(toAddress, usdtAmount, orderSendPendingTag) {
             var to = String(toAddress || '').trim();
             if (!to) throw new Error('수신 지갑 주소가 없습니다.');
             var sender = await ensureTonWalletConnectedForTransfer();
             if (!tonConnectUIInstance || typeof tonConnectUIInstance.sendTransaction !== 'function') {
                 throw new Error('지갑 전송 기능을 사용할 수 없습니다.');
+            }
+            // 전송 UI 직전에만 pending 설정(연결 실패 시 잘못된 복귀·완료 처리 방지)
+            if (orderSendPendingTag && orderSendPendingTag.orderId) {
+                tonOrderSendPending = { orderId: String(orderSendPendingTag.orderId), side: orderSendPendingTag.side === 'sell' ? 'sell' : 'buy' };
             }
 
             var TonWebClass = window.TonWeb;
