@@ -118,8 +118,32 @@
         .theme-light #myOffersView .offer-empty { color: #64748b; }
         .theme-light #myOffersView .myoffers-tab { color: #64748b; }
         .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; border-bottom-color: #7c3aed; }
-        .theme-light #myOffersView .offer-btn--ghost { background: #e2e8f0; color: #0f172a; }
-        .theme-light #myOffersView .offer-btn--danger { background: #fee2e2; color: #991b1b; }
+        /* 내 제안 버튼: 첨부 2 스타일 — 보조=연회색+진한 글자, 주요=진보라+흰 글자 */
+        .theme-light #myOffersView .offer-btn {
+            border: 1px solid transparent;
+            min-height: 44px;
+        }
+        .theme-light #myOffersView .offer-btn--ghost {
+            background: #e8ecf4;
+            color: #0f172a;
+            border-color: #c5d0e0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myOffersView .offer-btn--ghost:active { background: #dce3f0; }
+        .theme-light #myOffersView .offer-btn--danger {
+            background: #e8ecf4;
+            color: #0f172a;
+            border-color: #c5d0e0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myOffersView .offer-btn--danger:active { background: #dce3f0; }
+        .theme-light #myOffersView .offer-btn--primary {
+            background: #7c3aed;
+            color: #ffffff;
+            border-color: #6d28d9;
+            box-shadow: 0 2px 12px rgba(124, 58, 237, 0.35);
+        }
+        .theme-light #myOffersView .offer-btn--primary:active { background: #6d28d9; }
         .theme-light #myOffersView .offer-copy-link { color: #1d4ed8; }
         .theme-light .side-menu { background-color: #f8fafc; color: #0f172a; box-shadow: -5px 0 15px rgba(15, 23, 42, 0.15); }
         .theme-light .close-btn,
@@ -241,21 +265,21 @@
         }
         .theme-light #orderFlowView .order-owner { color: #0f172a; }
         .theme-light #orderFlowView .order-summary-card .verified { color: #16a34a; }
-        /* 내 제안: 진행/완료/거절·취소 배지 (라이트 카드 위에서 또렷하게) */
+        /* 내 제안: 상태 배지 — 연한 배경에도 글자가 또렷하게 */
         .theme-light #myOffersView .offer-status--active {
-            color: #5b21b6;
-            background: #ede9fe;
-            border-color: #c4b5fd;
+            color: #4c1d95;
+            background: #e9d5ff;
+            border: 1px solid #a78bfa;
         }
         .theme-light #myOffersView .offer-status--done {
-            color: #166534;
-            background: #dcfce7;
-            border-color: #86efac;
+            color: #14532d;
+            background: #bbf7d0;
+            border: 1px solid #4ade80;
         }
         .theme-light #myOffersView .offer-status--reject {
-            color: #991b1b;
-            background: #fee2e2;
-            border-color: #fca5a5;
+            color: #7f1d1d;
+            background: #fecaca;
+            border: 1px solid #f87171;
         }
         .theme-light #myOffersView .offer-divider {
             border-top-color: #cbd5e1;
@@ -1171,7 +1195,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-wallet-usdt-sum-21</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-offer-btn-light-22</div>
 
     <div id="marketplaceView">
         <div class="top-header">
