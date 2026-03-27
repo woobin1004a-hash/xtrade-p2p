@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonkeeper-address-format-sync</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-twa-return-strategy</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5815,13 +5815,32 @@
             if (!s) return '';
             try {
                 var u = new URL(s);
-                // Tonkeeper 승인 후 텔레그램으로 복귀하도록 ret 값을 항상 back으로 강제
-                u.searchParams.set('ret', 'back');
+                // Tonkeeper 승인 후 텔레그램으로 복귀하도록 ret 전략을 강제
+                u.searchParams.set('ret', getTonkeeperReturnStrategy());
                 return u.toString();
             } catch (e) {
                 // URL 파싱 실패 시 원본 사용
                 return s;
             }
+        }
+
+        function buildTelegramMiniAppReturnUrl() {
+            if (!tg || !tg.initDataUnsafe || typeof tg.initDataUnsafe !== 'object') return '';
+            var data = tg.initDataUnsafe;
+            var receiver = data.receiver && typeof data.receiver === 'object' ? data.receiver : null;
+            var botUsername = receiver && typeof receiver.username === 'string' ? String(receiver.username).trim() : '';
+            if (!botUsername) return '';
+            var startParam = typeof data.start_param === 'string' ? String(data.start_param).trim() : '';
+            // start_param이 있으면 mini app 진입 상태를 최대한 보존
+            return startParam
+                ? ('https://t.me/' + botUsername + '?startapp=' + encodeURIComponent(startParam))
+                : ('https://t.me/' + botUsername);
+        }
+
+        function getTonkeeperReturnStrategy() {
+            // TWA 복귀 URL을 만들 수 있으면 ret에 URL 자체를 넣고, 아니면 back으로 폴백
+            var twaUrl = buildTelegramMiniAppReturnUrl();
+            return twaUrl || 'back';
         }
 
         async function restoreTonConnectionSafe() {
