@@ -4397,23 +4397,27 @@
             payloadCell.bits.writeAddress(toAddr); // destination
             payloadCell.bits.writeAddress(ownerAddr); // response destination
             payloadCell.bits.writeBit(false); // custom_payload: none
-            payloadCell.bits.writeCoins(new TonWebClass.utils.BN('1')); // 1 nanotone forward
+            // TEP-74: 수신 Jetton Wallet으로 알림을 보내려면 forward_ton_amount가 충분해야 함.
+            // 1 nano는 너무 작아 Tonkeeper 등에서 미리보기/서명 단계가 비정상일 수 있음.
+            var forwardTon = TonWebClass.utils.toNano('0.05');
+            payloadCell.bits.writeCoins(forwardTon);
             payloadCell.bits.writeBit(false); // forward_payload: none
 
             var payloadBoc = await payloadCell.toBoc(false);
             var payloadBase64 = TonWebClass.utils.bytesToBase64(payloadBoc);
 
+            // network는 연결된 체인과 중복될 수 있어 일부 지갑에서 충돌 시 제거 (테스트넷은 이미 계정에 반영됨)
             var tx = {
-                network: '-3',
                 validUntil: Math.floor(Date.now() / 1000) + 5 * 60,
                 messages: [{
                     address: fromJettonWallet.toString(true, true, true),
-                    // Jetton wallet 실행 가스(테스트넷)
-                    amount: TonWebClass.utils.toNano('0.06').toString(),
+                    // Jetton wallet 실행 + forward에 필요한 TON (테스트넷)
+                    amount: TonWebClass.utils.toNano('0.15').toString(),
                     payload: payloadBase64
                 }]
             };
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
+            // Tonkeeper에서 금액 확인·스와이프까지 30초를 넘기는 경우가 많아 여유를 둡니다.
             var result;
             tonSendTransactionInFlight = true;
             try {
@@ -4422,7 +4426,7 @@
                     new Promise(function (_, reject) {
                         setTimeout(function () {
                             reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
-                        }, 30000);
+                        }, 300000);
                     })
                 ]);
             } finally {
