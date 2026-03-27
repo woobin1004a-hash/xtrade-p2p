@@ -1241,7 +1241,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-myoffers-tab-nav</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-sell-reconfirm-no-confirm</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3863,6 +3863,88 @@
             return 'active';
         }
 
+        /**
+         * 구매/판매 전 단계에서 카드별 상황 안내(진행 안내) — 역할·상태별로 통일 표시
+         */
+        function getOfferProgressHintText(status, orderSide, youAreBuyer) {
+            var s = String(status || '');
+            if (orderSide === 'sell') {
+                if (s === 'pending_buyer') {
+                    return youAreBuyer
+                        ? '판매 신청을 검토한 뒤 승인 또는 거절해 주세요.'
+                        : '상대방(구매자)의 승인을 기다리는 중입니다.';
+                }
+                if (s === 'buyer_rejected_sell') return '구매자가 판매 신청을 거절했습니다.';
+                if (s === 'buyer_approved_sell') {
+                    return youAreBuyer
+                        ? '판매자의 USDT 전송을 기다리는 중입니다.'
+                        : '안내된 구매자 지갑으로 USDT를 송금한 뒤 전송 완료를 눌러 주세요.';
+                }
+                if (s === 'seller_cancelled_sell') return '판매자가 이 거래를 취소했습니다.';
+                if (s === 'sell_coin_sent') {
+                    return youAreBuyer
+                        ? '판매자 계좌로 원화를 입금한 뒤 입금 완료를 눌러 주세요.'
+                        : '구매자의 원화 입금을 기다리는 중입니다.';
+                }
+                if (s === 'sell_buyer_issue_coin') {
+                    return youAreBuyer
+                        ? '판매자에게 USDT 전송 확인을 요청했습니다. 판매자 처리를 기다려 주세요.'
+                        : '구매자의 확인 요청을 검토한 뒤 전송 상태를 반영해 주세요.';
+                }
+                if (s === 'sell_fiat_paid') {
+                    return youAreBuyer
+                        ? '판매자의 최종 확인·거래 완료를 기다리는 중입니다.'
+                        : '구매자가 원화 입금을 완료했습니다. 입금 확인 후 거래 완료를 눌러 주세요.';
+                }
+                if (s === 'sell_seller_issue_fiat') {
+                    return youAreBuyer
+                        ? '판매자가 원화 입금 재확인을 요청했습니다. 필요 시 입금 완료(재확인)를 눌러 주세요.'
+                        : '구매자에게 입금 재확인을 요청했습니다. 구매자 응답을 기다려 주세요.';
+                }
+                if (s === 'buyer_confirmed') return '거래가 정상 완료되었습니다.';
+                return orderStatusLabel(s);
+            }
+            if (s === 'pending_seller') {
+                return youAreBuyer
+                    ? '판매자 승인을 기다리는 중입니다.'
+                    : '요청을 검토한 뒤 승인 또는 거절해 주세요.';
+            }
+            if (s === 'seller_rejected') return '판매자가 요청을 거절했습니다.';
+            if (s === 'seller_approved') {
+                return youAreBuyer
+                    ? '표시된 계좌로 원화 입금 후 입금 완료를 눌러 주세요.'
+                    : '구매자 입금을 기다리는 중입니다. 입금 확인 후 다음 단계를 진행해 주세요.';
+            }
+            if (s === 'buyer_cancelled') return '구매자가 거래를 취소했습니다.';
+            if (s === 'buyer_paid') {
+                return youAreBuyer
+                    ? '판매자의 USDT 전송을 기다리는 중입니다.'
+                    : '구매자 지갑으로 USDT를 보낸 뒤 전송 완료를 눌러 주세요.';
+            }
+            if (s === 'seller_deposit_checked') {
+                return youAreBuyer
+                    ? '판매자가 입금을 확인했습니다. 다음 안내에 따라 진행해 주세요.'
+                    : '입금 확인이 완료되었습니다. USDT를 전송해 주세요.';
+            }
+            if (s === 'seller_payment_check_requested') {
+                return youAreBuyer
+                    ? '판매자가 입금 확인을 요청했습니다. 입금 상태를 다시 확인해 주세요.'
+                    : '구매자의 입금 완료 알림을 기다리는 중입니다.';
+            }
+            if (s === 'buyer_issue') {
+                return youAreBuyer
+                    ? '판매자에게 확인 요청을 보냈습니다. 답변을 기다려 주세요.'
+                    : '구매자의 확인 요청을 검토한 뒤 전송을 완료해 주세요.';
+            }
+            if (s === 'seller_sent') {
+                return youAreBuyer
+                    ? 'USDT 수령을 확인한 뒤 거래 완료 또는 확인 요청을 선택해 주세요.'
+                    : '구매자의 최종 확인을 기다리는 중입니다.';
+            }
+            if (s === 'buyer_confirmed') return '거래가 정상 완료되었습니다.';
+            return orderStatusLabel(s);
+        }
+
         function escapeHtml(s) {
             return String(s == null ? '' : s)
                 .replace(/&/g, '&amp;')
@@ -4440,6 +4522,13 @@
                 var total = Number(o.krw || 0).toLocaleString() + ' KRW';
                 var price = Number(o.usdt || 0) > 0 ? (Number(o.krw || 0) / Number(o.usdt || 0)) : 0;
 
+                var progressHint = getOfferProgressHintText(status, orderSide, youAreBuyer);
+                var progressHtml =
+                    '<div class="offer-divider"></div>' +
+                    '<div class="offer-line"><div class="offer-k">진행 안내</div><div class="offer-v">' +
+                    escapeHtml(progressHint) +
+                    '</div></div>';
+
                 var extra = '';
                 if (orderSide === 'sell') {
                     if (status === 'buyer_approved_sell' && !youAreBuyer) {
@@ -4462,7 +4551,7 @@
                                 ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc2 + '\', \'지갑주소\')">' + escapeHtml(coinTo2) + '</span>')
                                 : '-') +
                             '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
+                            '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
                     } else if (status === 'sell_coin_sent' && youAreBuyer) {
                         var bankS = {
                             bankName: String(r.sellerBankName || ''),
@@ -4483,16 +4572,12 @@
                             '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">예금주</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
-                    } else if (status === 'sell_fiat_paid' && !youAreBuyer && r.sellBuyerFiatVerifyRequested) {
-                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">구매자가 법정화 입금 완료를 알렸습니다. 입금 확인 후 거래를 완료해주세요.</div></div>';
-                    } else if (status === 'sell_fiat_paid' && youAreBuyer) {
-                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인 및 거래 완료할 때까지 기다려주세요.</div></div>';
-                    } else if (status === 'sell_seller_issue_fiat' && youAreBuyer) {
-                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 재확인을 요청했습니다.</div></div>';
-                    } else if (status === 'sell_seller_issue_fiat' && !youAreBuyer) {
-                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">구매자에게 입금 재확인을 요청했습니다.</div></div>';
-                    } else if (status === 'sell_buyer_issue_coin') {
-                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
+                    } else if (status === 'sell_buyer_issue_coin' && youAreBuyer) {
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' +
+                            escapeHtml(r.issueNote || 'USDT 전송 확인 요청') +
+                            '</div></div>';
                     }
                 } else if (status === 'seller_approved' && youAreBuyer) {
                     var bankParts = {
@@ -4522,10 +4607,6 @@
                             ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'지갑주소\')">' + escapeHtml(buyWallet) + '</span>')
                             : '-') +
                     '</div></div>';
-                } else if (status === 'seller_deposit_checked') {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금을 확인했습니다.</div></div>';
-                } else if (status === 'seller_payment_check_requested') {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인을 요청했습니다.</div></div>';
                 } else if (status === 'buyer_issue' && !youAreBuyer) {
                     var buyWallet2 = String(r.receiverWalletAddress || '');
                     var buyWalletEsc2 = escapeJsSingleQuote(buyWallet2);
@@ -4536,8 +4617,12 @@
                     '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
                     extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
-                } else if (status === 'buyer_issue') {
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || '입금/전송 상태 확인 요청') + '</div></div>';
+                } else if (status === 'buyer_issue' && youAreBuyer) {
+                    extra =
+                        '<div class="offer-divider"></div>' +
+                        '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' +
+                        escapeHtml(r.issueNote || '입금/전송 상태 확인 요청') +
+                        '</div></div>';
                 }
 
                 var actions = buildOrderActionButtons(o, status, youAreBuyer);
@@ -4551,6 +4636,7 @@
                         '<div class="offer-line"><div class="offer-k">유형</div><div class="offer-v">' + (orderSide === 'sell' ? 'USDT 판매' : 'USDT 구매') + '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' + Number(o.usdt || 0).toLocaleString() + ' USDT</div></div>' +
                         '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' + total + '</div></div>' +
+                        progressHtml +
                         extra +
                         (actions ? ('<div class="offer-actions">' + actions + '</div>') : '') +
                     '</div>';
@@ -4591,8 +4677,9 @@
                 if (youAreBuyer && status === 'sell_seller_issue_fiat') {
                     return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금완료(재확인)</button>';
                 }
+                // 입금 재확인 요청 후에는 구매자 응답 대기 — 판매자에게 거래 완료 버튼 표시하지 않음
                 if (!youAreBuyer && status === 'sell_seller_issue_fiat') {
-                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+                    return '';
                 }
                 return '';
             }
@@ -4652,7 +4739,7 @@
             var youAreBuyer0 = String(r0.buyerId || '') === uid0;
             var youAreSeller0 = String(r0.sellerId || '') === uid0;
 
-            // USDT 판매 주문: 구매자(리스팅 주인) 승인 → 판매자 전송 → 구매자 법정화 입금 → 판매자 완료
+            // USDT 판매 주문: 구매자(리스팅 주인) 승인 → 판매자 전송 → 구매자 원화 입금 → 판매자 완료
             if (side === 'sell') {
                 if (action === 'approve') {
                     if (!youAreBuyer0 || String(r0.status) !== 'pending_buyer') return;
@@ -4691,7 +4778,8 @@
                     receiver.status = 'sell_seller_issue_fiat';
                     receiver.sellerFiatIssueAt = now;
                 } else if (action === 'confirm') {
-                    if (!youAreSeller0 || (String(r0.status) !== 'sell_fiat_paid' && String(r0.status) !== 'sell_seller_issue_fiat')) return;
+                    // 재확인 요청 중(sell_seller_issue_fiat)에는 구매자 처리 전까지 완료 불가
+                    if (!youAreSeller0 || String(r0.status) !== 'sell_fiat_paid') return;
                     receiver.status = 'buyer_confirmed';
                     receiver.buyerConfirmedAt = now;
                 } else {
