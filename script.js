@@ -11,6 +11,8 @@
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
         // 봇 채팅방 기본 주소 (지갑 완료 후 텔레그램 복귀·Tonkeeper ret 공통)
         const TON_TWA_RETURN_URL = 'https://t.me/P2PxxBOT';
+        /** tg://resolve 등에 사용 (TON_TWA_RETURN_URL의 봇 사용자명과 동일해야 함) */
+        const TELEGRAM_BOT_USERNAME = 'P2PxxBOT';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -1886,6 +1888,8 @@
         let orderSubmittedOverlayAction = 'myOffers';
         /** TonConnect sendTransaction 대기 중 — 이 때 closeModal·포커스 정리하면 전송이 취소될 수 있음 */
         let tonSendTransactionInFlight = false;
+        /** 전송 후 자동으로 미니앱을 닫는 예약(사용자가 확인 누르면 취소) */
+        let telegramAutoCloseTimer = null;
 
         const UI_TEXTS = {
             ko: {
@@ -2564,8 +2568,10 @@
             forceCloseTonConnectUI();
             var overlay = document.getElementById('orderSubmittedOverlay');
             var msgEl = document.getElementById('orderSubmittedModalMessage');
+            var tgBtn = document.getElementById('orderSubmittedTelegramBtn');
             if (overlay && msgEl) {
-                msgEl.textContent = '전송이 완료되었습니다.';
+                msgEl.textContent = '전송이 완료되었습니다.\n자동으로 채팅으로 돌아가지 않으면 아래 버튼을 눌러 주세요.';
+                if (tgBtn) tgBtn.classList.remove('hidden');
                 overlay.classList.remove('hidden');
                 setTimeout(function () { forceCloseTonConnectUI(); }, 50);
                 return;
@@ -2597,6 +2603,9 @@
 
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
         function closeOrderSubmittedModalAndGoToMyOffers() {
+            cancelTelegramAutoCloseTimer();
+            var tgBtn = document.getElementById('orderSubmittedTelegramBtn');
+            if (tgBtn) tgBtn.classList.add('hidden');
             var overlay = document.getElementById('orderSubmittedOverlay');
             if (overlay) overlay.classList.add('hidden');
             forceCloseTonConnectUI();
@@ -2612,7 +2621,9 @@
             var text = String(message || '');
             var overlay = document.getElementById('orderSubmittedOverlay');
             var msgEl = document.getElementById('orderSubmittedModalMessage');
+            var tgBtn = document.getElementById('orderSubmittedTelegramBtn');
             if (overlay && msgEl) {
+                if (tgBtn) tgBtn.classList.add('hidden');
                 msgEl.textContent = text;
                 overlay.classList.remove('hidden');
                 return;
@@ -3132,9 +3143,39 @@
             return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
         }
 
-        function tryForceReturnToTelegramAfterWallet() {
-            // 지갑 완료 후 봇 채팅(TON_TWA_RETURN_URL)으로만 복귀 (short name 미등록 시나리오)
+        function cancelTelegramAutoCloseTimer() {
+            if (telegramAutoCloseTimer) {
+                try {
+                    clearTimeout(telegramAutoCloseTimer);
+                } catch (e) {}
+                telegramAutoCloseTimer = null;
+            }
+        }
+
+        /** 사용자가 직접 누를 때: 링크 시도 후 미니앱 닫기(봇 채팅으로 가장 확실히 복귀) */
+        function returnToTelegramBotChat() {
+            cancelTelegramAutoCloseTimer();
+            tryForceReturnToTelegramAfterWallet({ skipDelayedClose: true });
+            setTimeout(function () {
+                try {
+                    if (tg && typeof tg.close === 'function') {
+                        tg.close();
+                    }
+                } catch (e) {}
+            }, 400);
+        }
+        try {
+            window.returnToTelegramBotChat = returnToTelegramBotChat;
+        } catch (eW) {}
+
+        /**
+         * @param {{ skipDelayedClose?: boolean }} [opts]
+         */
+        function tryForceReturnToTelegramAfterWallet(opts) {
+            var skipDelayedClose = !!(opts && opts.skipDelayedClose);
+            // 지갑 완료 후 봇 채팅으로 복귀 — 단말마다 동작이 달라 여러 경로 + 마지막에 Mini App 닫기
             var url = TON_TWA_RETURN_URL;
+            var tgDeep = 'tg://resolve?domain=' + encodeURIComponent(TELEGRAM_BOT_USERNAME);
 
             function tryOpenOne(link) {
                 try {
@@ -3163,10 +3204,26 @@
             }
 
             tryOpenOne(url);
-            setTimeout(function () { tryOpenOne(url); }, 280);
-            setTimeout(function () { tryOpenOne(url); }, 900);
-            setTimeout(function () { tryOpenOne(url); }, 2200);
-            setTimeout(function () { tryOpenOne(url); }, 5000);
+            setTimeout(function () { tryOpenOne(url); }, 200);
+            setTimeout(function () { tryOpenOne(url); }, 550);
+            setTimeout(function () {
+                try {
+                    window.location.href = tgDeep;
+                } catch (eTg) {}
+            }, 800);
+            setTimeout(function () { tryOpenOne(url); }, 1200);
+            setTimeout(function () { tryOpenOne(url); }, 2800);
+
+            // 자동 복귀가 막히는 환경: 일정 시간 후 Mini App 종료 → 봇 채팅으로 확실히 복귀 (Telegram 6.4+)
+            cancelTelegramAutoCloseTimer();
+            if (!skipDelayedClose && tg && typeof tg.close === 'function') {
+                telegramAutoCloseTimer = setTimeout(function () {
+                    telegramAutoCloseTimer = null;
+                    try {
+                        tg.close();
+                    } catch (eClose) {}
+                }, 4500);
+            }
         }
 
         async function handleOrderAction(orderId, action) {

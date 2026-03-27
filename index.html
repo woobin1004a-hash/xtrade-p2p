@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@2.4.2/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260328-v20">
+<link rel="stylesheet" href="style.css?v=260328-v21">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260328-bot-chat-only-return-v20</div>
+    <div class="build-tag" id="buildTag">build: 260328-tg-close-fallback-v21</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -682,6 +682,7 @@
     <div id="orderSubmittedOverlay" class="order-submitted-modal-overlay modal-overlay hidden">
         <div class="order-submitted-modal-dialog" onclick="event.stopPropagation()">
             <p id="orderSubmittedModalMessage" class="order-submitted-modal-message"></p>
+            <button type="button" id="orderSubmittedTelegramBtn" class="order-submitted-modal-telegram hidden" onclick="returnToTelegramBotChat()">텔레그램 채팅으로 돌아가기</button>
             <button type="button" class="order-submitted-modal-ok" onclick="closeOrderSubmittedModalAndGoToMyOffers()">확인</button>
         </div>
     </div>
@@ -698,6 +699,6 @@
     </div>
 
     
-<script src="script.js?v=260328-v20"></script>
+<script src="script.js?v=260328-v21"></script>
 </body>
 </html>
