@@ -2524,6 +2524,48 @@
             updateOrderSubmitButton();
         }
 
+        /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
+        function closeOrderSubmittedModalAndGoToMyOffers() {
+            var overlay = document.getElementById('orderSubmittedOverlay');
+            if (overlay) overlay.classList.add('hidden');
+            goToMyOffers();
+        }
+
+        /** 주문 접수 완료 알림: 다크모드 가시성을 위해 인앱 모달 우선(확인 → 내 주문) */
+        function showOrderSubmittedPopupNavigatingToMyOffers(message) {
+            var text = String(message || '');
+            var overlay = document.getElementById('orderSubmittedOverlay');
+            var msgEl = document.getElementById('orderSubmittedModalMessage');
+            if (overlay && msgEl) {
+                msgEl.textContent = text;
+                overlay.classList.remove('hidden');
+                return;
+            }
+            if (tg && typeof tg.showPopup === 'function') {
+                tg.showPopup({
+                    title: '',
+                    message: text,
+                    buttons: [{ id: 'ok', type: 'default', text: '확인' }]
+                }, function () {
+                    goToMyOffers();
+                });
+                return;
+            }
+            if (tg && typeof tg.showAlert === 'function') {
+                try {
+                    tg.showAlert(text, function () {
+                        goToMyOffers();
+                    });
+                } catch (e) {
+                    tg.showAlert(text);
+                    goToMyOffers();
+                }
+                return;
+            }
+            alert(text);
+            goToMyOffers();
+        }
+
         async function submitOrderDemo() {
             var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
 
@@ -2634,12 +2676,16 @@
                     : (sideTxt + ' 주문이 접수되었습니다. 판매자 승인을 기다려주세요.'))
                 : (sideTxt + ' 주문 저장이 실패했습니다. ' + (errDetail ? ('· ' + errDetail) : ''));
 
-            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-            else alert(msg);
-
             closeOrderFlow();
             await loadMarketplace();
             await pollOrdersRealtime();
+
+            if (posted) {
+                showOrderSubmittedPopupNavigatingToMyOffers(msg);
+            } else {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+            }
         }
 
         async function fetchOrdersFromSupabase() {
@@ -2954,8 +3000,19 @@
         }
 
         function isTonTxTimeoutAfterApprovalError(err) {
-            var msg = String(err && err.message ? err.message : err || '').trim();
-            return msg.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
+            // SDK가 Error가 아닌 형태로 던지거나 message가 중첩될 수 있어 문자열 전체를 검사
+            var parts = [];
+            try {
+                if (err && typeof err === 'object') {
+                    if (err.message) parts.push(String(err.message));
+                    if (err.cause && err.cause.message) parts.push(String(err.cause.message));
+                }
+            } catch (e) {}
+            try {
+                parts.push(String(err || ''));
+            } catch (e2) {}
+            var blob = parts.join(' ');
+            return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
         }
 
         function tryForceReturnToTelegramAfterWallet() {
@@ -2963,8 +3020,15 @@
             var target = buildTelegramMiniAppReturnUrl() || TON_TWA_RETURN_URL;
             if (!target) return;
             try {
-                window.location.href = String(target);
+                // 텔레그램 WebView에서는 openTelegramLink가 더 안정적인 경우가 많음
+                if (tg && typeof tg.openTelegramLink === 'function') {
+                    tg.openTelegramLink(String(target));
+                    return;
+                }
             } catch (e) {}
+            try {
+                window.location.href = String(target);
+            } catch (e2) {}
         }
 
         async function handleOrderAction(orderId, action) {
@@ -2979,6 +3043,9 @@
             var uid0 = String(currentUserId || '');
             var youAreBuyer0 = String(r0.buyerId || '') === uid0;
             var youAreSeller0 = String(r0.sellerId || '') === uid0;
+            // 타임아웃 후 Supabase 저장이 끝난 뒤에만 텔레그램 복귀 시도(저장 중 페이지 이탈 방지)
+            var forceTelegramReturnAfterSaveSell = false;
+            var forceTelegramReturnAfterSaveBuy = false;
 
             // USDT 판매 주문: 구매자(리스팅 주인) 승인 → 판매자 전송 → 구매자 원화 입금 → 판매자 완료
             if (side === 'sell') {
@@ -3005,7 +3072,7 @@
                     } catch (sendErrSell) {
                         if (isTonTxTimeoutAfterApprovalError(sendErrSell)) {
                             txidSell = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
-                            tryForceReturnToTelegramAfterWallet();
+                            forceTelegramReturnAfterSaveSell = true;
                         } else {
                         var completedSell = await confirmManualTransferCompletion(sendErrSell);
                         if (!completedSell) {
@@ -3055,6 +3122,9 @@
                 try {
                     await patchOrderReceiverToSupabase(orderId, receiver);
                     await refreshMyOffers();
+                    if (forceTelegramReturnAfterSaveSell) {
+                        setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
+                    }
                 } catch (e) {
                     var msgS = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgS);
@@ -3104,7 +3174,7 @@
                 } catch (sendErrBuy) {
                     if (isTonTxTimeoutAfterApprovalError(sendErrBuy)) {
                         txid = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
-                        tryForceReturnToTelegramAfterWallet();
+                        forceTelegramReturnAfterSaveBuy = true;
                     } else {
                     var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
                     if (!completedBuy) {
@@ -3138,6 +3208,9 @@
             try {
                 await patchOrderReceiverToSupabase(orderId, receiver);
                 await refreshMyOffers();
+                if (forceTelegramReturnAfterSaveBuy) {
+                    setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
+                }
             } catch (e) {
                 var msg = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);

@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=260328-v6">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260328-tonkeeper-timeout-auto-ok-v3</div>
+    <div class="build-tag" id="buildTag">build: 260328-order-modal-contrast-v6</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -678,6 +678,14 @@
         </div>
     </div>
 
+    <!-- 주문 접수 완료 알림(다크모드 가시성: 밝은 카드 + 진한 텍스트) -->
+    <div id="orderSubmittedOverlay" class="order-submitted-modal-overlay modal-overlay hidden">
+        <div class="order-submitted-modal-dialog" onclick="event.stopPropagation()">
+            <p id="orderSubmittedModalMessage" class="order-submitted-modal-message"></p>
+            <button type="button" class="order-submitted-modal-ok" onclick="closeOrderSubmittedModalAndGoToMyOffers()">확인</button>
+        </div>
+    </div>
+
     <div id="finalCompleteConfirmOverlay" class="modal-overlay hidden" onclick="closeFinalCompleteConfirmByOverlay(event)">
         <div class="final-complete-confirm-dialog" onclick="event.stopPropagation()">
             <h3 class="final-complete-confirm-title">최종 확인</h3>
@@ -690,6 +698,6 @@
     </div>
 
     
-<script src="script.js"></script>
+<script src="script.js?v=260328-v6"></script>
 </body>
 </html>
