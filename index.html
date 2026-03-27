@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-direct-tonkeeper-priority</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-tonkeeper-no-modal</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5767,37 +5767,6 @@
             });
         }
 
-        function openTonkeeperDirectForIosFromClick() {
-            if (!tg || String(tg.platform || '').toLowerCase() !== 'ios') return false;
-            if (!tonConnectUIInstance || !tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') return false;
-            if (typeof tg.openLink !== 'function') return false;
-
-            var source = tonkeeperSourceForIos || {
-                universalLink: 'https://app.tonkeeper.com/ton-connect',
-                bridgeUrl: 'https://bridge.tonapi.io/bridge'
-            };
-            var link = '';
-            try {
-                // 사용자 클릭 이벤트 스택 안에서 즉시 링크 생성/오픈해야 iOS WebView 차단을 줄일 수 있음
-                link = tonConnectUIInstance.connector.connect(source) || '';
-            } catch (eConnect) {
-                return false;
-            }
-            if (!link) return false;
-
-            try {
-                tg.openLink(link, { try_instant_view: false });
-                return true;
-            } catch (eOpen) {
-                try {
-                    window.location.href = link;
-                    return true;
-                } catch (eHref) {
-                    return false;
-                }
-            }
-        }
-
         async function openTonConnectModal() {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
@@ -5810,8 +5779,21 @@
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
             try {
-                // iOS Telegram: 모달 내 지갑 버튼 무반응 이슈를 피하기 위해 Tonkeeper 직접 오픈을 우선
-                if (openTonkeeperDirectForIosFromClick()) {
+                // iOS Telegram: 모달 내부 버튼 무반응 이슈가 잦아 Tonkeeper 직접 연결 경로를 고정 사용
+                if (tg && String(tg.platform || '').toLowerCase() === 'ios') {
+                    if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') {
+                        throw new Error('TonConnect connector를 찾지 못했습니다.');
+                    }
+                    var source = tonkeeperSourceForIos || {
+                        universalLink: 'https://app.tonkeeper.com/ton-connect',
+                        bridgeUrl: 'https://bridge.tonapi.io/bridge'
+                    };
+                    var link = tonConnectUIInstance.connector.connect(source) || '';
+                    if (!link) throw new Error('Tonkeeper 연결 링크 생성에 실패했습니다.');
+
+                    // iOS 단말별 차이를 줄이기 위해 openLink와 location 이동을 순차 시도
+                    try { if (tg && typeof tg.openLink === 'function') tg.openLink(link, { try_instant_view: false }); } catch (eOpen) {}
+                    try { window.location.href = link; } catch (eHref) {}
                     return;
                 }
                 // 버전별 TonConnect UI 메서드 차이를 흡수
