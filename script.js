@@ -3913,6 +3913,10 @@
         let tonkeeperSourceForIos = null;
         /** 수동 복귀 시 연결 복원 훅 중복 방지 */
         let tonRestoreHooksBound = false;
+        /** 전송 서명 대기 중 restoreConnection 디바운스(연속 호출이 세션을 흔들 수 있음) */
+        let tonRestoreWhileSendTimer = null;
+        /** 매니페스트 생성 방식이 바뀌면 TonConnect 인스턴스를 한 번 재생성 */
+        const TONCONNECT_MANIFEST_GENERATION = '2026-03-28-data-manifest-v16';
         /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
         let tonAddressAutofillArmed = false;
         /** iOS 시스템 외부앱 확인창 안내는 세션당 1회만 표시 */
@@ -3988,7 +3992,40 @@
             refreshMyPageUsdtBalance();
         }
 
+        /**
+         * TonConnect 매니페스트 url은 "앱이 실제로 뜨는 베이스 URL"과 일치해야 지갑이 트랜잭션을 정상 표시합니다.
+         * 정적 tonconnect-manifest.json만 쓰면 Netlify vs GitHub Pages 등 배포마다 불일치 → Tonkeeper 빈 화면 후보.
+         * data: URL로 현재 origin+경로(디렉터리) 기준 매니페스트를 동적 생성합니다.
+         */
+        function buildTonConnectManifestUrl() {
+            var appBase = new URL('.', window.location.href).href;
+            var iconData =
+                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7WqKkAAAAASUVORK5CYII=';
+            var manifest = {
+                url: appBase,
+                name: 'XTrade P2P',
+                iconUrl: iconData
+            };
+            try {
+                var json = JSON.stringify(manifest);
+                return 'data:application/json;base64,' + btoa(json);
+            } catch (e) {
+                return new URL('tonconnect-manifest.json', window.location.href).toString();
+            }
+        }
+
         function initTonConnectUIIfNeeded() {
+            try {
+                if (sessionStorage.getItem('tonManifestGen') !== TONCONNECT_MANIFEST_GENERATION) {
+                    if (tonConnectUIInstance && typeof tonConnectUIInstance.disconnect === 'function') {
+                        try {
+                            tonConnectUIInstance.disconnect();
+                        } catch (eDiscOld) {}
+                    }
+                    tonConnectUIInstance = null;
+                    sessionStorage.setItem('tonManifestGen', TONCONNECT_MANIFEST_GENERATION);
+                }
+            } catch (eGen) {}
             if (tonConnectUIInstance) return;
 
             // Stop if TonConnect UI failed to load (or CDN blocked)
@@ -3998,21 +4035,29 @@
                 return;
             }
 
-            // 현재 페이지 위치(index.html) 기준으로 상대 경로를 구성합니다.
-            // GitHub Pages는 /repo/ 형태로 서브경로 배포가 많아서 origin 고정이면 깨집니다.
-            const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
+            var manifestUrlDynamic = buildTonConnectManifestUrl();
+            var manifestUrlStatic = new URL('tonconnect-manifest.json', window.location.href).toString();
+            var runtimeTwaReturnUrl = getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL;
 
             try {
-                // 현재 실행 중인 텔레그램 미니앱 경로를 우선 사용하고, 실패 시 기존 상수로 폴백
-                var runtimeTwaReturnUrl = getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL;
-                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
-                    manifestUrl: manifestUrl,
-                    buttonRootId: 'tonConnectButtonRoot',
-                    actionsConfiguration: {
-                        // TWA-to-TWA 복귀 경로 명시
-                        twaReturnUrl: runtimeTwaReturnUrl
-                    }
-                });
+                try {
+                    tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
+                        manifestUrl: manifestUrlDynamic,
+                        buttonRootId: 'tonConnectButtonRoot',
+                        actionsConfiguration: {
+                            twaReturnUrl: runtimeTwaReturnUrl
+                        }
+                    });
+                } catch (eDataManifest) {
+                    // 일부 환경에서 data: 매니페스트 생성이 실패하면 저장소의 정적 JSON 사용
+                    tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
+                        manifestUrl: manifestUrlStatic,
+                        buttonRootId: 'tonConnectButtonRoot',
+                        actionsConfiguration: {
+                            twaReturnUrl: runtimeTwaReturnUrl
+                        }
+                    });
+                }
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
                 if (typeof tonConnectUIInstance.getWallets === 'function') {
                     tonConnectUIInstance.getWallets()
@@ -4047,11 +4092,19 @@
                     tonRestoreHooksBound = true;
                     document.addEventListener('visibilitychange', function () {
                         if (document.visibilityState === 'visible') {
-                            // 전송 서명 중: closeModal 만 생략 — 복귀 시 restoreConnection 이 없으면 브리지가 서명 결과를 못 넘김
+                            // 전송 서명 중: restore를 너무 자주 호출하면 커넥터 상태가 흔들려 지갑 쪽 요청이 꼬일 수 있어 디바운스
                             if (tonSendTransactionInFlight) {
-                                try {
-                                    restoreTonConnectionSafe();
-                                } catch (eRestoreWhileSend) {}
+                                if (tonRestoreWhileSendTimer) {
+                                    try {
+                                        clearTimeout(tonRestoreWhileSendTimer);
+                                    } catch (eClr) {}
+                                }
+                                tonRestoreWhileSendTimer = setTimeout(function () {
+                                    tonRestoreWhileSendTimer = null;
+                                    try {
+                                        restoreTonConnectionSafe();
+                                    } catch (eRestoreWhileSend) {}
+                                }, 650);
                                 return;
                             }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4062,9 +4115,17 @@
                     });
                     window.addEventListener('focus', function () {
                         if (tonSendTransactionInFlight) {
-                            try {
-                                restoreTonConnectionSafe();
-                            } catch (eRestoreFocusSend) {}
+                            if (tonRestoreWhileSendTimer) {
+                                try {
+                                    clearTimeout(tonRestoreWhileSendTimer);
+                                } catch (eClr2) {}
+                            }
+                            tonRestoreWhileSendTimer = setTimeout(function () {
+                                tonRestoreWhileSendTimer = null;
+                                try {
+                                    restoreTonConnectionSafe();
+                                } catch (eRestoreFocusSend) {}
+                            }, 650);
                             return;
                         }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4397,21 +4458,21 @@
             payloadCell.bits.writeAddress(toAddr); // destination
             payloadCell.bits.writeAddress(ownerAddr); // response destination
             payloadCell.bits.writeBit(false); // custom_payload: none
-            // 수정 요청 이전(동작하던 시점)과 동일: 최소 forward (TEP-74 호환)
-            payloadCell.bits.writeCoins(new TonWebClass.utils.BN('1')); // 1 nanoTON forward
+            // TEP-74: 수신 쪽 Jetton Wallet 알림용 forward — 너무 작으면 지갑 UI/실행이 불안정할 수 있음
+            payloadCell.bits.writeCoins(TonWebClass.utils.toNano('0.02'));
             payloadCell.bits.writeBit(false); // forward_payload: none
 
             var payloadBoc = await payloadCell.toBoc(false);
             var payloadBase64 = TonWebClass.utils.bytesToBase64(payloadBoc);
 
-            // 테스트넷 트랜잭션임을 TonConnect에 명시 (이전 구현·문서 기준 필수에 가깝게 유지)
+            // 테스트넷 트랜잭션임을 TonConnect에 명시
             var tx = {
                 network: '-3',
                 validUntil: Math.floor(Date.now() / 1000) + 5 * 60,
                 messages: [{
                     address: fromJettonWallet.toString(true, true, true),
-                    // Jetton wallet 실행 가스(테스트넷) — 되던 시점과 동일
-                    amount: TonWebClass.utils.toNano('0.06').toString(),
+                    // Jetton wallet 내부 전송 + forward에 필요한 TON (테스트넷)
+                    amount: TonWebClass.utils.toNano('0.12').toString(),
                     payload: payloadBase64
                 }]
             };
@@ -4428,9 +4489,7 @@
                     })
                 ]);
             } finally {
-                // 즉시 tonSendTransactionInFlight = false 하면 SDK가 서명 결과를 처리하기 전에
-                // visibility 핸들러/restore가 끼어들어 전송이 취소·실패할 수 있음 → 모달만 닫고 플래그·restore는 지연
-                closeTonConnectModalOnly();
+                // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
                     closeTonConnectModalOnly();
                     setTimeout(function () {
@@ -4438,8 +4497,8 @@
                         try {
                             restoreTonConnectionSafe();
                         } catch (eRest) {}
-                    }, 60);
-                }, 320);
+                    }, 120);
+                }, 450);
             }
             var txId = '';
             if (result && typeof result === 'object') {
