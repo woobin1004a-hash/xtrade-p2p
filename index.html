@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-tonkeeper-direct</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-direct-sync-open</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5638,6 +5638,8 @@
         // --------------------------------------------------------
         // TonConnect (TON wallet connect modal + connection status)
         let tonConnectUIInstance = null;
+        /** iOS 클릭 이벤트 안에서 즉시 Tonkeeper 링크를 열기 위해 사전 캐시 */
+        let tonkeeperWalletSourceCache = null;
         /** 모달을 연 시점의 연결 주소(복원된 세션과 구분해, 실제로 바뀐 경우에만 입력란에 반영) */
         let tonConnectOpenSnapshot = '';
         /** openTonConnectModal 직후 일정 시간만 onStatusChange에서 입력란 자동 반영 허용 */
@@ -5719,6 +5721,28 @@
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot'
                 });
+                // 지갑 목록을 미리 가져와 Tonkeeper 연결 정보를 캐시 (클릭 시점 비동기 대기 제거)
+                if (typeof tonConnectUIInstance.getWallets === 'function') {
+                    tonConnectUIInstance.getWallets()
+                        .then(function (wallets) {
+                            var tonkeeper = (wallets || []).find(function (w) {
+                                return (
+                                    w &&
+                                    String(w.appName || '').toLowerCase() === 'tonkeeper' &&
+                                    typeof w.universalLink === 'string' &&
+                                    !!String(w.universalLink).trim() &&
+                                    typeof w.bridgeUrl === 'string' &&
+                                    !!String(w.bridgeUrl).trim()
+                                );
+                            });
+                            tonkeeperWalletSourceCache = tonkeeper
+                                ? { universalLink: tonkeeper.universalLink, bridgeUrl: tonkeeper.bridgeUrl }
+                                : null;
+                        })
+                        .catch(function () {
+                            tonkeeperWalletSourceCache = null;
+                        });
+                }
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
@@ -5752,37 +5776,15 @@
             });
         }
 
-        async function tryOpenTonkeeperDirectOnIos() {
+        function tryOpenTonkeeperDirectOnIos() {
             if (!tg || String(tg.platform || '').toLowerCase() !== 'ios') return false;
             if (!tonConnectUIInstance) return false;
-            if (typeof tonConnectUIInstance.getWallets !== 'function') return false;
             if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') return false;
-
-            var wallets = [];
-            try {
-                wallets = await tonConnectUIInstance.getWallets();
-            } catch (e) {
-                return false;
-            }
-
-            var tonkeeper = (wallets || []).find(function (w) {
-                return (
-                    w &&
-                    String(w.appName || '').toLowerCase() === 'tonkeeper' &&
-                    typeof w.universalLink === 'string' &&
-                    !!String(w.universalLink).trim() &&
-                    typeof w.bridgeUrl === 'string' &&
-                    !!String(w.bridgeUrl).trim()
-                );
-            });
-            if (!tonkeeper) return false;
+            if (!tonkeeperWalletSourceCache) return false;
 
             var deep = '';
             try {
-                deep = tonConnectUIInstance.connector.connect({
-                    universalLink: tonkeeper.universalLink,
-                    bridgeUrl: tonkeeper.bridgeUrl
-                }) || '';
+                deep = tonConnectUIInstance.connector.connect(tonkeeperWalletSourceCache) || '';
             } catch (eConnect) {
                 return false;
             }
@@ -5818,7 +5820,7 @@
             }, 4000);
             try {
                 // iOS Telegram에서 지갑 선택 모달 버튼이 무반응인 경우가 있어 Tonkeeper 직접 오픈을 먼저 시도
-                var openedTonkeeperOnIos = await tryOpenTonkeeperDirectOnIos();
+                var openedTonkeeperOnIos = tryOpenTonkeeperDirectOnIos();
                 if (openedTonkeeperOnIos) {
                     return;
                 }
