@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-tonkeeper-no-modal</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-reconnect-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5783,6 +5783,10 @@
                 if (tg && String(tg.platform || '').toLowerCase() === 'ios') {
                     if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') {
                         throw new Error('TonConnect connector를 찾지 못했습니다.');
+                    }
+                    // 이미 연결된 세션이 있으면 먼저 끊고 재연결 (wallet already connected 오류 방지)
+                    if (tonConnectUIInstance.connector.connected && typeof tonConnectUIInstance.disconnect === 'function') {
+                        try { await tonConnectUIInstance.disconnect(); } catch (eDisc) {}
                     }
                     var source = tonkeeperSourceForIos || {
                         universalLink: 'https://app.tonkeeper.com/ton-connect',
