@@ -2934,6 +2934,25 @@
             }
         }
 
+        async function confirmManualTransferCompletion(sendErr) {
+            // Tonkeeper 승인 후 텔레그램 복귀가 끊기는 환경에서, 실제 전송 완료를 사용자가 확인해 상태 반영
+            var detail = String(sendErr && sendErr.message ? sendErr.message : sendErr || '').trim();
+            var ask = 'Tonkeeper에서 승인/전송을 이미 완료했나요?\n완료했다면 "확인"을 눌러 주문 상태를 전송 완료로 반영합니다.';
+            if (detail) ask += '\n\n오류 정보: ' + detail;
+            try {
+                if (tg && typeof tg.showConfirm === 'function') {
+                    return await new Promise(function (resolve) {
+                        tg.showConfirm(ask, function (ok) { resolve(!!ok); });
+                    });
+                }
+            } catch (e) {}
+            try {
+                return !!window.confirm(ask);
+            } catch (e2) {
+                return false;
+            }
+        }
+
         async function handleOrderAction(orderId, action) {
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
                 return String(o.id) === String(orderId);
@@ -2970,10 +2989,14 @@
                         }
                         txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt);
                     } catch (sendErrSell) {
-                        var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
-                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgSell);
-                        else alert(sendMsgSell);
-                        return;
+                        var completedSell = await confirmManualTransferCompletion(sendErrSell);
+                        if (!completedSell) {
+                            var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgSell);
+                            else alert(sendMsgSell);
+                            return;
+                        }
+                        txidSell = 'MANUAL_CONFIRMED_TX';
                     }
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
@@ -3060,10 +3083,14 @@
                     }
                     txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt);
                 } catch (sendErrBuy) {
-                    var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgBuy);
-                    else alert(sendMsgBuy);
-                    return;
+                    var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
+                    if (!completedBuy) {
+                        var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgBuy);
+                        else alert(sendMsgBuy);
+                        return;
+                    }
+                    txid = 'MANUAL_CONFIRMED_TX';
                 }
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
