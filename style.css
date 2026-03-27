@@ -1,0 +1,1322 @@
+
+        /* Global settings */
+        body {
+            margin: 0; padding: 0; background-color: #050505; color: #ffffff;
+            font-family: 'Pretendard', 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ------------------ Common components ------------------ */
+        .top-header { display: flex; justify-content: space-between; align-items: center; padding: 20px; border-bottom: 1px solid #1a1a1a; }
+        .top-header .logo { font-size: 20px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .menu-icon { font-size: 24px; cursor: pointer; color: #fff; }
+        .hidden { display: none !important; }
+
+        /* ------------------ Marketplace View ------------------ */
+        .section-title-wrap { padding: 25px 20px 15px 20px; }
+        #marketplaceView {
+            min-height: 100vh;
+            background: linear-gradient(180deg, rgba(124,58,237,0.22) 0%, rgba(124,58,237,0.06) 30%, #050505 70%);
+        }
+        .section-title { font-size: 22px; font-weight: bold; margin: 0; }
+        .trader-card {
+            background:
+                radial-gradient(120% 90% at 100% 0%, rgba(168, 85, 247, 0.34) 0%, rgba(168, 85, 247, 0.0) 58%),
+                radial-gradient(95% 80% at 0% 100%, rgba(124, 58, 237, 0.26) 0%, rgba(124, 58, 237, 0.0) 60%),
+                linear-gradient(145deg, #2f1b56 0%, #24113e 46%, #140b22 100%);
+            border: 1px solid #4a2b7a;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 0 20px 20px 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+        }
+        .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .rank .crown { font-size: 14px; line-height: 1; }
+        .trader-card--top { padding: 26px 20px; margin: 0 20px 22px 20px; }
+        .trader-card--sub { padding: 18px 16px; margin: 0 20px 18px 20px; }
+        .trader-card--top .rank { font-size: 14px; margin-bottom: 14px; }
+        .trader-card--sub .trader-name { font-size: 16px; }
+        .trader-card--sub .avatar { width: 26px; height: 26px; font-size: 11px; }
+        .trader-card--sub .verified { font-size: 12px; }
+        .trader-card--sub .profile-row { margin-bottom: 14px; }
+        .trader-card--sub .price-row { margin-bottom: 14px; }
+        .trader-card--sub .price-value { font-size: 20px; }
+        .trader-card--sub .price-label { font-size: 12px; }
+        .trader-card--sub .limit-info { font-size: 11.5px; margin-bottom: 8px; }
+        .trader-card--sub .network-info { font-size: 10px; margin-bottom: 12px !important; }
+        .trader-card--sub .make-offer-btn { padding: 12px; font-size: 15px; border-radius: 12px; }
+        .profile-row { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+        .avatar { width: 28px; height: 28px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
+        .trader-name { font-size: 18px; font-weight: bold; }
+        .verified { color: #10b981; font-size: 14px; }
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .price-col { flex: 1; }
+        .price-label { color: #cbd5e1; font-size: 13px; margin-bottom: 8px; }
+        .price-value { font-size: 22px; font-weight: bold; }
+        .price-currency { font-size: 16px; font-weight: bold; }
+        .limit-info { color: #cbd5e1; font-size: 12px; margin-bottom: 10px; }
+        .network-info { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #cbd5e1; margin-bottom: 20px; }
+        .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .dot.red { background-color: #ef4444; } .dot.yellow { background-color: #eab308; } .dot.purple { background-color: #a855f7; }
+        .make-offer-btn { width: 100%; background-color: #9d4edd; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .marketplace-footer {
+            margin: 26px 16px 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            color: #cbd5e1;
+        }
+        .marketplace-footer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .marketplace-footer-brand { font-size: 20px; font-weight: 900; letter-spacing: 0.2px; }
+        .marketplace-footer-actions { display: flex; align-items: center; gap: 18px; }
+        .marketplace-footer-action {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #f1f5f9; font-size: 14px; font-weight: 800;
+            background: transparent; border: none; padding: 0; cursor: pointer;
+        }
+        .marketplace-footer-links { display: flex; flex-direction: column; gap: 10px; }
+        .marketplace-footer-link {
+            background: transparent; border: none; color: #cbd5e1;
+            padding: 0; text-align: left; font-size: 13px; cursor: pointer;
+        }
+        .theme-light { background: #f6f7fb; color: #121826; }
+        .theme-light #marketplaceView { background: #f6f7fb; color: #111827; }
+        .theme-light .top-header { border-bottom-color: #d8deea; color: #111827; }
+        .theme-light .menu-icon { color: #111827; }
+        .theme-light .section-title { color: #111827; }
+        .theme-light .trader-card {
+            background: linear-gradient(145deg, #ebe8ff 0%, #ddd8ff 55%, #cfc8ff 100%);
+            border-color: #bbb1ff;
+            color: #0f172a;
+        }
+        .theme-light .price-label, .theme-light .limit-info, .theme-light .network-info { color: #334155; }
+        .theme-light .marketplace-footer { border-top-color: #d8deea; color: #334155; }
+        .theme-light .marketplace-footer-action, .theme-light .marketplace-footer-link { color: #1e293b; }
+        .theme-light .section-title-wrap { border-color: #d8deea; }
+        .theme-light .listing-register-btn { border-color: #c4b5fd; color: #5b21b6; background: #f5f3ff; }
+        .theme-light .listing-register-btn:active { background: #ede9fe; }
+        .theme-light #myOffersView { background: #f6f7fb; color: #0f172a; }
+        .theme-light #myOffersView .offer-card {
+            background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%);
+            border-color: #d6ccff;
+        }
+        .theme-light #myOffersView .offer-k { color: #475569; }
+        .theme-light #myOffersView .offer-v { color: #0f172a; }
+        .theme-light #myOffersView .offer-empty { color: #64748b; }
+        .theme-light #myOffersView .myoffers-tab { color: #64748b; }
+        .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; }
+        .theme-light #myOffersView .myoffers-tab.active::after { background: #7c3aed; }
+        /* 내 주문 화면 버튼: 보조=연회색+진한 글자, 주요=진보라+흰 글자 */
+        .theme-light #myOffersView .offer-btn {
+            border: 1px solid transparent;
+            min-height: 44px;
+        }
+        .theme-light #myOffersView .offer-btn--ghost {
+            background: #e8ecf4;
+            color: #0f172a;
+            border-color: #c5d0e0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myOffersView .offer-btn--ghost:active { background: #dce3f0; }
+        .theme-light #myOffersView .offer-btn--danger {
+            background: #e8ecf4;
+            color: #0f172a;
+            border-color: #c5d0e0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myOffersView .offer-btn--danger:active { background: #dce3f0; }
+        .theme-light #myOffersView .offer-btn--primary {
+            background: #7c3aed;
+            color: #ffffff;
+            border-color: #6d28d9;
+            box-shadow: 0 2px 12px rgba(124, 58, 237, 0.35);
+        }
+        .theme-light #myOffersView .offer-btn--primary:active { background: #6d28d9; }
+        .theme-light #myOffersView .offer-copy-link { color: #1d4ed8; }
+        .theme-light .side-menu { background-color: #f8fafc; color: #0f172a; box-shadow: -5px 0 15px rgba(15, 23, 42, 0.15); }
+        .theme-light .close-btn,
+        .theme-light .side-name,
+        .theme-light .nav-item-main,
+        .theme-light .nav-sub,
+        .theme-light .nav-group-title { color: #0f172a; }
+        .theme-light .nav-item-main:active { background-color: #e2e8f0; }
+        .theme-light .arrow-right,
+        .theme-light .accordion-count,
+        .theme-light .accordion-chevron { color: #64748b; }
+        .theme-light #myPageView { background: #f6f7fb; color: #0f172a; }
+        .theme-light #myPageView .top-header { border-bottom-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .mypage-info p { color: #334155; }
+        /* KYC 요약 카드: 다크 그라데이션은 background 한 번에 덮어써야 함 */
+        .theme-light #myPageView .mypage-summary-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #myPageView .mypage-summary-row + .mypage-summary-row { border-top-color: #e2e8f0; }
+        .theme-light #myPageView .mypage-summary-label { color: #475569; }
+        .theme-light #myPageView .mypage-summary-value { color: #0f172a; }
+        .theme-light #myPageView .mypage-summary-badge--ok { background: #dcfce7; color: #166534; }
+        .theme-light #myPageView .mypage-summary-badge--pending { background: #fee2e2; color: #b91c1c; }
+        .theme-light #myPageView .kyc-reset-btn {
+            background: #fff1f2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+        }
+        .theme-light #myPageView .accordion-header { color: #0f172a; }
+        .theme-light #myPageView .accordion-title,
+        .theme-light #myPageView .saved-wallet-title,
+        .theme-light #myPageView .list-item-title,
+        .theme-light #myPageView .mypage-summary-value { color: #0f172a; }
+        /* 실제 DOM 클래스는 saved-card (saved-wallet-card 아님) */
+        .theme-light #myPageView .saved-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+        }
+        .theme-light #myPageView .saved-address { color: #334155; }
+        .theme-light #myPageView .saved-wallet-usdt-block .saved-wallet-usdt-value { color: #0f172a; }
+        .theme-light #myPageView .saved-wallet-usdt-block .saved-wallet-usdt-label { color: #64748b; }
+        .theme-light #myPageView .saved-network-badge {
+            border-color: #99f6e4;
+            color: #0f766e;
+            background: #f0fdfa;
+        }
+        .theme-light #myPageView .add-btn {
+            background: #ffffff;
+            color: #5b21b6;
+            border: 1px solid #c4b5fd;
+        }
+        .theme-light #myPageView .add-btn:active { background: #f5f3ff; }
+        .theme-light #myPageView .list-item { background-color: #ffffff; border-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .list-title { color: #64748b; }
+        .theme-light #myPageView .saved-wallet-sub,
+        .theme-light #myPageView .saved-wallet-row,
+        .theme-light #myPageView .list-item-desc { color: #475569; }
+        .theme-light #myPageView .mypage-info h3 { color: #0f172a; }
+        .theme-light #myPageView .edit-btn { background-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .accordion-count { color: #64748b; }
+        .theme-light #myPageView .star-btn { color: #64748b; }
+        .theme-light #myPageView .star-btn.on { color: #16a34a; }
+        .theme-light #myPageView .delete-wallet-btn { border-color: #fecaca; color: #b91c1c; background: #fff1f2; }
+        .theme-light #myPageView .helper-text { color: #475569; }
+        .theme-light #myPageView .input,
+        .theme-light #myPageView .select {
+            background-color: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light #myPageView .field-label { color: #334155; }
+        .theme-light #myPageView .modal-dialog { background: #ffffff; border: 1px solid #e2e8f0; }
+        .theme-light #myPageView .modal-header { border-bottom-color: #e2e8f0; }
+        .theme-light #myPageView .modal-title { color: #0f172a; }
+        .theme-light #myPageView .modal-close { color: #0f172a; }
+        .theme-light #myPageView .status-box {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light #myPageView .settings-header { border-bottom-color: #e2e8f0; color: #0f172a; }
+        .theme-light #myPageView .back-btn { color: #0f172a; }
+        .theme-light #myPageView .settings-title { color: #0f172a; }
+        .theme-light .order-flow-view { background: #f6f7fb; color: #0f172a; }
+        .theme-light .order-flow-header { background: #f8fafc; border-bottom-color: #d8deea; }
+        .theme-light .order-flow-title, .theme-light .order-flow-back { color: #0f172a; }
+        .theme-light .order-summary-card,
+        .theme-light .order-input-card { background: #ffffff; border-color: #d8deea; }
+        .theme-light .order-line, .theme-light .order-input-label, .theme-light .order-input-unit { color: #334155; }
+        .theme-light .order-input, .theme-light .order-static-input { color: #0f172a; }
+        .theme-light .order-chip { border-color: #cbd5e1; color: #334155; }
+        .theme-light .order-chip.active { border-color: #7c3aed; color: #5b21b6; background: #f5f3ff; }
+        /* 주문 화면: 구매/판매 탭 가독성 */
+        .theme-light #orderFlowView .order-tabs {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+        .theme-light #orderFlowView .order-tab {
+            color: #475569;
+            font-weight: 900;
+        }
+        .theme-light #orderFlowView .order-tab.active {
+            background: #7c3aed;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(124, 58, 237, 0.4);
+        }
+        .theme-light #orderFlowView .order-tab:not(.active):hover {
+            color: #1e293b;
+            background: rgba(255, 255, 255, 0.7);
+        }
+        /* 주문 요약: 유저명 옆 동그란 아바타 */
+        .theme-light #orderFlowView .order-summary-card .avatar {
+            background: linear-gradient(145deg, #7c3aed 0%, #5b21b6 100%);
+            color: #ffffff;
+            border: 2px solid #e9d5ff;
+            box-shadow: 0 2px 8px rgba(91, 33, 182, 0.25);
+        }
+        .theme-light #orderFlowView .order-owner { color: #0f172a; }
+        .theme-light #orderFlowView .order-summary-card .verified { color: #16a34a; }
+        /* 내 주문: 상태 배지 — 연한 배경에도 글자가 또렷하게 */
+        .theme-light #myOffersView .offer-status--active {
+            color: #4c1d95;
+            background: #e9d5ff;
+            border: 1px solid #a78bfa;
+        }
+        .theme-light #myOffersView .offer-status--done {
+            color: #14532d;
+            background: #bbf7d0;
+            border: 1px solid #4ade80;
+        }
+        .theme-light #myOffersView .offer-status--reject {
+            color: #7f1d1d;
+            background: #fecaca;
+            border: 1px solid #f87171;
+        }
+        .theme-light #myOffersView .offer-divider {
+            border-top-color: #cbd5e1;
+        }
+        .theme-light .input, .theme-light .select {
+            background-color: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light .field-label { color: #334155; }
+        .theme-light .helper-text { color: #475569; }
+        .theme-light .secondary-btn { background-color: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; }
+        .myoffers-view { min-height: 100vh; background: #07060d; }
+        .myoffers-wrap { padding: 14px 16px 80px; }
+        .myoffers-tabs {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .myoffers-tab {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            background: transparent;
+            color: #8f8f9a;
+            border: none;
+            min-height: 44px;
+            padding: 10px 6px 12px;
+            font-size: 15px;
+            font-weight: 900;
+            cursor: pointer;
+            text-align: center;
+            line-height: 1.28;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+        .myoffers-tab::after {
+            content: '';
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            bottom: 0;
+            height: 2px;
+            border-radius: 1px;
+            background: transparent;
+        }
+        .myoffers-tab.active { color: #a855f7; }
+        .myoffers-tab.active::after { background: #a855f7; }
+        .offer-card {
+            background: linear-gradient(145deg, #221a31 0%, #171322 100%);
+            border: 1px solid #32294a;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+        }
+        .offer-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .offer-name { font-size: 20px; font-weight: 900; }
+        .offer-status {
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 900;
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #d1d5db;
+            background: rgba(148,163,184,0.18);
+        }
+        .offer-status--active {
+            color: #e9d5ff;
+            border-color: rgba(168,85,247,0.5);
+            background: rgba(139,92,246,0.26);
+        }
+        .offer-status--done {
+            color: #bbf7d0;
+            border-color: rgba(34,197,94,0.45);
+            background: rgba(34,197,94,0.22);
+        }
+        .offer-status--reject {
+            color: #fecaca;
+            border-color: rgba(239,68,68,0.45);
+            background: rgba(239,68,68,0.22);
+        }
+        .offer-line { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 3px 0; }
+        .offer-k { color: #94a3b8; font-size: 13px; }
+        .offer-v { color: #f8fafc; font-size: 14px; font-weight: 800; }
+        .offer-v--wrap { flex: 1; text-align: right; white-space: normal; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }
+        .offer-copy-link { color: #60a5fa; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+        .offer-divider { border-top: 1px dashed rgba(255,255,255,0.12); margin: 10px 0; }
+        .offer-actions { display: flex; gap: 8px; margin-top: 10px; }
+        .offer-btn {
+            flex: 1;
+            border: none;
+            border-radius: 10px;
+            height: 40px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .offer-btn--primary { background: #9d4edd; color: #fff; }
+        .offer-btn--danger { background: #30303a; color: #fecaca; }
+        .offer-btn--ghost { background: #262630; color: #e2e8f0; }
+        .offer-empty { text-align: center; color: #94a3b8; font-size: 14px; padding: 60px 12px; }
+        .order-flow-view { min-height: 100vh; background: #07060d; padding-bottom: 92px; }
+        .order-flow-header {
+            height: 56px; display: flex; align-items: center; justify-content: center;
+            border-bottom: 1px solid #1b1626; position: sticky; top: 0; background: #0a0813; z-index: 5;
+        }
+        .order-flow-back {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            background: transparent; border: none; color: #fff; font-size: 22px; cursor: pointer;
+        }
+        .order-flow-title { font-size: 20px; font-weight: 900; }
+        .order-flow-wrap { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+        .order-summary-card {
+            background: linear-gradient(145deg, #2a1b48 0%, #1e1233 100%);
+            border: 1px solid #3d2666; border-radius: 14px; padding: 14px;
+        }
+        .order-owner { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-weight: 800; }
+        .order-line { display: flex; justify-content: space-between; color: #d1d5db; font-size: 14px; margin: 8px 0; }
+        .order-tabs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+            border: 1px solid #2d2540; border-radius: 10px; padding: 3px; background: #0f0b18;
+        }
+        .order-tab {
+            height: 40px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer;
+            color: #8b8b93; background: transparent;
+        }
+        .order-tab.active { background: #9d4edd; color: #fff; }
+        .order-input-card { border: 1px solid #2a223b; border-radius: 12px; padding: 12px; background: #0b0912; }
+        .order-input-label { color: #cbd5e1; font-size: 13px; margin-bottom: 6px; }
+        .order-input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .order-input {
+            flex: 1; background: transparent; border: none; outline: none; color: #fff;
+            font-size: 28px; font-weight: 900;
+        }
+        .order-input::-webkit-outer-spin-button,
+        .order-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .order-input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+        .order-static-input {
+            flex: 1; background: transparent; border: none; outline: none; color: #e5e7eb;
+            font-size: 20px; font-weight: 700;
+        }
+        .order-input-unit { color: #d1d5db; font-size: 30px; font-weight: 900; }
+        .order-input-unit--krw { font-size: 24px; }
+        .order-unit-wrap { display: inline-flex; align-items: center; gap: 8px; }
+        .order-unit-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 12px; font-weight: 900;
+        }
+        .order-unit-icon--usdt { background: #2fbf8f; }
+        .order-unit-icon--krw { background: #2b7fff; }
+        .order-prefix-icon {
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 12px; font-weight: 900; flex-shrink: 0;
+            background: #2b7fff;
+        }
+        .order-network-chips { display: flex; gap: 8px; margin-top: 6px; }
+        .order-chip {
+            border: 1px solid #2a223b; border-radius: 8px; padding: 8px 10px; font-size: 13px; color: #d1d5db;
+        }
+        .order-chip.active { border-color: #7c3aed; color: #fff; }
+        .order-submit-wrap {
+            position: fixed; left: 0; right: 0; bottom: 0; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+            background: linear-gradient(180deg, rgba(7,6,13,0) 0%, rgba(7,6,13,0.95) 24%, #07060d 100%);
+        }
+        .order-submit-btn {
+            width: 100%; height: 54px; border: none; border-radius: 12px; font-size: 18px; font-weight: 900;
+            background: #34323e; color: #8e8d95;
+        }
+        .order-submit-btn.enabled { background: #9d4edd; color: #fff; cursor: pointer; }
+        .build-tag {
+            position: fixed;
+            right: 8px;
+            bottom: 8px;
+            z-index: 9999;
+            font-size: 10px;
+            color: rgba(255,255,255,0.55);
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            padding: 2px 6px;
+            pointer-events: none;
+        }
+
+        /* ------------------ Side Menu (Drawer) ------------------ */
+        .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 99; display: none; }
+        .side-menu { position: fixed; top: 0; right: -300px; width: 280px; height: 100%; background-color: #110c1a; z-index: 100; transition: right 0.3s ease; box-shadow: -5px 0 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+        .side-menu.open { right: 0; }
+        .side-header { display: flex; justify-content: flex-end; padding: 20px; }
+        .close-btn { font-size: 24px; color: #fff; cursor: pointer; background: none; border: none; padding: 0; }
+        .side-profile { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 20px 20px; border-bottom: 1px solid #2a2a2a; cursor: pointer; }
+        .side-profile-left { display: flex; align-items: center; gap: 15px; }
+        .side-avatar { width: 36px; height: 36px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; }
+        .side-name { font-weight: bold; font-size: 16px; }
+        .arrow-right { color: #888; }
+        .side-nav { padding: 20px 0; }
+        .nav-group { margin-bottom: 20px; }
+        .nav-item-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            cursor: pointer;
+            color: #f8fafc;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .nav-item-main:active { background-color: #1a1a1a; }
+        .nav-icon-text { display: flex; align-items: center; gap: 15px; }
+        .menu-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #a855f7;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .menu-count-badge.hidden { display: none; }
+        .nav-sub {
+            color: #e2e8f0;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.4;
+            padding: 12px 20px 12px 55px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .nav-sub:active { background-color: #1a1a1a; }
+        .nav-group-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px 8px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0;
+            color: #f8fafc;
+            cursor: default;
+            user-select: none;
+        }
+        .nav-group-title-icon {
+            font-size: 18px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .nav-sub--row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .theme-light .nav-sub:active { background-color: #e2e8f0; }
+
+        /* ------------------ My Page View ------------------ */
+        #myPageView { padding-bottom: 50px; }
+        .mypage-profile-section { padding: 30px 20px; display: flex; align-items: center; gap: 20px; }
+        .mypage-avatar { width: 80px; height: 80px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 32px; font-weight: bold; position: relative; }
+        .edit-badge { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background-color: #cbd5e1; border-radius: 50%; border: 2px solid #050505; }
+        .mypage-info h3 { margin: 0 0 5px 0; font-size: 20px; }
+        .mypage-info p { margin: 3px 0; color: #cbd5e1; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .edit-btn { background-color: #2a2a2a; color: #fff; border: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; margin-top: 5px; cursor: pointer; }
+        .list-section { margin-top: 20px; }
+        .list-title { font-size: 12px; color: #888; padding: 0 20px; margin-bottom: 10px; }
+        .list-item { padding: 18px 20px; font-size: 16px; border-bottom: 1px dashed #2a2a2a; display: flex; justify-content: space-between; align-items: center; background-color: #0a0a0a; cursor: pointer; }
+
+        /* 마이페이지: KYC 2차 / TON USDT 요약 카드 */
+        .mypage-summary-card {
+            margin: 0 20px 20px;
+            padding: 16px 18px;
+            background: linear-gradient(145deg, #1a1228 0%, #0f0b14 100%);
+            border: 1px solid #2d1f45;
+            border-radius: 14px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+        }
+        .mypage-summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+        }
+        .mypage-summary-row + .mypage-summary-row { border-top: 1px solid #2a2038; }
+        .mypage-summary-label { color: #94a3b8; font-size: 13px; }
+        .mypage-summary-value { font-size: 15px; font-weight: 700; color: #e2e8f0; text-align: right; word-break: break-all; }
+        .mypage-summary-badge {
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+        .mypage-summary-badge--ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .mypage-summary-badge--pending { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
+        /* 마이페이지: KYC 초기화 버튼 */
+        .kyc-reset-btn {
+            background: rgba(248, 113, 113, 0.12);
+            border: 1px solid rgba(248, 113, 113, 0.35);
+            color: #fecaca;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            flex-shrink: 0;
+        }
+        .kyc-reset-btn:active { transform: scale(0.98); }
+        .kyc-reset-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        /* ------------------ 리스팅 생성 (단일 화면 · 구간 분리) ------------------ */
+        .listing-single-wrap {
+            padding: 0 16px 32px 16px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .listing-section-block {
+            border-radius: 18px;
+            border: 1px solid rgba(124,58,237,0.22);
+            background: linear-gradient(145deg, rgba(26,18,40,0.95) 0%, rgba(15,11,20,0.92) 100%);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            padding: 16px 14px 18px 14px;
+        }
+        .listing-section-heading {
+            font-size: 15px;
+            font-weight: 900;
+            margin: 0 0 14px 0;
+            color: #ede9fe;
+            letter-spacing: -0.02em;
+        }
+        .listing-section-title-check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0 0 14px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        .listing-section-title-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #a78bfa;
+            flex-shrink: 0;
+        }
+        .listing-section-title-check span {
+            font-size: 15px;
+            font-weight: 900;
+            color: #f5f3ff;
+        }
+        .listing-card-sub {
+            font-size: 11px;
+            color: #a78bfa;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .listing-field { margin-bottom: 14px; }
+
+        /* ------------------ 리스팅 상세/결제 Flow ------------------ */
+        .listing-confirm-layout {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            padding: 0 16px 32px 16px;
+            box-sizing: border-box;
+        }
+        .listing-confirm-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .listing-confirm-right {
+            width: 360px;
+            flex-shrink: 0;
+        }
+        .listing-boost-card {
+            border-radius: 18px;
+            border: 1px solid rgba(124,58,237,0.22);
+            background: linear-gradient(145deg, rgba(26,18,40,0.95) 0%, rgba(15,11,20,0.92) 100%);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            padding: 16px 14px 18px 14px;
+        }
+        .listing-boost-title {
+            font-size: 15px;
+            font-weight: 900;
+            margin-bottom: 10px;
+            color: #ede9fe;
+            letter-spacing: -0.02em;
+        }
+        .listing-boost-step {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.10);
+            background: rgba(8,8,10,0.35);
+            padding: 12px;
+            margin-top: 12px;
+        }
+        .boost-step-btn {
+            width: 58px;
+            height: 42px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            background: rgba(255,255,255,0.08);
+            color: #e2e8f0;
+            font-weight: 900;
+            font-size: 13px;
+        }
+        .boost-step-btn:active { transform: scale(0.98); }
+        .boost-value {
+            flex: 1;
+            text-align: center;
+            color: #fff;
+            font-size: 22px;
+            font-weight: 1000;
+            letter-spacing: -0.02em;
+        }
+        .listing-confirm-card {
+            border-radius: 18px;
+            border: 1px solid rgba(124,58,237,0.22);
+            background: linear-gradient(145deg, rgba(26,18,40,0.95) 0%, rgba(15,11,20,0.92) 100%);
+            box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            padding: 16px 14px 18px 14px;
+        }
+        .listing-confirm-title {
+            font-size: 14px;
+            font-weight: 900;
+            margin-bottom: 12px;
+            color: #f3e8ff;
+        }
+        .confirm-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 6px 0;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .confirm-line:first-of-type { border-top: none; padding-top: 0; }
+        .confirm-label {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 900;
+        }
+        .confirm-value {
+            color: #fff;
+            font-size: 13px;
+            font-weight: 900;
+            text-align: right;
+        }
+        .confirm-subtitle {
+            margin-top: 14px;
+            font-size: 14px;
+            font-weight: 1000;
+            color: #ede9fe;
+        }
+        .listing-pay-btn {
+            width: 100%;
+            margin-top: 16px;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .listing-pay-btn:active { transform: scale(0.98); }
+
+        @media (max-width: 420px) {
+            .listing-confirm-layout { flex-direction: column; }
+            .listing-confirm-right { width: 100%; }
+        }
+
+        /* 리스팅 상세 모달: 좌우 여백 확보 */
+        #listingDetailView .modal-dialog {
+            max-width: 520px;
+            margin: 0 auto;
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        /* 마켓 카드(리스팅) 내부 액션 버튼 */
+        .listing-card-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .tiny-action-btn {
+            background: rgba(124,58,237,0.16);
+            border: 1px solid rgba(124,58,237,0.45);
+            color: #ede9fe;
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tiny-action-btn:active { transform: scale(0.98); }
+        .tiny-action-btn--danger {
+            background: rgba(248,113,113,0.12);
+            border-color: rgba(248,113,113,0.45);
+            color: #fecaca;
+        }
+
+        .listing-three-cards {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            margin-top: 6px;
+        }
+        .listing-card {
+            flex: 1;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(8,8,10,0.4);
+            padding: 12px 12px;
+            min-height: 90px;
+            box-sizing: border-box;
+        }
+        .listing-card-label {
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+        .listing-card-value {
+            font-size: 20px;
+            font-weight: 900;
+            color: #fff;
+            word-break: break-word;
+        }
+        .listing-card-mid { display: flex; flex-direction: column; gap: 8px; }
+        .listing-margin-btns { display: flex; gap: 8px; }
+
+        .listing-network-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .network-chip {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #e2e8f0;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .network-chip.active {
+            border-color: rgba(124,58,237,0.8);
+            background: rgba(124,58,237,0.25);
+            color: #fff;
+        }
+
+        .listing-block-muted {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        @media (max-width: 420px) {
+            .listing-three-cards { flex-direction: column; }
+        }
+
+        /* ------------------ My Page Settings ------------------ */
+        .settings-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .back-btn {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0;
+        }
+        .settings-title {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .form-view { padding-bottom: 50px; }
+        .form-group { padding: 0 20px; margin-top: 14px; }
+        .field-label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 8px; }
+        .input, .select {
+            width: 100%;
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            color: #ffffff;
+            padding: 12px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .helper-text { color: #888; font-size: 12px; margin-top: 8px; }
+        .primary-btn {
+            width: calc(100% - 40px);
+            margin: 18px 20px 0 20px;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .secondary-btn {
+            width: calc(100% - 40px);
+            margin: 12px 20px 0 20px;
+            background-color: #2a2a2a;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .status-box {
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 12px;
+            color: #ffffff;
+            font-size: 13px;
+        }
+
+        /* ------------------ Saved Lists UI ------------------ */
+        .accordion-section { padding: 0 0; }
+        .accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px 10px 20px;
+            cursor: pointer;
+            color: #fff;
+        }
+        .accordion-title { font-size: 18px; font-weight: bold; }
+        .accordion-count { color: #888; font-size: 14px; font-weight: bold; margin-left: 6px; }
+        .accordion-chevron { color: #888; font-size: 18px; user-select: none; }
+        .accordion-content { padding: 0 0 10px 0; }
+
+        .saved-list { padding: 0 20px; }
+        .saved-card {
+            background-color: #0a0a0a;
+            border: 1px solid #2a2a2a;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 12px;
+        }
+        .saved-card:first-child { margin-top: 0; }
+        .saved-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .saved-card-main { flex: 1; min-width: 0; }
+        .saved-card-col-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .saved-card-actions-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .saved-wallet-usdt-block {
+            text-align: right;
+            min-width: 112px;
+        }
+        .saved-wallet-usdt-block .saved-wallet-usdt-label {
+            display: block;
+            font-size: 11px;
+            color: #94a3b8;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .saved-wallet-usdt-block .saved-wallet-usdt-value {
+            display: block;
+            font-size: 14px;
+            font-weight: 800;
+            color: #e2e8f0;
+            line-height: 1.3;
+        }
+        .saved-wallet-title { font-size: 16px; font-weight: bold; }
+        .saved-network-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #2a2a2a;
+            color: #5eead4;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        .saved-address {
+            margin-top: 10px;
+            color: #cbd5e1;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .star-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+            padding: 0;
+            color: #6b7280;
+        }
+        .star-btn.on { color: #22c55e; }
+
+        .delete-wallet-btn {
+            background: none;
+            border: 1px solid #2a2a2a;
+            color: #ef4444;
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .delete-wallet-btn:active { transform: scale(0.98); }
+        .add-btn {
+            width: calc(100% - 40px);
+            margin: 14px 20px 0 20px;
+            border: 1px solid #2a2a2a;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* ------------------ Modals (Bottom Sheet) ------------------ */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-dialog {
+            width: 100%;
+            background-color: #110c1a;
+            border-radius: 18px 18px 0 0;
+            padding-bottom: 24px;
+            max-width: 520px;
+            max-height: 88vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-header {
+            padding: 16px 20px 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .modal-title { font-size: 18px; font-weight: bold; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-body { padding-top: 6px; }
+        #walletSettingsView .modal-body,
+        #bankAccountsSettingsView .modal-body {
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+        }
+
+        .field-row-with-btn {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .field-row-with-btn .input {
+            min-width: 0;
+            flex: 1 1 0;
+        }
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid #2a2a2a;
+            background-color: #0a0a0a;
+            color: #fff;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* Toggle Switch */
+        .switch-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 20px; margin-top: 14px; }
+        .switch-label { color: #cbd5e1; font-size: 13px; }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #374151;
+            transition: .2s;
+            border-radius: 999px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px; width: 22px;
+            left: 3px; bottom: 3px;
+            background-color: #fff;
+            transition: .2s;
+            border-radius: 50%;
+        }
+        .switch input:checked + .slider { background-color: #22c55e; }
+        .switch input:checked + .slider:before { transform: translateX(24px); }
+
+        /* ------------------ KYC 진입: 탑 트레이더 행 오른쪽 작은 리스팅 버튼 ------------------ */
+        .section-title-wrap.section-title-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            box-sizing: border-box;
+        }
+        .section-title-row .section-title {
+            flex: 1;
+            min-width: 0;
+            font-size: 20px;
+            margin: 0;
+        }
+        .listing-register-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex-shrink: 0;
+            width: auto;
+            max-width: 100%;
+            box-sizing: border-box;
+            background: linear-gradient(180deg, #4c1d95 0%, #3b0764 100%);
+            color: #ede9fe;
+            border: none;
+            padding: 5px 12px 5px 6px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(76, 29, 149, 0.45);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .listing-register-btn__icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(167, 139, 250, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            color: #fff;
+        }
+        .listing-register-btn:active { transform: scale(0.98); }
+        #kycView { padding-bottom: 32px; }
+        .kyc-body { padding: 8px 20px 24px; }
+        .kyc-headline { font-size: 22px; font-weight: bold; margin: 8px 0 8px; }
+        .kyc-sub { color: #94a3b8; font-size: 14px; line-height: 1.5; margin: 0 0 20px; }
+        .kyc-upload-block { margin-bottom: 16px; }
+        .kyc-upload-label { display: block; color: #cbd5e1; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+        .kyc-upload-zone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 120px;
+            padding: 16px;
+            background: #0a0a0a;
+            border: 2px dashed #3d2666;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .kyc-upload-zone.has-file { border-style: solid; border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+        .kyc-upload-zone .kyc-upload-icon { font-size: 28px; opacity: 0.9; }
+        .kyc-upload-zone .kyc-upload-hint { font-size: 12px; color: #64748b; text-align: center; }
+        .kyc-upload-zone .kyc-file-name { font-size: 13px; color: #a78bfa; word-break: break-all; text-align: center; max-width: 100%; }
+        .kyc-file-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+        .kyc-bullets { margin: 20px 0 24px; padding-left: 18px; color: #94a3b8; font-size: 13px; line-height: 1.6; }
+        .kyc-bullets li { margin-bottom: 8px; }
+        .kyc-submit-btn {
+            width: 100%;
+            margin: 0;
+            background-color: #9d4edd;
+            color: #fff;
+            border: none;
+            padding: 16px;
+            border-radius: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .kyc-submit-btn:disabled {
+            background: #3f3f46;
+            color: #a1a1aa;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .kyc-err { color: #f87171; font-size: 12px; margin-top: 6px; }
+        #kycCompleteView {
+            min-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 24px 48px;
+            text-align: center;
+        }
+        .kyc-complete-icon-wrap {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+        }
+        .kyc-complete-icon-wrap span { color: #fff; font-size: 36px; font-weight: bold; line-height: 1; }
+        .kyc-complete-title { font-size: 22px; font-weight: bold; margin: 0 0 16px; }
+        .kyc-complete-desc { color: #94a3b8; font-size: 14px; line-height: 1.65; margin: 0 0 32px; max-width: 340px; }
+        .kyc-complete-actions { width: 100%; max-width: 400px; }
+
+        /* 거래 완료 최종 확인 모달 */
+        #finalCompleteConfirmOverlay { z-index: 350; align-items: center; }
+        .final-complete-confirm-dialog {
+            width: calc(100% - 28px);
+            max-width: 430px;
+            background: #110c1a;
+            border: 1px solid #2a223b;
+            border-radius: 16px;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+            padding: 18px 16px 14px 16px;
+        }
+        .final-complete-confirm-title {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+        .final-complete-confirm-desc {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.55;
+            color: #cbd5e1;
+        }
+        .final-complete-confirm-actions {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .final-complete-confirm-btn {
+            border: 1px solid #3d3355;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 800;
+            height: 44px;
+            cursor: pointer;
+        }
+        .final-complete-confirm-btn--cancel {
+            background: #232033;
+            color: #e2e8f0;
+        }
+        .final-complete-confirm-btn--confirm {
+            background: #7c3aed;
+            border-color: #6d28d9;
+            color: #ffffff;
+        }
+        .final-complete-confirm-btn--confirm:disabled {
+            background: #3b3059;
+            border-color: #3b3059;
+            color: #b8a9df;
+            cursor: not-allowed;
+        }
+        .theme-light .final-complete-confirm-dialog {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+        }
+        .theme-light .final-complete-confirm-title { color: #0f172a; }
+        .theme-light .final-complete-confirm-desc { color: #334155; }
+        .theme-light .final-complete-confirm-btn--cancel {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light .final-complete-confirm-btn--confirm {
+            background: #7c3aed;
+            border-color: #6d28d9;
+            color: #ffffff;
+        }
+    
