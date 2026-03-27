@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-manual-return-restore</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-restore-autofill-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5772,6 +5772,22 @@
                     updateTonWalletStatusText('Connected');
                 } else {
                     updateTonWalletStatusText('Not connected');
+                }
+
+                // 수동 복귀로 연결이 복원된 경우에도, 지갑 추가 화면에서는 주소를 자동 반영
+                // (수정 모드가 아니고 입력칸이 비어있을 때만 채워 기존 수동 입력을 덮어쓰지 않음)
+                var isWalletSettingsOpen = !!(dom.walletSettingsView && !dom.walletSettingsView.classList.contains('hidden'));
+                var currentInput = dom.walletAddressInput && dom.walletAddressInput.value
+                    ? String(dom.walletAddressInput.value).trim()
+                    : '';
+                if (
+                    isWalletSettingsOpen &&
+                    tonWalletEditAddress === null &&
+                    dom.walletAddressInput &&
+                    address &&
+                    !currentInput
+                ) {
+                    dom.walletAddressInput.value = address;
                 }
 
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
