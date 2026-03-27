@@ -1324,7 +1324,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-testnet-master-reset</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ton-address-validate</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2302,6 +2302,8 @@
 
         /** TonAPI 공개 API: TON 지갑 주소의 USDT(제톤) 잔액 */
         const TONAPI_ACCOUNT_JETTONS = 'https://tonapi.io/v2/accounts/';
+        /** TonAPI 테스트넷 API: TON 테스트넷 지갑 주소의 USDT(제톤) 잔액 */
+        const TONAPI_ACCOUNT_JETTONS_TESTNET = 'https://testnet.tonapi.io/v2/accounts/';
         /** TON 메인넷 Tether USD(USDT) 제톤 마스터(주소 일치로도 판별) */
         var USDT_JETTON_MASTER_MAINNET = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
         /** TON 테스트넷 JSON-RPC 엔드포인트 */
@@ -2329,6 +2331,30 @@
             return false;
         }
 
+        function getSavedUsdtTestnetMasterAddress() {
+            try {
+                return String(localStorage.getItem(USDT_TESTNET_MASTER_STORAGE_KEY) || '').trim();
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function isLikelyTestnetModeForUsdt() {
+            // 테스트넷 마스터를 저장해둔 경우 테스트넷 조회를 우선
+            if (getSavedUsdtTestnetMasterAddress()) return true;
+            var account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            return !!(account && String(account.chain || '') === '-3');
+        }
+
+        function getUsdtBalanceQueryContext() {
+            var useTestnet = isLikelyTestnetModeForUsdt();
+            var testnetMaster = getSavedUsdtTestnetMasterAddress();
+            return {
+                baseUrl: useTestnet ? TONAPI_ACCOUNT_JETTONS_TESTNET : TONAPI_ACCOUNT_JETTONS,
+                masterAddress: useTestnet ? testnetMaster : USDT_JETTON_MASTER_MAINNET
+            };
+        }
+
         function parseJettonBalanceNumber(b, j) {
             var raw = b.balance;
             if (raw == null) raw = '0';
@@ -2340,7 +2366,8 @@
 
         /** TonAPI jettons 한 번 조회 */
         function fetchJettonUsdtBalanceOnce(address) {
-            var url = TONAPI_ACCOUNT_JETTONS + encodeURIComponent(address.trim()) + '/jettons';
+            var ctx = getUsdtBalanceQueryContext();
+            var url = ctx.baseUrl + encodeURIComponent(address.trim()) + '/jettons';
             return fetch(url, { cache: 'no-store', mode: 'cors' })
                 .then(function (res) {
                     // 계정이 체인에 없거나 제톤 지갑이 없을 때 404가 올 수 있음 → 0으로 처리
@@ -2350,6 +2377,19 @@
                 })
                 .then(function (data) {
                     var list = data.balances || [];
+                    // 1순위: 저장된(또는 기본) USDT 마스터 주소와 정확히 일치
+                    if (ctx.masterAddress) {
+                        var masterNorm = String(ctx.masterAddress).toLowerCase();
+                        for (var k = 0; k < list.length; k++) {
+                            var bk = list[k];
+                            var jk = bk.jetton || {};
+                            var addrK = String(jk.address || '').trim().toLowerCase();
+                            if (addrK && addrK === masterNorm) {
+                                return parseJettonBalanceNumber(bk, jk);
+                            }
+                        }
+                    }
+                    // 2순위: 심볼/이름 기반 fallback
                     for (var i = 0; i < list.length; i++) {
                         var b = list[i];
                         var j = b.jetton || {};
@@ -4915,6 +4955,9 @@
                     var sellToAddress = String(r0.buyerReceiverWalletAddress || '').trim();
                     var txidSell = '';
                     try {
+                        if (sellToAddress.indexOf('.....') !== -1) {
+                            throw new Error('구매자 수취 지갑이 마스킹 주소입니다. 원본 주소로 다시 주문해 주세요.');
+                        }
                         txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt);
                     } catch (sendErrSell) {
                         var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
@@ -5002,6 +5045,9 @@
                 var buyToAddress = String(receiver.receiverWalletAddress || '').trim();
                 var txid = '';
                 try {
+                    if (buyToAddress.indexOf('.....') !== -1) {
+                        throw new Error('구매자 지갑 주소가 마스킹되어 전송할 수 없습니다. 원본 주소로 다시 주문해 주세요.');
+                    }
                     txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt);
                 } catch (sendErrBuy) {
                     var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
@@ -5729,11 +5775,22 @@
             return new window.TonWeb.utils.BN(String(scaled));
         }
 
-        function isLikelyTonAddress(addr) {
+        function normalizeTonAddressStrict(addr) {
             var s = String(addr || '').trim();
-            if (!s) return false;
-            if (s.length < 40) return false;
-            return /^(EQ|UQ|kQ|0Q|Ef|Uf)/.test(s);
+            if (!s) throw new Error('TON 주소가 비어 있습니다.');
+            if (s.indexOf('.....') !== -1) {
+                throw new Error('마스킹된 주소입니다. 원본 TON 주소(48자)를 입력해 주세요.');
+            }
+            if (!window.TonWeb || !window.TonWeb.utils || !window.TonWeb.utils.Address) {
+                throw new Error('TonWeb 주소 파서를 불러오지 못했습니다.');
+            }
+            try {
+                var a = new window.TonWeb.utils.Address(s);
+                // 사용자 친화 주소(48자) 형태로 통일
+                return a.toString(true, true, true);
+            } catch (e) {
+                throw new Error('TON 주소 형식이 올바르지 않습니다. (48자 user-friendly 주소)');
+            }
         }
 
         function saveUsdtTestnetMasterAddress() {
@@ -5742,16 +5799,20 @@
                 if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소를 입력해 주세요.';
                 return false;
             }
-            if (!isLikelyTonAddress(raw)) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'TON 주소 형식이 올바르지 않습니다.';
+            var normalized = '';
+            try {
+                normalized = normalizeTonAddressStrict(raw);
+            } catch (eNorm) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = String(eNorm && eNorm.message ? eNorm.message : 'TON 주소 형식이 올바르지 않습니다.');
                 return false;
             }
             try {
-                localStorage.setItem(USDT_TESTNET_MASTER_STORAGE_KEY, raw);
+                localStorage.setItem(USDT_TESTNET_MASTER_STORAGE_KEY, normalized);
             } catch (e) {
                 if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '저장에 실패했습니다.';
                 return false;
             }
+            if (dom.usdtTestnetMasterInput) dom.usdtTestnetMasterInput.value = normalized;
             if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소가 저장되었습니다.';
             return true;
         }
@@ -5779,9 +5840,9 @@
 
             var TonWebClass = window.TonWeb;
             var tonweb = getTonWebTestnet();
-            var masterAddress = getUsdtTestnetMasterAddress();
-            var ownerAddr = new TonWebClass.utils.Address(sender);
-            var toAddr = new TonWebClass.utils.Address(to);
+            var masterAddress = normalizeTonAddressStrict(getUsdtTestnetMasterAddress());
+            var ownerAddr = new TonWebClass.utils.Address(normalizeTonAddressStrict(sender));
+            var toAddr = new TonWebClass.utils.Address(normalizeTonAddressStrict(to));
             var minter = new TonWebClass.token.jetton.JettonMinter(tonweb.provider, {
                 address: new TonWebClass.utils.Address(masterAddress)
             });
