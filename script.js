@@ -4622,24 +4622,15 @@
                 }]
             };
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
-            // TonConnect UI 기본(actionsConfiguration.modals: ['before'])은 전송 직전 'Open Wallet' 모달을 잠깐 띄움 → 비활성화
+            // 전송 전 Open Wallet 안내는 TonConnect UI 기본(modals: ['before'])을 유지 — 커넥터 직접 호출은 해당 UI를 건너뜀
             var sendTxUiOpts = {
-                modals: [],
-                notifications: ['success', 'error'],
                 twaReturnUrl: getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL
             };
             var result;
             tonSendTransactionInFlight = true;
             try {
-                // UI 레이어 sendTransaction은 'Open Wallet' 오버레이를 남기는 경우가 있어, 가능하면 커넥터로 직접 전송
-                var sendPromise;
-                if (tonConnectUIInstance.connector && typeof tonConnectUIInstance.connector.sendTransaction === 'function') {
-                    sendPromise = tonConnectUIInstance.connector.sendTransaction(tx);
-                } else {
-                    sendPromise = tonConnectUIInstance.sendTransaction(tx, sendTxUiOpts);
-                }
                 result = await Promise.race([
-                    sendPromise,
+                    tonConnectUIInstance.sendTransaction(tx, sendTxUiOpts),
                     new Promise(function (_, reject) {
                         setTimeout(function () {
                             reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
