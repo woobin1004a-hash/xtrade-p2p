@@ -9,10 +9,8 @@
         // Supabase REST 연결 정보
         const SUPABASE_URL = 'https://fasigdxixqvgxurineyo.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
-        // Telegram Mini App 복귀 URL (Tonkeeper 승인 후 자동 복귀 힌트)
+        // 봇 채팅방 기본 주소 (지갑 완료 후 텔레그램 복귀·Tonkeeper ret 공통)
         const TON_TWA_RETURN_URL = 'https://t.me/P2PxxBOT';
-        /** 미니앱 직접 실행용 startapp 기본값 (채팅만 열리는 t.me/봇 링크 방지) */
-        const TELEGRAM_MINIAPP_STARTAPP_DEFAULT = 'wallet_done';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -3134,53 +3132,11 @@
             return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
         }
 
-        /** t.me/봇 만으로는 채팅만 열리는 경우가 많아, ?startapp= 으로 미니앱 실행 링크를 보강 */
-        function ensureTelegramMiniAppStartappUrl(urlStr) {
-            var s = String(urlStr || '').trim();
-            if (!s) return '';
-            try {
-                var u = new URL(s);
-                if (u.hostname !== 't.me' && u.hostname !== 'telegram.me') return s;
-                if (!u.searchParams.has('startapp')) {
-                    u.searchParams.set('startapp', TELEGRAM_MINIAPP_STARTAPP_DEFAULT);
-                }
-                return u.toString();
-            } catch (e) {
-                return s;
-            }
-        }
-
-        /** 복귀 시도용 URL 목록 (형식이 다른 단말 대비) */
-        function buildTelegramReturnUrlCandidates() {
-            var list = [];
-            var a = buildTelegramMiniAppReturnUrl();
-            if (a) {
-                list.push(a);
-                var b = ensureTelegramMiniAppStartappUrl(a);
-                if (b && b !== a) list.push(b);
-            }
-            var fb = ensureTelegramMiniAppStartappUrl(TON_TWA_RETURN_URL);
-            if (fb) list.push(fb);
-            var seen = {};
-            var out = [];
-            for (var i = 0; i < list.length; i++) {
-                var k = list[i];
-                if (k && !seen[k]) {
-                    seen[k] = true;
-                    out.push(k);
-                }
-            }
-            return out;
-        }
-
         function tryForceReturnToTelegramAfterWallet() {
-            // TonConnect는 sendTransaction에 twaReturnUrl이 항상 적용되지 않아, 지갑에서 Done 후에도
-            // 미니앱 WebView가 앞으로 안 올 수 있음 → 저장 완료 뒤 t.me로 한 번 더 복귀 유도
-            // 자동 복귀가 실패하는 단말에서 t.me 링크로 복귀를 여러 방식·여러 타이밍으로 재시도
-            var candidates = buildTelegramReturnUrlCandidates();
-            if (!candidates.length) return;
+            // 지갑 완료 후 봇 채팅(TON_TWA_RETURN_URL)으로만 복귀 (short name 미등록 시나리오)
+            var url = TON_TWA_RETURN_URL;
 
-            function tryOpenOne(url) {
+            function tryOpenOne(link) {
                 try {
                     if (tg && typeof tg.ready === 'function') tg.ready();
                 } catch (eR) {}
@@ -3189,34 +3145,28 @@
                 } catch (eE) {}
                 try {
                     if (tg && typeof tg.openTelegramLink === 'function') {
-                        tg.openTelegramLink(url);
+                        tg.openTelegramLink(link);
                         return true;
                     }
                 } catch (e) {}
                 try {
                     if (tg && typeof tg.openLink === 'function') {
-                        tg.openLink(url, { try_instant_view: false });
+                        tg.openLink(link, { try_instant_view: false });
                         return true;
                     }
                 } catch (e2) {}
                 try {
-                    window.location.href = url;
+                    window.location.href = link;
                     return true;
                 } catch (e3) {}
                 return false;
             }
 
-            function tryAllUrls() {
-                for (var i = 0; i < candidates.length; i++) {
-                    tryOpenOne(candidates[i]);
-                }
-            }
-
-            tryAllUrls();
-            setTimeout(tryAllUrls, 280);
-            setTimeout(tryAllUrls, 900);
-            setTimeout(tryAllUrls, 2200);
-            setTimeout(tryAllUrls, 5000);
+            tryOpenOne(url);
+            setTimeout(function () { tryOpenOne(url); }, 280);
+            setTimeout(function () { tryOpenOne(url); }, 900);
+            setTimeout(function () { tryOpenOne(url); }, 2200);
+            setTimeout(function () { tryOpenOne(url); }, 5000);
         }
 
         async function handleOrderAction(orderId, action) {
@@ -4225,68 +4175,14 @@
             }
         }
 
+        /** TonConnect·복귀 힌트용: 항상 봇 채팅 기본 주소만 사용 (short name 미사용) */
         function buildTelegramMiniAppReturnUrl() {
-            var botUsername = '';
-            var appPath = '';
-            var startParam = '';
-
-            // 1) Telegram WebApp initDataUnsafe 우선 사용
-            if (tg && tg.initDataUnsafe && typeof tg.initDataUnsafe === 'object') {
-                var data = tg.initDataUnsafe;
-                var receiver = data.receiver && typeof data.receiver === 'object' ? data.receiver : null;
-                if (receiver && typeof receiver.username === 'string') {
-                    botUsername = String(receiver.username).trim();
-                }
-                if (!startParam && typeof data.start_param === 'string') {
-                    startParam = String(data.start_param).trim();
-                }
-            }
-
-            // 2) URL 쿼리/해시 파라미터 보조 추출
-            try {
-                var qs = new URLSearchParams(window.location.search || '');
-                var hs = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
-                if (!startParam) startParam = String(qs.get('tgWebAppStartParam') || hs.get('tgWebAppStartParam') || '').trim();
-                if (!botUsername) botUsername = String(qs.get('tgWebAppBotUsername') || hs.get('tgWebAppBotUsername') || '').trim();
-            } catch (eUrl) {}
-
-            // 3) referrer(t.me 링크)에서 bot username / mini app path 추출
-            try {
-                var ref = String(document.referrer || '').trim();
-                if (ref && /^https?:\/\/t\.me\//i.test(ref)) {
-                    var ru = new URL(ref);
-                    var segs = String(ru.pathname || '').split('/').filter(Boolean);
-                    if (!botUsername && segs.length >= 1) botUsername = segs[0];
-                    if (!appPath && segs.length >= 2) appPath = segs[1];
-                }
-            } catch (eRef) {}
-
-            // username 정리(@ 제거)
-            botUsername = String(botUsername || '').replace(/^@+/, '').trim();
-            // 봇 이름을 못 찾으면 폴백 상수에서 파싱 (항상 미니앱 복귀 URL을 만들 수 있게)
-            if (!botUsername) {
-                try {
-                    var fu = new URL(TON_TWA_RETURN_URL);
-                    var segsF = String(fu.pathname || '').split('/').filter(Boolean);
-                    if (segsF.length >= 1) botUsername = segsF[0];
-                } catch (eFb) {
-                    botUsername = 'P2PxxBOT';
-                }
-            }
-
-            // startapp 없이 t.me/봇 만 쓰면 "채팅만 열림"이 되는 경우가 많아 항상 ?startapp= 을 붙임
-            var sp = startParam || TELEGRAM_MINIAPP_STARTAPP_DEFAULT;
-            if (appPath) {
-                var ap = String(appPath).replace(/^\/+|\/+$/g, '');
-                return 'https://t.me/' + botUsername + '/' + ap + '?startapp=' + encodeURIComponent(sp);
-            }
-            return 'https://t.me/' + botUsername + '?startapp=' + encodeURIComponent(sp);
+            return TON_TWA_RETURN_URL;
         }
 
         function getTonkeeperReturnStrategy() {
-            // TWA 복귀 URL을 만들 수 있으면 ret에 URL 자체를 넣고, 아니면 back으로 폴백
-            var twaUrl = buildTelegramMiniAppReturnUrl();
-            return twaUrl || 'back';
+            // 지갑에 넘길 ret: 봇 채팅으로 돌아가기
+            return TON_TWA_RETURN_URL;
         }
 
         async function restoreTonConnectionSafe() {
