@@ -4150,7 +4150,24 @@
                     payload: payloadBase64
                 }]
             };
-            var result = await tonConnectUIInstance.sendTransaction(tx);
+            // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
+            var result;
+            try {
+                result = await Promise.race([
+                    tonConnectUIInstance.sendTransaction(tx),
+                    new Promise(function (_, reject) {
+                        setTimeout(function () {
+                            reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
+                        }, 30000);
+                    })
+                ]);
+            } finally {
+                // 복귀 시 Open Wallet 모달이 잔류하면 화면이 멈춘 것처럼 보여 정리합니다.
+                if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
+                    try { tonConnectUIInstance.closeModal(); } catch (eCloseAfterTx) {}
+                }
+                restoreTonConnectionSafe();
+            }
             var txId = '';
             if (result && typeof result === 'object') {
                 if (typeof result.boc === 'string') txId = result.boc;
