@@ -11,8 +11,6 @@
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
         // 봇 채팅방 기본 주소 (지갑 완료 후 텔레그램 복귀·Tonkeeper ret 공통)
         const TON_TWA_RETURN_URL = 'https://t.me/P2PxxBOT';
-        /** tg://resolve 등에 사용 (TON_TWA_RETURN_URL의 봇 사용자명과 동일해야 함) */
-        const TELEGRAM_BOT_USERNAME = 'P2PxxBOT';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -1888,8 +1886,6 @@
         let orderSubmittedOverlayAction = 'myOffers';
         /** TonConnect sendTransaction 대기 중 — 이 때 closeModal·포커스 정리하면 전송이 취소될 수 있음 */
         let tonSendTransactionInFlight = false;
-        /** 전송 후 자동으로 미니앱을 닫는 예약(사용자가 확인 누르면 취소) */
-        let telegramAutoCloseTimer = null;
 
         const UI_TEXTS = {
             ko: {
@@ -2570,7 +2566,8 @@
             var msgEl = document.getElementById('orderSubmittedModalMessage');
             var tgBtn = document.getElementById('orderSubmittedTelegramBtn');
             if (overlay && msgEl) {
-                msgEl.textContent = '전송이 완료되었습니다.\n자동으로 채팅으로 돌아가지 않으면 아래 버튼을 눌러 주세요.';
+                msgEl.textContent =
+                    '전송이 완료되었습니다.\n\n지갑·OS 정책상 화면이 자동으로 바뀌지 않을 수 있습니다. 톤키퍼의 「앱으로 돌아가기」가 있으면 그걸 쓰시고, 아니면 아래 버튼으로 봇 채팅을 여세요.';
                 if (tgBtn) tgBtn.classList.remove('hidden');
                 overlay.classList.remove('hidden');
                 setTimeout(function () { forceCloseTonConnectUI(); }, 50);
@@ -2603,7 +2600,6 @@
 
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
         function closeOrderSubmittedModalAndGoToMyOffers() {
-            cancelTelegramAutoCloseTimer();
             var tgBtn = document.getElementById('orderSubmittedTelegramBtn');
             if (tgBtn) tgBtn.classList.add('hidden');
             var overlay = document.getElementById('orderSubmittedOverlay');
@@ -3143,88 +3139,47 @@
             return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
         }
 
-        function cancelTelegramAutoCloseTimer() {
-            if (telegramAutoCloseTimer) {
-                try {
-                    clearTimeout(telegramAutoCloseTimer);
-                } catch (e) {}
-                telegramAutoCloseTimer = null;
-            }
+        /** 전송 타임아웃 등 미니앱·지갑 동기가 불확실할 때만: 봇 링크를 한 번 열어보는 보조(성공 보장 없음) */
+        function tryLightTelegramDeepLinkHint() {
+            var url = TON_TWA_RETURN_URL;
+            try {
+                if (tg && typeof tg.ready === 'function') tg.ready();
+            } catch (eR) {}
+            try {
+                if (tg && typeof tg.openTelegramLink === 'function') {
+                    tg.openTelegramLink(url);
+                    return;
+                }
+            } catch (e) {}
+            try {
+                if (tg && typeof tg.openLink === 'function') {
+                    tg.openLink(url, { try_instant_view: false });
+                }
+            } catch (e2) {}
         }
 
-        /** 사용자가 직접 누를 때: 링크 시도 후 미니앱 닫기(봇 채팅으로 가장 확실히 복귀) */
+        /** 사용자가 누를 때만: 봇 채팅으로 이동 + 미니앱 닫기(자동 복귀 대신 가장 현실적인 경로) */
         function returnToTelegramBotChat() {
-            cancelTelegramAutoCloseTimer();
-            tryForceReturnToTelegramAfterWallet({ skipDelayedClose: true });
+            var url = TON_TWA_RETURN_URL;
+            try {
+                if (tg && typeof tg.ready === 'function') tg.ready();
+            } catch (e0) {}
+            try {
+                if (tg && typeof tg.openTelegramLink === 'function') {
+                    tg.openTelegramLink(url);
+                } else if (tg && typeof tg.openLink === 'function') {
+                    tg.openLink(url, { try_instant_view: false });
+                }
+            } catch (e1) {}
             setTimeout(function () {
                 try {
-                    if (tg && typeof tg.close === 'function') {
-                        tg.close();
-                    }
-                } catch (e) {}
-            }, 400);
+                    if (tg && typeof tg.close === 'function') tg.close();
+                } catch (e2) {}
+            }, 350);
         }
         try {
             window.returnToTelegramBotChat = returnToTelegramBotChat;
         } catch (eW) {}
-
-        /**
-         * @param {{ skipDelayedClose?: boolean }} [opts]
-         */
-        function tryForceReturnToTelegramAfterWallet(opts) {
-            var skipDelayedClose = !!(opts && opts.skipDelayedClose);
-            // 지갑 완료 후 봇 채팅으로 복귀 — 단말마다 동작이 달라 여러 경로 + 마지막에 Mini App 닫기
-            var url = TON_TWA_RETURN_URL;
-            var tgDeep = 'tg://resolve?domain=' + encodeURIComponent(TELEGRAM_BOT_USERNAME);
-
-            function tryOpenOne(link) {
-                try {
-                    if (tg && typeof tg.ready === 'function') tg.ready();
-                } catch (eR) {}
-                try {
-                    if (tg && typeof tg.expand === 'function') tg.expand();
-                } catch (eE) {}
-                try {
-                    if (tg && typeof tg.openTelegramLink === 'function') {
-                        tg.openTelegramLink(link);
-                        return true;
-                    }
-                } catch (e) {}
-                try {
-                    if (tg && typeof tg.openLink === 'function') {
-                        tg.openLink(link, { try_instant_view: false });
-                        return true;
-                    }
-                } catch (e2) {}
-                try {
-                    window.location.href = link;
-                    return true;
-                } catch (e3) {}
-                return false;
-            }
-
-            tryOpenOne(url);
-            setTimeout(function () { tryOpenOne(url); }, 200);
-            setTimeout(function () { tryOpenOne(url); }, 550);
-            setTimeout(function () {
-                try {
-                    window.location.href = tgDeep;
-                } catch (eTg) {}
-            }, 800);
-            setTimeout(function () { tryOpenOne(url); }, 1200);
-            setTimeout(function () { tryOpenOne(url); }, 2800);
-
-            // 자동 복귀가 막히는 환경: 일정 시간 후 Mini App 종료 → 봇 채팅으로 확실히 복귀 (Telegram 6.4+)
-            cancelTelegramAutoCloseTimer();
-            if (!skipDelayedClose && tg && typeof tg.close === 'function') {
-                telegramAutoCloseTimer = setTimeout(function () {
-                    telegramAutoCloseTimer = null;
-                    try {
-                        tg.close();
-                    } catch (eClose) {}
-                }, 4500);
-            }
-        }
 
         async function handleOrderAction(orderId, action) {
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
@@ -3343,9 +3298,9 @@
                     if (action === 'sent') {
                         showTransferCompleteInlineModal();
                     }
-                    // 전송 성공·타임아웃(가정 성공) 모두: 지갑 앱에서 Done 후 텔레그램 미니앱으로 돌아오기
-                    if (action === 'sent' || forceTelegramReturnAfterSaveSell) {
-                        setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 650);
+                    // 전송 타임아웃(가정 성공)일 때만 링크 힌트 1회 — 정상 완료 시에는 자동 복귀 시도 안 함
+                    if (forceTelegramReturnAfterSaveSell) {
+                        setTimeout(function () { tryLightTelegramDeepLinkHint(); }, 400);
                     }
                 } catch (e) {
                     var msgS = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
@@ -3431,8 +3386,8 @@
                 if (action === 'sent') {
                     showTransferCompleteInlineModal();
                 }
-                if (action === 'sent' || forceTelegramReturnAfterSaveBuy) {
-                    setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 650);
+                if (forceTelegramReturnAfterSaveBuy) {
+                    setTimeout(function () { tryLightTelegramDeepLinkHint(); }, 400);
                 }
             } catch (e) {
                 var msg = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
