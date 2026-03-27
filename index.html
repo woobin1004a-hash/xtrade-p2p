@@ -1324,7 +1324,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ton-address-validate</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-address-guard</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2720,9 +2720,11 @@
                         } else {
                             walletOpts.push('<option value="">지갑을 선택해 주세요</option>');
                             wallets.forEach(function (w) {
+                                if (!isValidTonAddressStrict(w.address)) return;
                                 var selected = defaultTon && w.address === defaultTon ? ' selected' : '';
-                                var label = (w.label || 'TON Wallet') + ' (' + shortenAddress(w.address) + ')';
-                                walletOpts.push('<option value="' + escapeHtml(w.address) + '"' + selected + '>' + escapeHtml(label) + '</option>');
+                                var normalized = normalizeTonAddressStrict(w.address);
+                                var label = (w.label || 'TON Wallet') + ' (' + shortenAddress(normalized) + ')';
+                                walletOpts.push('<option value="' + escapeHtml(normalized) + '"' + selected + '>' + escapeHtml(label) + '</option>');
                             });
                         }
                         dom.listingTonWalletSelect.innerHTML = walletOpts.join('');
@@ -4455,7 +4457,10 @@
             orderFlowState.listingOwnerName = String(found.ownerName || 'User');
             orderFlowState.listingBankText = String(found.bankText || '');
             orderFlowState.listingBankAccountId = String(found.bankAccountId || '');
-            orderFlowState.listingTonWalletAddress = String(found.tonWalletAddress || '');
+            var listingWalletRaw = String(found.tonWalletAddress || '');
+            orderFlowState.listingTonWalletAddress = isValidTonAddressStrict(listingWalletRaw)
+                ? normalizeTonAddressStrict(listingWalletRaw)
+                : '';
 
             if (dom.orderOwnerName) dom.orderOwnerName.textContent = found.ownerName || 'User';
             if (dom.orderOwnerInitial) dom.orderOwnerInitial.textContent = String(found.ownerName || 'U').charAt(0).toUpperCase();
@@ -4504,6 +4509,14 @@
             var firstSide = initialSide === 'sell' ? 'sell' : 'buy';
             var canBuy = !!found.sellMode;  // 상대의 매도 리스팅에 대해 내가 구매
             var canSell = !!found.buyMode;  // 상대의 매수 리스팅에 대해 내가 판매
+            if (canSell && !orderFlowState.listingTonWalletAddress) {
+                canSell = false;
+                if (tg && typeof tg.showAlert === 'function') {
+                    tg.showAlert('상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.');
+                } else {
+                    alert('상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.');
+                }
+            }
             if (firstSide === 'buy' && !canBuy && canSell) firstSide = 'sell';
             if (firstSide === 'sell' && !canSell && canBuy) firstSide = 'buy';
 
@@ -5793,6 +5806,15 @@
             }
         }
 
+        function isValidTonAddressStrict(addr) {
+            try {
+                normalizeTonAddressStrict(addr);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
         function saveUsdtTestnetMasterAddress() {
             var raw = dom.usdtTestnetMasterInput ? String(dom.usdtTestnetMasterInput.value || '').trim() : '';
             if (!raw) {
@@ -6017,15 +6039,22 @@
                 if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Please enter wallet address.';
                 return;
             }
+            let normalizedAddress = '';
+            try {
+                normalizedAddress = normalizeTonAddressStrict(address);
+            } catch (eAddr) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = String(eAddr && eAddr.message ? eAddr.message : 'TON 주소 형식이 올바르지 않습니다.');
+                return;
+            }
 
             const wallets = loadTonWallets();
-            const idx = wallets.findIndex(w => w.address === address);
+            const idx = wallets.findIndex(w => w.address === normalizedAddress);
             const nextLabel = label || (idx >= 0 && wallets[idx].label ? wallets[idx].label : 'TON Wallet');
 
             if (idx >= 0) {
-                wallets[idx] = { ...wallets[idx], address, label: nextLabel, network: 'TON', updatedAt: Date.now() };
+                wallets[idx] = { ...wallets[idx], address: normalizedAddress, label: nextLabel, network: 'TON', updatedAt: Date.now() };
             } else {
-                wallets.unshift({ address, label: nextLabel, network: 'TON', updatedAt: Date.now() });
+                wallets.unshift({ address: normalizedAddress, label: nextLabel, network: 'TON', updatedAt: Date.now() });
             }
 
             try {
@@ -6037,7 +6066,7 @@
             cloudSetItem(STORAGE.TON_WALLETS, JSON.stringify(wallets));
 
             const currentDefault = getDefaultTonWalletAddress();
-            if (setDefault || !currentDefault) setDefaultTonWalletAddress(address);
+            if (setDefault || !currentDefault) setDefaultTonWalletAddress(normalizedAddress);
             else renderSavedWallets();
 
             if (masterInput) saveUsdtTestnetMasterAddress();
