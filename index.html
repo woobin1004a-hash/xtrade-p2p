@@ -119,7 +119,7 @@
         .theme-light #myOffersView .myoffers-tab { color: #64748b; }
         .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; }
         .theme-light #myOffersView .myoffers-tab.active::after { background: #7c3aed; }
-        /* 내 제안 버튼: 첨부 2 스타일 — 보조=연회색+진한 글자, 주요=진보라+흰 글자 */
+        /* 내 주문 화면 버튼: 보조=연회색+진한 글자, 주요=진보라+흰 글자 */
         .theme-light #myOffersView .offer-btn {
             border: 1px solid transparent;
             min-height: 44px;
@@ -150,7 +150,8 @@
         .theme-light .close-btn,
         .theme-light .side-name,
         .theme-light .nav-item-main,
-        .theme-light .nav-sub { color: #0f172a; }
+        .theme-light .nav-sub,
+        .theme-light .nav-group-title { color: #0f172a; }
         .theme-light .nav-item-main:active { background-color: #e2e8f0; }
         .theme-light .arrow-right,
         .theme-light .accordion-count,
@@ -266,7 +267,7 @@
         }
         .theme-light #orderFlowView .order-owner { color: #0f172a; }
         .theme-light #orderFlowView .order-summary-card .verified { color: #16a34a; }
-        /* 내 제안: 상태 배지 — 연한 배경에도 글자가 또렷하게 */
+        /* 내 주문: 상태 배지 — 연한 배경에도 글자가 또렷하게 */
         .theme-light #myOffersView .offer-status--active {
             color: #4c1d95;
             background: #e9d5ff;
@@ -482,7 +483,16 @@
         .arrow-right { color: #888; }
         .side-nav { padding: 20px 0; }
         .nav-group { margin-bottom: 20px; }
-        .nav-item-main { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; cursor: pointer; color: #fff; font-size: 15px; }
+        .nav-item-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            cursor: pointer;
+            color: #f8fafc;
+            font-size: 15px;
+            font-weight: 600;
+        }
         .nav-item-main:active { background-color: #1a1a1a; }
         .nav-icon-text { display: flex; align-items: center; gap: 15px; }
         .menu-count-badge {
@@ -501,32 +511,34 @@
         }
         .menu-count-badge.hidden { display: none; }
         .nav-sub {
-            color: #cbd5e1;
-            font-size: 14px;
-            line-height: 1.35;
-            padding: 10px 20px 10px 55px;
+            color: #e2e8f0;
+            font-size: 15px;
+            font-weight: 500;
+            line-height: 1.4;
+            padding: 12px 20px 12px 55px;
             cursor: pointer;
             text-decoration: none;
         }
+        .nav-sub:active { background-color: #1a1a1a; }
         .nav-group-title {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 12px 20px 6px 20px;
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            color: #64748b;
+            padding: 14px 20px 8px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0;
+            color: #f8fafc;
             cursor: default;
             user-select: none;
         }
         .nav-group-title-icon {
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1;
             flex-shrink: 0;
         }
         .nav-sub--row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .theme-light .nav-group-title { color: #64748b; }
+        .theme-light .nav-sub:active { background-color: #e2e8f0; }
 
         /* ------------------ My Page View ------------------ */
         #myPageView { padding-bottom: 50px; }
@@ -1238,10 +1250,80 @@
         .kyc-complete-title { font-size: 22px; font-weight: bold; margin: 0 0 16px; }
         .kyc-complete-desc { color: #94a3b8; font-size: 14px; line-height: 1.65; margin: 0 0 32px; max-width: 340px; }
         .kyc-complete-actions { width: 100%; max-width: 400px; }
+
+        /* 거래 완료 최종 확인 모달 */
+        #finalCompleteConfirmOverlay { z-index: 350; align-items: center; }
+        .final-complete-confirm-dialog {
+            width: calc(100% - 28px);
+            max-width: 430px;
+            background: #110c1a;
+            border: 1px solid #2a223b;
+            border-radius: 16px;
+            box-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+            padding: 18px 16px 14px 16px;
+        }
+        .final-complete-confirm-title {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+        .final-complete-confirm-desc {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.55;
+            color: #cbd5e1;
+        }
+        .final-complete-confirm-actions {
+            margin-top: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .final-complete-confirm-btn {
+            border: 1px solid #3d3355;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 800;
+            height: 44px;
+            cursor: pointer;
+        }
+        .final-complete-confirm-btn--cancel {
+            background: #232033;
+            color: #e2e8f0;
+        }
+        .final-complete-confirm-btn--confirm {
+            background: #7c3aed;
+            border-color: #6d28d9;
+            color: #ffffff;
+        }
+        .final-complete-confirm-btn--confirm:disabled {
+            background: #3b3059;
+            border-color: #3b3059;
+            color: #b8a9df;
+            cursor: not-allowed;
+        }
+        .theme-light .final-complete-confirm-dialog {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+        }
+        .theme-light .final-complete-confirm-title { color: #0f172a; }
+        .theme-light .final-complete-confirm-desc { color: #334155; }
+        .theme-light .final-complete-confirm-btn--cancel {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light .final-complete-confirm-btn--confirm {
+            background: #7c3aed;
+            border-color: #6d28d9;
+            color: #ffffff;
+        }
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-sell-reconfirm-no-confirm</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-final-confirm-modal</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1281,7 +1363,7 @@
 
     <div id="myOffersView" class="myoffers-view hidden">
         <div class="top-header">
-            <div class="logo" id="myOffersScreenTitle">📄 내 제안</div>
+            <div class="logo" id="myOffersScreenTitle">📄 내 주문</div>
             <div class="menu-icon" onclick="openMenu()">☰</div>
         </div>
         <div class="myoffers-wrap">
@@ -1891,7 +1973,7 @@
             <div class="nav-group">
                 <div class="nav-group-title">
                     <span class="nav-group-title-icon" aria-hidden="true">🎟️</span>
-                    <span id="menuNavMyOffersGroup">내 제안</span>
+                    <span id="menuNavMyOffersGroup">내 주문</span>
                 </div>
                 <div class="nav-sub nav-sub--row" onclick="goToMyOffers()">
                     <span id="menuNavOffersActive">진행중</span>
@@ -1900,6 +1982,17 @@
                 <div class="nav-sub" onclick="goToMyOffersHistory()">
                     <span id="menuNavOffersHistory">거래 내역</span>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="finalCompleteConfirmOverlay" class="modal-overlay hidden" onclick="closeFinalCompleteConfirmByOverlay(event)">
+        <div class="final-complete-confirm-dialog" onclick="event.stopPropagation()">
+            <h3 class="final-complete-confirm-title">최종 확인</h3>
+            <p class="final-complete-confirm-desc">거래 완료 처리시 분쟁조정을 신청 할 수 없습니다.</p>
+            <div class="final-complete-confirm-actions">
+                <button type="button" class="final-complete-confirm-btn final-complete-confirm-btn--cancel" onclick="closeFinalCompleteConfirm(false)">취소</button>
+                <button type="button" id="finalCompleteConfirmBtn" class="final-complete-confirm-btn final-complete-confirm-btn--confirm" disabled onclick="closeFinalCompleteConfirm(true)">거래 완료</button>
             </div>
         </div>
     </div>
@@ -2178,6 +2271,8 @@
             confirmCheckoutDepositText: document.getElementById('confirmCheckoutDepositText'),
             confirmCheckoutBoostText: document.getElementById('confirmCheckoutBoostText'),
             confirmCheckoutTotalText: document.getElementById('confirmCheckoutTotalText'),
+            finalCompleteConfirmOverlay: document.getElementById('finalCompleteConfirmOverlay'),
+            finalCompleteConfirmBtn: document.getElementById('finalCompleteConfirmBtn'),
         };
 
         // localStorage / CloudStorage 키 (KYC·지갑 등) — KYC 제출 로직보다 먼저 정의
@@ -3727,6 +3822,8 @@
         const STORAGE_ORDER_SELLER_ALERTED = 'orderSellerAlertedIdsV1';
         const UI_THEME_STORAGE_KEY = 'uiThemeMode';
         const UI_LANG_STORAGE_KEY = 'uiLangMode';
+        let finalCompleteConfirmResolver = null;
+        let finalCompleteConfirmTimer = null;
         let uiThemeMode = 'dark';
         let uiLangMode = 'ko';
 
@@ -3740,7 +3837,7 @@
                 privacy: '개인정보 처리방침',
                 terms: '이용약관',
                 preparing: '준비중입니다.',
-                menuMyOffersGroup: '내 제안',
+                menuMyOffersGroup: '내 주문',
                 myOffersActive: '진행중',
                 myOffersHistory: '거래 내역',
                 myOffersEmptyActive: '진행중인 주문이 없습니다.',
@@ -3755,7 +3852,7 @@
                 privacy: 'Privacy Policy',
                 terms: 'Terms of Service',
                 preparing: 'Coming soon.',
-                menuMyOffersGroup: 'My Offers',
+                menuMyOffersGroup: 'My Orders',
                 myOffersActive: 'In Progress',
                 myOffersHistory: 'Transaction History',
                 myOffersEmptyActive: 'No orders in progress.',
@@ -3823,6 +3920,50 @@
         function toggleLanguageMode() {
             uiLangMode = uiLangMode === 'en' ? 'ko' : 'en';
             applyLanguageMode();
+        }
+
+        function clearFinalCompleteConfirmTimer() {
+            if (finalCompleteConfirmTimer) {
+                clearInterval(finalCompleteConfirmTimer);
+                finalCompleteConfirmTimer = null;
+            }
+        }
+
+        function closeFinalCompleteConfirm(result) {
+            clearFinalCompleteConfirmTimer();
+            if (dom.finalCompleteConfirmOverlay) dom.finalCompleteConfirmOverlay.classList.add('hidden');
+            var resolver = finalCompleteConfirmResolver;
+            finalCompleteConfirmResolver = null;
+            if (resolver) resolver(!!result);
+        }
+
+        function closeFinalCompleteConfirmByOverlay(event) {
+            if (!event || event.target !== event.currentTarget) return;
+            closeFinalCompleteConfirm(false);
+        }
+
+        function openFinalCompleteConfirmPopup() {
+            if (!dom.finalCompleteConfirmOverlay || !dom.finalCompleteConfirmBtn) return Promise.resolve(true);
+            if (finalCompleteConfirmResolver) closeFinalCompleteConfirm(false);
+            return new Promise(function (resolve) {
+                finalCompleteConfirmResolver = resolve;
+                var btn = dom.finalCompleteConfirmBtn;
+                var left = 3;
+                btn.disabled = true;
+                btn.textContent = '거래 완료 (' + String(left) + ')';
+                dom.finalCompleteConfirmOverlay.classList.remove('hidden');
+                clearFinalCompleteConfirmTimer();
+                finalCompleteConfirmTimer = setInterval(function () {
+                    left -= 1;
+                    if (left > 0) {
+                        btn.textContent = '거래 완료 (' + String(left) + ')';
+                        return;
+                    }
+                    clearFinalCompleteConfirmTimer();
+                    btn.disabled = false;
+                    btn.textContent = '거래 완료';
+                }, 1000);
+            });
         }
 
         /** 주문의 side(buy/sell) — DB 컬럼 side 기준 */
@@ -4780,6 +4921,8 @@
                 } else if (action === 'confirm') {
                     // 재확인 요청 중(sell_seller_issue_fiat)에는 구매자 처리 전까지 완료 불가
                     if (!youAreSeller0 || String(r0.status) !== 'sell_fiat_paid') return;
+                    var okSellConfirm = await openFinalCompleteConfirmPopup();
+                    if (!okSellConfirm) return;
                     receiver.status = 'buyer_confirmed';
                     receiver.buyerConfirmedAt = now;
                 } else {
@@ -4833,6 +4976,8 @@
                 receiver.sellerSentAt = now;
                 receiver.txid = String(txid || '').trim();
             } else if (action === 'confirm') {
+                var okBuyConfirm = await openFinalCompleteConfirmPopup();
+                if (!okBuyConfirm) return;
                 receiver.status = 'buyer_confirmed';
                 receiver.buyerConfirmedAt = now;
             } else if (action === 'issue') {
