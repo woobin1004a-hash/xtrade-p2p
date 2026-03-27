@@ -2539,12 +2539,26 @@
             updateOrderSubmitButton();
         }
 
+        /** TonConnect 위젯 루트 표시 복구(강제 숨김 후 다음 전송·연결용) */
+        function restoreTonConnectWidgetRootVisible() {
+            try {
+                var root = document.getElementById('tc-widget-root');
+                if (root) {
+                    root.style.display = '';
+                    root.removeAttribute('aria-hidden');
+                }
+            } catch (e) {}
+        }
+
         /** TonConnect 모달만 닫기(restore 없음 — sendTransaction 직후 restore가 SDK와 충돌할 수 있음) */
         function closeTonConnectModalOnly() {
             try {
                 if (tonConnectUIInstance) {
                     if (typeof tonConnectUIInstance.closeModal === 'function') {
                         try { tonConnectUIInstance.closeModal(); } catch (e0) {}
+                    }
+                    if (typeof tonConnectUIInstance.closeSingleWalletModal === 'function') {
+                        try { tonConnectUIInstance.closeSingleWalletModal('action-cancelled'); } catch (eSw) {}
                     }
                     if (tonConnectUIInstance.modal && typeof tonConnectUIInstance.modal.close === 'function') {
                         try { tonConnectUIInstance.modal.close(); } catch (e0b) {}
@@ -2554,6 +2568,25 @@
                     }
                 }
             } catch (e) {}
+        }
+
+        /** 텔레그램 복귀 후에도 남는 Open Wallet·오버레이용: 위젯 루트를 잠시 숨김 */
+        function hideTonConnectWidgetRootHard() {
+            try {
+                var root = document.getElementById('tc-widget-root');
+                if (root) {
+                    root.style.display = 'none';
+                    root.setAttribute('aria-hidden', 'true');
+                }
+            } catch (e) {}
+        }
+
+        /** 모달 + 단일지갑 모달 + (선택) 위젯 DOM — 전송 대기 중에는 루트 숨김 금지(브리지 끊김 방지) */
+        function closeTonConnectModalAggressive(hideWidgetRoot) {
+            closeTonConnectModalOnly();
+            if (hideWidgetRoot && !tonSendTransactionInFlight) {
+                hideTonConnectWidgetRootHard();
+            }
         }
 
         /** 모달 닫기 + 연결 복원(앱 알림·오버레이 정리용) */
@@ -2571,14 +2604,23 @@
         async function tryCompleteTonOrderSendOnTelegramReturn() {
             var p = tonOrderSendPending;
             if (!p || !p.orderId) return;
+            // 복귀 직후 로컬 목록이 비어 있거나 오래된 경우가 있어 서버에서 최신 주문을 먼저 가져옴
+            try {
+                var freshRows = await fetchOrdersFromSupabase();
+                if (Array.isArray(freshRows)) myOffersState.orders = freshRows;
+            } catch (eFetch) {}
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
                 return String(o.id) === String(p.orderId);
             });
-            if (!target) {
+            var receiver;
+            if (target && target.receiver && typeof target.receiver === 'object') {
+                receiver = Object.assign({}, target.receiver);
+            } else if (p.preSendReceiver && typeof p.preSendReceiver === 'object') {
+                receiver = Object.assign({}, p.preSendReceiver);
+            } else {
                 tonOrderSendPending = null;
                 return;
             }
-            var receiver = Object.assign({}, (target.receiver && typeof target.receiver === 'object') ? target.receiver : {});
             var uid0 = String(currentUserId || '');
             var youAreSeller0 = String(receiver.sellerId || '') === uid0;
             if (!youAreSeller0) {
@@ -2621,30 +2663,44 @@
             }
             tonOrderSendPending = null;
             try {
-                closeTonConnectModalOnly();
-                forceCloseTonConnectUI();
+                closeTonConnectModalAggressive(true);
+                restoreTonConnectionSafe();
+                restoreTonConnectWidgetRootVisible();
             } catch (e2) {}
+            // sendTransaction의 finally보다 늦게 도는 경우에도 남는 Open Wallet 레이어 제거
+            setTimeout(function () {
+                try {
+                    closeTonConnectModalOnly();
+                    hideTonConnectWidgetRootHard();
+                    restoreTonConnectWidgetRootVisible();
+                } catch (e3) {}
+            }, 750);
         }
 
         /** Tonkeeper → 텔레그램 복귀·포커스 시: 모달 정리 + 전송 완료 처리(디바운스) */
         function scheduleTonOrderSendCompleteOnTelegramReturn() {
             if (!tonOrderSendPending || !tonOrderSendPending.orderId) {
                 try {
-                    closeTonConnectModalOnly();
-                    forceCloseTonConnectUI();
+                    closeTonConnectModalAggressive(true);
+                    restoreTonConnectionSafe();
+                    restoreTonConnectWidgetRootVisible();
                 } catch (e) {}
                 return;
             }
             try {
-                closeTonConnectModalOnly();
-                forceCloseTonConnectUI();
+                closeTonConnectModalAggressive(!tonSendTransactionInFlight);
                 setTimeout(function () {
                     try {
-                        closeTonConnectModalOnly();
-                        forceCloseTonConnectUI();
+                        closeTonConnectModalAggressive(!tonSendTransactionInFlight);
                     } catch (e1) {}
-                }, 180);
+                }, 120);
+                setTimeout(function () {
+                    try {
+                        closeTonConnectModalAggressive(!tonSendTransactionInFlight);
+                    } catch (e2) {}
+                }, 400);
             } catch (e0) {}
+            void tryCompleteTonOrderSendOnTelegramReturn();
             if (tonTelegramReturnCompleteTimer) {
                 try {
                     clearTimeout(tonTelegramReturnCompleteTimer);
@@ -2652,8 +2708,8 @@
             }
             tonTelegramReturnCompleteTimer = setTimeout(function () {
                 tonTelegramReturnCompleteTimer = null;
-                tryCompleteTonOrderSendOnTelegramReturn();
-            }, 400);
+                void tryCompleteTonOrderSendOnTelegramReturn();
+            }, 200);
         }
 
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
@@ -3295,7 +3351,11 @@
                         if (sellToAddress.indexOf('.....') !== -1) {
                             throw new Error('구매자 수취 지갑이 마스킹 주소입니다. 원본 주소로 다시 주문해 주세요.');
                         }
-                        txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt, { orderId: String(orderId), side: 'sell' });
+                        txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt, {
+                            orderId: String(orderId),
+                            side: 'sell',
+                            preSendReceiver: Object.assign({}, receiver)
+                        });
                         if (tonOrderSendResolvedByReturn) {
                             tonOrderSendResolvedByReturn = false;
                             tonOrderSendPending = null;
@@ -3427,7 +3487,11 @@
                     if (buyToAddress.indexOf('.....') !== -1) {
                         throw new Error('구매자 지갑 주소가 마스킹되어 전송할 수 없습니다. 원본 주소로 다시 주문해 주세요.');
                     }
-                    txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt, { orderId: String(orderId), side: 'buy' });
+                    txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt, {
+                        orderId: String(orderId),
+                        side: 'buy',
+                        preSendReceiver: Object.assign({}, receiver)
+                    });
                     if (tonOrderSendResolvedByReturn) {
                         tonOrderSendResolvedByReturn = false;
                         tonOrderSendPending = null;
@@ -4241,6 +4305,16 @@
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
                     });
+                    // 텔레그램 미니앱: 외부 앱 복귀 시 visibility가 안 오는 경우 보완
+                    if (tg && typeof tg.onEvent === 'function') {
+                        try {
+                            tg.onEvent('viewportChanged', function () {
+                                if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                                    scheduleTonOrderSendCompleteOnTelegramReturn();
+                                }
+                            });
+                        } catch (eVp) {}
+                    }
                 }
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
@@ -4498,8 +4572,16 @@
             }
             // 전송 UI 직전에만 pending 설정(연결 실패 시 잘못된 복귀·완료 처리 방지)
             if (orderSendPendingTag && orderSendPendingTag.orderId) {
-                tonOrderSendPending = { orderId: String(orderSendPendingTag.orderId), side: orderSendPendingTag.side === 'sell' ? 'sell' : 'buy' };
+                tonOrderSendPending = {
+                    orderId: String(orderSendPendingTag.orderId),
+                    side: orderSendPendingTag.side === 'sell' ? 'sell' : 'buy',
+                    preSendReceiver:
+                        orderSendPendingTag.preSendReceiver && typeof orderSendPendingTag.preSendReceiver === 'object'
+                            ? Object.assign({}, orderSendPendingTag.preSendReceiver)
+                            : null
+                };
             }
+            restoreTonConnectWidgetRootVisible();
 
             var TonWebClass = window.TonWeb;
             var tonweb = getTonWebTestnet();
@@ -4540,11 +4622,24 @@
                 }]
             };
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
+            // TonConnect UI 기본(actionsConfiguration.modals: ['before'])은 전송 직전 'Open Wallet' 모달을 잠깐 띄움 → 비활성화
+            var sendTxUiOpts = {
+                modals: [],
+                notifications: ['success', 'error'],
+                twaReturnUrl: getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL
+            };
             var result;
             tonSendTransactionInFlight = true;
             try {
+                // UI 레이어 sendTransaction은 'Open Wallet' 오버레이를 남기는 경우가 있어, 가능하면 커넥터로 직접 전송
+                var sendPromise;
+                if (tonConnectUIInstance.connector && typeof tonConnectUIInstance.connector.sendTransaction === 'function') {
+                    sendPromise = tonConnectUIInstance.connector.sendTransaction(tx);
+                } else {
+                    sendPromise = tonConnectUIInstance.sendTransaction(tx, sendTxUiOpts);
+                }
                 result = await Promise.race([
-                    tonConnectUIInstance.sendTransaction(tx),
+                    sendPromise,
                     new Promise(function (_, reject) {
                         setTimeout(function () {
                             reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
@@ -4554,12 +4649,13 @@
             } finally {
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
-                    closeTonConnectModalOnly();
+                    closeTonConnectModalAggressive(true);
                     setTimeout(function () {
                         tonSendTransactionInFlight = false;
                         try {
                             restoreTonConnectionSafe();
                         } catch (eRest) {}
+                        restoreTonConnectWidgetRootVisible();
                     }, 120);
                 }, 450);
             }
