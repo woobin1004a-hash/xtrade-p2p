@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-28-ios-no-early-fail-alert</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-28-ios-open-popup-guide</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5647,6 +5647,8 @@
         let tonRestoreHooksBound = false;
         /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
         let tonAddressAutofillArmed = false;
+        /** iOS 시스템 외부앱 확인창 안내는 세션당 1회만 표시 */
+        let tonIosExternalOpenGuideShown = false;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5906,6 +5908,12 @@
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(noUiMsg);
                 else alert(noUiMsg);
                 return;
+            }
+            // iOS에서 Tonkeeper 선택 시 영어 시스템 확인창이 뜨므로, 오해 방지용 한국어 안내를 선제 표시
+            var isIos = !!(tg && String(tg.platform || '').toLowerCase() === 'ios');
+            if (isIos && !tonIosExternalOpenGuideShown && tg && typeof tg.showAlert === 'function') {
+                tonIosExternalOpenGuideShown = true;
+                tg.showAlert('안내: 곧 iOS 시스템 팝업(외부 앱 열기 확인)이 영어로 표시됩니다. 오류가 아니며, Tonkeeper로 연결하려면 "예(또는 Open)"를 눌러 진행해 주세요.');
             }
             // 사용자가 실제로 연결 버튼을 누른 경우에만 자동 입력 허용
             tonAddressAutofillArmed = true;
