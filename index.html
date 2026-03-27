@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-remove-connection-status</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-connect-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5741,11 +5741,27 @@
             // manifest를 업로드/수정한 직후 새로고침 없이도 반영되게 합니다.
             tonConnectUIInstance = null;
             initTonConnectUIIfNeeded();
-            if (!tonConnectUIInstance || typeof tonConnectUIInstance.openModal !== 'function') return;
+            if (!tonConnectUIInstance) {
+                var noUiMsg = 'TON Connect 초기화에 실패했습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(noUiMsg);
+                else alert(noUiMsg);
+                return;
+            }
             try {
-                await tonConnectUIInstance.openModal();
+                // 버전별 TonConnect UI 메서드 차이를 흡수
+                if (typeof tonConnectUIInstance.openModal === 'function') {
+                    await tonConnectUIInstance.openModal();
+                } else if (typeof tonConnectUIInstance.connectWallet === 'function') {
+                    await tonConnectUIInstance.connectWallet();
+                } else if (typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                    await tonConnectUIInstance.openSingleWalletModal();
+                } else {
+                    throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
+                }
             } catch (e) {
-                if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = 'Failed to open wallet modal.';
+                var failMsg = 'TON 지갑 연결 창을 열지 못했습니다. ' + String(e && e.message ? e.message : e);
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(failMsg);
+                else alert(failMsg);
             }
         }
 
@@ -5974,7 +5990,10 @@
 
             // Add mode (not editing an existing wallet)
             tonWalletEditAddress = null;
-            if (dom.walletAddressInput) dom.walletAddressInput.readOnly = false;
+            if (dom.walletAddressInput) {
+                dom.walletAddressInput.readOnly = false;
+                dom.walletAddressInput.removeAttribute('readonly');
+            }
             showTonWalletDeleteButton(false);
 
             initTonConnectUIIfNeeded();
