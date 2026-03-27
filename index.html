@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-ret-back-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-openlink-only-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5812,9 +5812,17 @@
                     link = ensureWalletReturnBack(link);
                     if (!link) throw new Error('Tonkeeper 연결 링크 생성에 실패했습니다.');
 
-                    // iOS 단말별 차이를 줄이기 위해 openLink와 location 이동을 순차 시도
-                    try { if (tg && typeof tg.openLink === 'function') tg.openLink(link, { try_instant_view: false }); } catch (eOpen) {}
-                    try { window.location.href = link; } catch (eHref) {}
+                    // openLink 성공 시에는 여기서 종료 (location 이동을 함께 하면 미니앱이 Tonkeeper 웹페이지로 이동해 버릴 수 있음)
+                    var opened = false;
+                    try {
+                        if (tg && typeof tg.openLink === 'function') {
+                            tg.openLink(link, { try_instant_view: false });
+                            opened = true;
+                        }
+                    } catch (eOpen) {}
+                    if (!opened) {
+                        try { window.location.href = link; } catch (eHref) {}
+                    }
                     return;
                 }
                 // 버전별 TonConnect UI 메서드 차이를 흡수
