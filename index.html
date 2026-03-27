@@ -481,6 +481,17 @@
         }
         .menu-count-badge.hidden { display: none; }
         .nav-sub { color: #cbd5e1; font-size: 14px; padding: 10px 20px 10px 55px; cursor: pointer; }
+        .nav-group-title {
+            padding: 10px 20px 4px 20px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            cursor: default;
+            user-select: none;
+        }
+        .nav-sub--row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .theme-light .nav-group-title { color: #64748b; }
 
         /* ------------------ My Page View ------------------ */
         #myPageView { padding-bottom: 50px; }
@@ -1195,7 +1206,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-sell-flow-1</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-myoffers-menu-i18n</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1235,13 +1246,13 @@
 
     <div id="myOffersView" class="myoffers-view hidden">
         <div class="top-header">
-            <div class="logo">📄 내 제안</div>
+            <div class="logo" id="myOffersScreenTitle">📄 내 제안</div>
             <div class="menu-icon" onclick="openMenu()">☰</div>
         </div>
         <div class="myoffers-wrap">
             <div class="myoffers-tabs">
-                <button type="button" id="myOffersBuyTab" class="myoffers-tab active" onclick="setMyOffersTab('active')">진행중</button>
-                <button type="button" id="myOffersSellTab" class="myoffers-tab" onclick="setMyOffersTab('history')">히스토리</button>
+                <button type="button" id="myOffersBuyTab" class="myoffers-tab active" onclick="setMyOffersTab('active')"><span id="myOffersTabActiveText">진행중</span></button>
+                <button type="button" id="myOffersSellTab" class="myoffers-tab" onclick="setMyOffersTab('history')"><span id="myOffersTabHistoryText">거래 내역</span></button>
             </div>
             <div id="myOffersList"></div>
         </div>
@@ -1840,13 +1851,17 @@
 
         <div class="side-nav">
             <div class="nav-item-main" onclick="goToMarketplace()">
-                <div class="nav-icon-text">📊 Marketplace</div>
+                <div class="nav-icon-text"><span aria-hidden="true">📊</span> <span id="menuNavMarketplaceText">마켓플레이스</span></div>
             </div>
-            <div class="nav-item-main" onclick="goToMyOffers()">
-                <div class="nav-icon-text">🎟️ 내 제안 · 진행중 <span id="myOffersCountBadge" class="menu-count-badge hidden">0</span></div>
-            </div>
-            <div class="nav-item-main" onclick="goToMyOffersHistory()">
-                <div class="nav-icon-text">📜 내 제안 · 히스토리</div>
+            <div class="nav-group">
+                <div class="nav-group-title" id="menuNavMyOffersGroup">내 제안</div>
+                <div class="nav-sub nav-sub--row" onclick="goToMyOffers()">
+                    <span id="menuNavOffersActive">진행중</span>
+                    <span id="myOffersCountBadge" class="menu-count-badge hidden">0</span>
+                </div>
+                <div class="nav-sub" onclick="goToMyOffersHistory()">
+                    <span id="menuNavOffersHistory">거래 내역</span>
+                </div>
             </div>
         </div>
     </div>
@@ -3686,7 +3701,12 @@
                 footerLanguage: '한국어',
                 privacy: '개인정보 처리방침',
                 terms: '이용약관',
-                preparing: '준비중입니다.'
+                preparing: '준비중입니다.',
+                menuMyOffersGroup: '내 제안',
+                myOffersActive: '진행중',
+                myOffersHistory: '거래 내역',
+                myOffersEmptyActive: '진행중인 주문이 없습니다.',
+                myOffersEmptyHistory: '거래 내역이 없습니다.'
             },
             en: {
                 marketplace: 'Marketplace',
@@ -3696,7 +3716,12 @@
                 footerLanguage: 'EN',
                 privacy: 'Privacy Policy',
                 terms: 'Terms of Service',
-                preparing: 'Coming soon.'
+                preparing: 'Coming soon.',
+                menuMyOffersGroup: 'My Offers',
+                myOffersActive: 'In Progress',
+                myOffersHistory: 'Transaction History',
+                myOffersEmptyActive: 'No orders in progress.',
+                myOffersEmptyHistory: 'No transaction history.',
             }
         };
 
@@ -3726,7 +3751,24 @@
             if (el5) el5.textContent = txt.footerLanguage;
             if (el6) el6.textContent = txt.privacy;
             if (el7) el7.textContent = txt.terms;
+            var menuMp = document.getElementById('menuNavMarketplaceText');
+            if (menuMp) menuMp.textContent = txt.marketplace;
+            var menuGroup = document.getElementById('menuNavMyOffersGroup');
+            if (menuGroup) menuGroup.textContent = txt.menuMyOffersGroup;
+            var menuAct = document.getElementById('menuNavOffersActive');
+            if (menuAct) menuAct.textContent = txt.myOffersActive;
+            var menuHist = document.getElementById('menuNavOffersHistory');
+            if (menuHist) menuHist.textContent = txt.myOffersHistory;
+            var offTitle = document.getElementById('myOffersScreenTitle');
+            if (offTitle) offTitle.textContent = '📄 ' + txt.menuMyOffersGroup;
+            var tabA = document.getElementById('myOffersTabActiveText');
+            if (tabA) tabA.textContent = txt.myOffersActive;
+            var tabH = document.getElementById('myOffersTabHistoryText');
+            if (tabH) tabH.textContent = txt.myOffersHistory;
             try { localStorage.setItem(UI_LANG_STORAGE_KEY, uiLangMode); } catch (e) {}
+            if (typeof isMyOffersViewVisible === 'function' && isMyOffersViewVisible()) {
+                try { renderMyOffers(); } catch (eR) {}
+            }
         }
 
         function showPreparingNotice() {
@@ -4345,7 +4387,9 @@
                 return showHistory ? finished : !finished;
             });
             if (!rows.length) {
-                wrap.innerHTML = '<div class="offer-empty">' + (showHistory ? '히스토리가 없습니다.' : '진행중인 주문이 없습니다.') + '</div>';
+                var emptyTxt = getUiTexts();
+                var emptyMsg = showHistory ? emptyTxt.myOffersEmptyHistory : emptyTxt.myOffersEmptyActive;
+                wrap.innerHTML = '<div class="offer-empty">' + emptyMsg + '</div>';
                 return;
             }
             wrap.innerHTML = rows.map(function (o) {
