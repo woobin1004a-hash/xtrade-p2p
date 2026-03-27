@@ -2051,6 +2051,7 @@
             if (s === 'seller_cancelled_sell') return '판매자 취소';
             if (s === 'sell_coin_sent') return '구매자 입금 대기';
             if (s === 'sell_buyer_issue_coin') return 'USDT 전송 확인 요청';
+            if (s === 'sell_buyer_pending_coin_ack') return '구매자 USDT 수령 확인 대기';
             if (s === 'sell_fiat_paid') return '판매자 확인·완료 대기';
             if (s === 'sell_seller_issue_fiat') return '입금 재확인 요청';
             return s;
@@ -2091,6 +2092,11 @@
                     return youAreBuyer
                         ? '판매자에게 USDT 전송 확인을 요청했습니다. 판매자 처리를 기다려 주세요.'
                         : '구매자의 확인 요청을 검토한 뒤 전송 상태를 반영해 주세요.';
+                }
+                if (s === 'sell_buyer_pending_coin_ack') {
+                    return youAreBuyer
+                        ? '판매자 답변을 확인한 뒤, 온체인 USDT 수령 여부를 확인하고 「USDT 수령 확인」을 눌러 주세요.'
+                        : '구매자가 USDT 수령 여부를 확인할 때까지 대기 중입니다. 필요 시 답장을 보내거나 재전송할 수 있습니다.';
                 }
                 if (s === 'sell_fiat_paid') {
                     return youAreBuyer
@@ -2527,8 +2533,8 @@
             updateOrderSubmitButton();
         }
 
-        /** TonConnect(Open Wallet 등) 모달을 여러 경로로 닫기 시도 */
-        function forceCloseTonConnectUI() {
+        /** TonConnect 모달만 닫기(restore 없음 — sendTransaction 직후 restore가 SDK와 충돌할 수 있음) */
+        function closeTonConnectModalOnly() {
             try {
                 if (tonConnectUIInstance) {
                     if (typeof tonConnectUIInstance.closeModal === 'function') {
@@ -2542,7 +2548,11 @@
                     }
                 }
             } catch (e) {}
-            // Escape 키 이벤트는 TonConnect/지갑 전송 흐름을 끊을 수 있어 사용하지 않음
+        }
+
+        /** 모달 닫기 + 연결 복원(앱 알림·오버레이 정리용) */
+        function forceCloseTonConnectUI() {
+            closeTonConnectModalOnly();
             try {
                 restoreTonConnectionSafe();
             } catch (e3) {}
@@ -2904,6 +2914,29 @@
                             (r.sellerCoinIssueReply
                                 ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '');
+                    } else if (status === 'sell_buyer_pending_coin_ack' && !youAreBuyer) {
+                        var coinTo3 = String(r.buyerReceiverWalletAddress || '');
+                        var coinToEsc3 = escapeJsSingleQuote(coinTo3);
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            (coinTo3
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc3 + '\', \'지갑주소\')">' + escapeHtml(coinTo3) + '</span>')
+                                : '-') +
+                            '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">구매자 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            (r.sellerCoinIssueReply
+                                ? ('<div class="offer-line"><div class="offer-k">내 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                : '') +
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                    } else if (status === 'sell_buyer_pending_coin_ack' && youAreBuyer) {
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">내 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            (r.sellerCoinIssueReply
+                                ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                : '') +
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
                     }
                 } else if (status === 'seller_approved' && youAreBuyer) {
                     var bankParts = {
@@ -2993,6 +3026,16 @@
                         '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
                 }
                 if (!youAreBuyer && status === 'sell_buyer_issue_coin') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">확인요청</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                }
+                if (youAreBuyer && status === 'sell_buyer_pending_coin_ack') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">추가 확인요청</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'buyer_confirm_usdt_received\')">USDT 수령 확인</button>';
+                }
+                if (!youAreBuyer && status === 'sell_buyer_pending_coin_ack') {
                     return '' +
                         '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">확인요청</button>' +
                         '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
@@ -3146,7 +3189,8 @@
                     receiver.status = 'seller_cancelled_sell';
                     receiver.sellerCancelledAt = now;
                 } else if (action === 'sent') {
-                    if (!youAreSeller0 || (String(r0.status) !== 'buyer_approved_sell' && String(r0.status) !== 'sell_buyer_issue_coin')) return;
+                    var stSend = String(r0.status || '');
+                    if (!youAreSeller0 || (stSend !== 'buyer_approved_sell' && stSend !== 'sell_buyer_issue_coin' && stSend !== 'sell_buyer_pending_coin_ack')) return;
                     var sellToAddress = String(r0.buyerReceiverWalletAddress || '').trim();
                     var txidSell = '';
                     try {
@@ -3173,17 +3217,35 @@
                     receiver.sellerSentAt = now;
                     receiver.txid = String(txidSell || 'TESTNET_TX_SENT').trim();
                 } else if (action === 'issue') {
-                    if (!youAreBuyer0 || String(r0.status) !== 'sell_coin_sent') return;
-                    var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
-                    receiver.status = 'sell_buyer_issue_coin';
-                    receiver.issueNote = String(noteSell || 'USDT 전송 확인 요청');
-                    receiver.issueRaisedAt = now;
+                    if (!youAreBuyer0) return;
+                    var stIss = String(r0.status || '');
+                    if (stIss === 'sell_coin_sent') {
+                        var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
+                        receiver.status = 'sell_buyer_issue_coin';
+                        receiver.issueNote = String(noteSell || 'USDT 전송 확인 요청');
+                        receiver.issueRaisedAt = now;
+                    } else if (stIss === 'sell_buyer_pending_coin_ack') {
+                        var noteSellP = prompt('판매자에게 추가 확인 요청 메시지를 입력해 주세요.') || '';
+                        receiver.status = 'sell_buyer_issue_coin';
+                        receiver.issueNote = String(noteSellP || 'USDT 전송 확인 요청');
+                        receiver.issueRaisedAt = now;
+                    } else {
+                        return;
+                    }
                 } else if (action === 'issue_seller_coin') {
-                    // 구매자가 USDT 전송 확인 요청을 보낸 뒤, 판매자가 구매자에게 답장(메시지) 전달
-                    if (!youAreSeller0 || String(r0.status) !== 'sell_buyer_issue_coin') return;
+                    // 구매자가 USDT 전송 확인 요청을 보낸 뒤, 판매자가 구매자에게 답장 → 구매자가 「USDT 수령 확인」으로 진행
+                    if (!youAreSeller0) return;
+                    var stSe = String(r0.status || '');
+                    if (stSe !== 'sell_buyer_issue_coin' && stSe !== 'sell_buyer_pending_coin_ack') return;
                     var noteSellerIssue = prompt('구매자에게 전달할 메시지를 입력해 주세요.') || '';
                     receiver.sellerCoinIssueReply = String(noteSellerIssue || '전송 상태를 확인해 주세요.');
                     receiver.sellerCoinIssueReplyAt = now;
+                    receiver.status = 'sell_buyer_pending_coin_ack';
+                } else if (action === 'buyer_confirm_usdt_received') {
+                    // 판매자 답변 후 구매자가 온체인 수령을 확인하고 입금 단계로 복귀
+                    if (!youAreBuyer0 || String(r0.status) !== 'sell_buyer_pending_coin_ack') return;
+                    receiver.status = 'sell_coin_sent';
+                    receiver.buyerUsdtAckAfterSellerReplyAt = now;
                 } else if (action === 'paid') {
                     if (!youAreBuyer0) return;
                     if (String(r0.status) === 'sell_coin_sent' || String(r0.status) === 'sell_seller_issue_fiat') {
@@ -4358,10 +4420,18 @@
                     })
                 ]);
             } finally {
-                tonSendTransactionInFlight = false;
-                // 전송 완료/실패 후에만 지갑 모달 정리(진행 중에는 위 visibility/focus에서 건드리지 않음)
-                forceCloseTonConnectUI();
-                setTimeout(function () { forceCloseTonConnectUI(); }, 120);
+                // 즉시 tonSendTransactionInFlight = false 하면 SDK가 서명 결과를 처리하기 전에
+                // visibility 핸들러/restore가 끼어들어 전송이 취소·실패할 수 있음 → 모달만 닫고 플래그·restore는 지연
+                closeTonConnectModalOnly();
+                setTimeout(function () {
+                    closeTonConnectModalOnly();
+                    setTimeout(function () {
+                        tonSendTransactionInFlight = false;
+                        try {
+                            restoreTonConnectionSafe();
+                        } catch (eRest) {}
+                    }, 60);
+                }, 320);
             }
             var txId = '';
             if (result && typeof result === 'object') {
