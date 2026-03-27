@@ -6,6 +6,7 @@
     <title>XTrade P2P</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     <style>
         /* Global settings */
         body {
@@ -1323,7 +1324,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-final-confirm-modal</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-testnet-master-reset</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1887,6 +1888,16 @@
                         <input id="walletLabelInput" class="input" placeholder="e.g., Main Wallet" />
                     </div>
 
+                    <div class="form-group">
+                        <span class="field-label">USDT Testnet Master</span>
+                        <div class="field-row-with-btn">
+                            <input id="usdtTestnetMasterInput" class="input" placeholder="EQ... (testnet jetton master)" />
+                            <button class="icon-btn" type="button" onclick="saveUsdtTestnetMasterAddress()">💾</button>
+                        </div>
+                        <div class="helper-text">테스트넷 USDT 제톤 마스터 주소를 저장하면 전송 시 바로 사용됩니다.</div>
+                        <button class="secondary-btn" type="button" onclick="clearUsdtTestnetMasterAddress()">마스터 주소 초기화</button>
+                    </div>
+
                     <div class="switch-row">
                         <span class="switch-label">Set as default</span>
                         <label class="switch">
@@ -2223,6 +2234,7 @@
             tonConnectButtonRoot: document.getElementById('tonConnectButtonRoot'),
             walletAddressInput: document.getElementById('walletAddressInput'),
             walletLabelInput: document.getElementById('walletLabelInput'),
+            usdtTestnetMasterInput: document.getElementById('usdtTestnetMasterInput'),
             setDefaultTonWalletSwitch: document.getElementById('setDefaultTonWalletSwitch'),
             walletSaveMsg: document.getElementById('walletSaveMsg'),
             bankNameSelect: document.getElementById('bankNameSelect'),
@@ -2292,6 +2304,11 @@
         const TONAPI_ACCOUNT_JETTONS = 'https://tonapi.io/v2/accounts/';
         /** TON 메인넷 Tether USD(USDT) 제톤 마스터(주소 일치로도 판별) */
         var USDT_JETTON_MASTER_MAINNET = 'EQCxE6mUtQJKFnGfaROTKOt1lZbDiiX1kCixRv7Nw2Id_sDs';
+        /** TON 테스트넷 JSON-RPC 엔드포인트 */
+        const TONCENTER_TESTNET_RPC = 'https://testnet.toncenter.com/api/v2/jsonRPC';
+        /** 테스트넷 USDT 제톤 마스터 주소(미입력 시 메인넷 마스터를 fallback로 사용) */
+        const USDT_TESTNET_MASTER_STORAGE_KEY = 'usdtTestnetMasterAddress';
+        let tonWebTestnetInstance = null;
 
         function normalizeJettonSymbol(sym) {
             return String(sym || '')
@@ -4019,7 +4036,7 @@
                 if (s === 'buyer_approved_sell') {
                     return youAreBuyer
                         ? '판매자의 USDT 전송을 기다리는 중입니다.'
-                        : '안내된 구매자 지갑으로 USDT를 송금한 뒤 전송 완료를 눌러 주세요.';
+                        : '안내된 구매자 지갑으로 USDT를 송금한 뒤 전송하기를 눌러 주세요.';
                 }
                 if (s === 'seller_cancelled_sell') return '판매자가 이 거래를 취소했습니다.';
                 if (s === 'sell_coin_sent') {
@@ -4060,7 +4077,7 @@
             if (s === 'buyer_paid') {
                 return youAreBuyer
                     ? '판매자의 USDT 전송을 기다리는 중입니다.'
-                    : '구매자 지갑으로 USDT를 보낸 뒤 전송 완료를 눌러 주세요.';
+                    : '구매자 지갑으로 USDT를 보낸 뒤 전송하기를 눌러 주세요.';
             }
             if (s === 'seller_deposit_checked') {
                 return youAreBuyer
@@ -4800,7 +4817,7 @@
                 if (!youAreBuyer && status === 'buyer_approved_sell') {
                     return '' +
                         '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
                 }
                 if (youAreBuyer && status === 'sell_coin_sent') {
                     return '' +
@@ -4808,7 +4825,7 @@
                         '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
                 }
                 if (!youAreBuyer && status === 'sell_buyer_issue_coin') {
-                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
                 }
                 if (!youAreBuyer && status === 'sell_fiat_paid') {
                     return '' +
@@ -4837,10 +4854,10 @@
             if (!youAreBuyer && status === 'buyer_paid') {
                 return '' +
                     '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">확인요청</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
             }
             if (!youAreBuyer && status === 'seller_deposit_checked') {
-                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
             }
             if (youAreBuyer && status === 'seller_payment_check_requested') {
                 return '' +
@@ -4848,7 +4865,7 @@
                     '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료(재확인)</button>';
             }
             if (!youAreBuyer && status === 'buyer_issue') {
-                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
             }
             if (youAreBuyer && status === 'seller_sent') {
                 return '' +
@@ -4895,10 +4912,21 @@
                     receiver.sellerCancelledAt = now;
                 } else if (action === 'sent') {
                     if (!youAreSeller0 || (String(r0.status) !== 'buyer_approved_sell' && String(r0.status) !== 'sell_buyer_issue_coin')) return;
-                    var txidSell = prompt('전송 TxID를 입력해주세요 (선택).') || '';
+                    var sellToAddress = String(r0.buyerReceiverWalletAddress || '').trim();
+                    var txidSell = '';
+                    try {
+                        txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt);
+                    } catch (sendErrSell) {
+                        var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgSell);
+                        else alert(sendMsgSell);
+                        return;
+                    }
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
-                    receiver.txid = String(txidSell || '').trim();
+                    receiver.txid = String(txidSell || 'TESTNET_TX_SENT').trim();
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert('테스트넷 전송이 완료되었습니다.');
+                    else alert('테스트넷 전송이 완료되었습니다.');
                 } else if (action === 'issue') {
                     if (!youAreBuyer0 || String(r0.status) !== 'sell_coin_sent') return;
                     var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
@@ -4971,10 +4999,21 @@
                 receiver.status = 'buyer_cancelled';
                 receiver.buyerCancelledAt = now;
             } else if (action === 'sent') {
-                var txid = prompt('전송 TxID를 입력해주세요 (선택).') || '';
+                var buyToAddress = String(receiver.receiverWalletAddress || '').trim();
+                var txid = '';
+                try {
+                    txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt);
+                } catch (sendErrBuy) {
+                    var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgBuy);
+                    else alert(sendMsgBuy);
+                    return;
+                }
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
-                receiver.txid = String(txid || '').trim();
+                receiver.txid = String(txid || 'TESTNET_TX_SENT').trim();
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('테스트넷 전송이 완료되었습니다.');
+                else alert('테스트넷 전송이 완료되었습니다.');
             } else if (action === 'confirm') {
                 var okBuyConfirm = await openFinalCompleteConfirmPopup();
                 if (!okBuyConfirm) return;
@@ -5650,6 +5689,138 @@
             }
         }
 
+        function isTonTestnetConnected() {
+            var account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            if (!account || typeof account !== 'object') return false;
+            return String(account.chain || '') === '-3';
+        }
+
+        async function ensureTonWalletConnectedForTransfer() {
+            initTonConnectUIIfNeeded();
+            if (!tonConnectUIInstance) {
+                throw new Error('TON Connect를 불러오지 못했습니다.');
+            }
+            var account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            var address = getTonAddressFromAccount(account);
+            if (!address) {
+                await openTonConnectModal();
+                account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+                address = getTonAddressFromAccount(account);
+            }
+            if (!address) throw new Error('연결된 TON 지갑이 없습니다.');
+            if (!isTonTestnetConnected()) {
+                throw new Error('테스트넷 지갑으로 연결해 주세요.');
+            }
+            return address;
+        }
+
+        function getTonWebTestnet() {
+            if (tonWebTestnetInstance) return tonWebTestnetInstance;
+            if (!window.TonWeb) throw new Error('TonWeb 라이브러리를 불러오지 못했습니다.');
+            var TonWebClass = window.TonWeb;
+            tonWebTestnetInstance = new TonWebClass(new TonWebClass.HttpProvider(TONCENTER_TESTNET_RPC));
+            return tonWebTestnetInstance;
+        }
+
+        function toJettonNanoBn(usdtAmount) {
+            var n = Number(usdtAmount || 0);
+            if (!Number.isFinite(n) || n <= 0) throw new Error('전송 수량이 올바르지 않습니다.');
+            var scaled = Math.round(n * 1000000); // USDT 6 decimals
+            return new window.TonWeb.utils.BN(String(scaled));
+        }
+
+        function isLikelyTonAddress(addr) {
+            var s = String(addr || '').trim();
+            if (!s) return false;
+            if (s.length < 40) return false;
+            return /^(EQ|UQ|kQ|0Q|Ef|Uf)/.test(s);
+        }
+
+        function saveUsdtTestnetMasterAddress() {
+            var raw = dom.usdtTestnetMasterInput ? String(dom.usdtTestnetMasterInput.value || '').trim() : '';
+            if (!raw) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소를 입력해 주세요.';
+                return false;
+            }
+            if (!isLikelyTonAddress(raw)) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'TON 주소 형식이 올바르지 않습니다.';
+                return false;
+            }
+            try {
+                localStorage.setItem(USDT_TESTNET_MASTER_STORAGE_KEY, raw);
+            } catch (e) {
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '저장에 실패했습니다.';
+                return false;
+            }
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소가 저장되었습니다.';
+            return true;
+        }
+
+        function clearUsdtTestnetMasterAddress() {
+            try { localStorage.removeItem(USDT_TESTNET_MASTER_STORAGE_KEY); } catch (e) {}
+            if (dom.usdtTestnetMasterInput) dom.usdtTestnetMasterInput.value = '';
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소를 초기화했습니다.';
+        }
+
+        function getUsdtTestnetMasterAddress() {
+            var saved = '';
+            try { saved = String(localStorage.getItem(USDT_TESTNET_MASTER_STORAGE_KEY) || '').trim(); } catch (e) {}
+            if (saved) return saved;
+            throw new Error('설정에서 테스트넷 USDT 마스터 주소를 먼저 저장해 주세요.');
+        }
+
+        async function sendUsdtJettonOnTestnet(toAddress, usdtAmount) {
+            var to = String(toAddress || '').trim();
+            if (!to) throw new Error('수신 지갑 주소가 없습니다.');
+            var sender = await ensureTonWalletConnectedForTransfer();
+            if (!tonConnectUIInstance || typeof tonConnectUIInstance.sendTransaction !== 'function') {
+                throw new Error('지갑 전송 기능을 사용할 수 없습니다.');
+            }
+
+            var TonWebClass = window.TonWeb;
+            var tonweb = getTonWebTestnet();
+            var masterAddress = getUsdtTestnetMasterAddress();
+            var ownerAddr = new TonWebClass.utils.Address(sender);
+            var toAddr = new TonWebClass.utils.Address(to);
+            var minter = new TonWebClass.token.jetton.JettonMinter(tonweb.provider, {
+                address: new TonWebClass.utils.Address(masterAddress)
+            });
+            var fromJettonWallet = await minter.getJettonWalletAddress(ownerAddr);
+            if (!fromJettonWallet) throw new Error('보내는 지갑의 USDT Jetton Wallet 조회에 실패했습니다.');
+
+            var payloadCell = new TonWebClass.boc.Cell();
+            payloadCell.bits.writeUint(0x0f8a7ea5, 32); // transfer op
+            payloadCell.bits.writeUint(Math.floor(Date.now() / 1000), 64); // query id
+            payloadCell.bits.writeCoins(toJettonNanoBn(usdtAmount)); // jetton amount (6 decimals)
+            payloadCell.bits.writeAddress(toAddr); // destination
+            payloadCell.bits.writeAddress(ownerAddr); // response destination
+            payloadCell.bits.writeBit(false); // custom_payload: none
+            payloadCell.bits.writeCoins(new TonWebClass.utils.BN('1')); // 1 nanotone forward
+            payloadCell.bits.writeBit(false); // forward_payload: none
+
+            var payloadBoc = await payloadCell.toBoc(false);
+            var payloadBase64 = TonWebClass.utils.bytesToBase64(payloadBoc);
+
+            var tx = {
+                network: '-3',
+                validUntil: Math.floor(Date.now() / 1000) + 5 * 60,
+                messages: [{
+                    address: fromJettonWallet.toString(true, true, true),
+                    // Jetton wallet 실행 가스(테스트넷)
+                    amount: TonWebClass.utils.toNano('0.06').toString(),
+                    payload: payloadBase64
+                }]
+            };
+            var result = await tonConnectUIInstance.sendTransaction(tx);
+            var txId = '';
+            if (result && typeof result === 'object') {
+                if (typeof result.boc === 'string') txId = result.boc;
+                else if (typeof result.transaction === 'string') txId = result.transaction;
+                else if (typeof result.hash === 'string') txId = result.hash;
+            }
+            return txId;
+        }
+
         async function copyTonWalletAddress() {
             if (!dom.walletAddressInput) return;
             const value = dom.walletAddressInput.value ? dom.walletAddressInput.value.trim() : '';
@@ -5733,6 +5904,12 @@
 
             const defaultAddress = getDefaultTonWalletAddress();
             if (dom.setDefaultTonWalletSwitch) dom.setDefaultTonWalletSwitch.checked = connected && connected === defaultAddress;
+            // 테스트넷 USDT 마스터 주소를 설정 화면에서 즉시 확인/수정
+            if (dom.usdtTestnetMasterInput) {
+                var savedMaster = '';
+                try { savedMaster = String(localStorage.getItem(USDT_TESTNET_MASTER_STORAGE_KEY) || '').trim(); } catch (eLoad) {}
+                dom.usdtTestnetMasterInput.value = savedMaster || '';
+            }
 
             if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '&nbsp;';
         }
@@ -5773,6 +5950,7 @@
             const address = dom.walletAddressInput ? dom.walletAddressInput.value.trim() : '';
             const label = dom.walletLabelInput ? dom.walletLabelInput.value.trim() : '';
             const setDefault = dom.setDefaultTonWalletSwitch ? dom.setDefaultTonWalletSwitch.checked : false;
+            const masterInput = dom.usdtTestnetMasterInput ? String(dom.usdtTestnetMasterInput.value || '').trim() : '';
 
             if (!address) {
                 if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Please enter wallet address.';
@@ -5801,6 +5979,7 @@
             if (setDefault || !currentDefault) setDefaultTonWalletAddress(address);
             else renderSavedWallets();
 
+            if (masterInput) saveUsdtTestnetMasterAddress();
             if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Saved!';
             showMyPageSettingsMain();
             refreshMyPageUsdtBalance();
