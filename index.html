@@ -161,6 +161,8 @@
             box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
         }
         .theme-light #myPageView .saved-address { color: #334155; }
+        .theme-light #myPageView .saved-wallet-usdt { color: #0f172a; }
+        .theme-light #myPageView .saved-wallet-usdt-label { color: #64748b; }
         .theme-light #myPageView .saved-network-badge {
             border-color: #99f6e4;
             color: #0f766e;
@@ -846,6 +848,13 @@
             font-size: 13px;
             word-break: break-all;
         }
+        .saved-wallet-usdt {
+            margin-top: 8px;
+            font-size: 14px;
+            font-weight: 800;
+            color: #e2e8f0;
+        }
+        .saved-wallet-usdt-label { color: #94a3b8; font-weight: 700; margin-right: 6px; }
         .star-btn {
             background: none;
             border: none;
@@ -1092,7 +1101,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-usdt-balance-18</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-26-wallet-list-usdt-19</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -4743,7 +4752,7 @@
                 return;
             }
 
-            dom.tonWalletCards.innerHTML = wallets.map(w => {
+            dom.tonWalletCards.innerHTML = wallets.map((w, idx) => {
                 const label = w.label || 'TON Wallet';
                 const shortAddr = shortenAddress(w.address);
                 const isDefault = w.address === defaultAddress;
@@ -4755,6 +4764,9 @@
                             <div>
                                 <div class="saved-wallet-title">${escapeHtml(label)}</div>
                                 <div class="saved-network-badge">TON</div>
+                                <div class="saved-wallet-usdt" id="savedWalletUsdt_${idx}">
+                                    <span class="saved-wallet-usdt-label">보유 USDT</span><span class="saved-wallet-usdt-value">조회 중…</span>
+                                </div>
                                 <div class="saved-address">${escapeHtml(shortAddr)}</div>
                             </div>
                             <div style="display:flex; gap:8px; align-items:center;">
@@ -4767,6 +4779,23 @@
                     </div>
                 `;
             }).join('');
+
+            wallets.forEach(function (w, idx) {
+                var row = document.getElementById('savedWalletUsdt_' + idx);
+                var valEl = row ? row.querySelector('.saved-wallet-usdt-value') : null;
+                if (!valEl) return;
+                fetchJettonUsdtBalance(w.address)
+                    .then(function (n) {
+                        if (n === null) {
+                            valEl.textContent = '조회 실패';
+                            return;
+                        }
+                        valEl.textContent = Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' USDT';
+                    })
+                    .catch(function () {
+                        valEl.textContent = '조회 실패';
+                    });
+            });
         }
 
         function loadBankAccounts() {
