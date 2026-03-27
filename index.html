@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-prefill-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-modal-always</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5740,14 +5740,7 @@
                 else alert(noUiMsg);
                 return;
             }
-            // 이미 연결된 경우 모달을 열지 않고 현재 상태를 안내
-            var before = getTonAddressFromAccount(tonConnectUIInstance.account);
-            if (before) {
-                var alreadyMsg = '이미 지갑이 연결되어 있습니다.';
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(alreadyMsg);
-                else alert(alreadyMsg);
-                return;
-            }
+            // 이미 세션이 있어도 모달을 열어 다른 지갑으로 전환·재연결 가능 (막지 않음)
             try {
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
