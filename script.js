@@ -2871,7 +2871,10 @@
                                 ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc2 + '\', \'지갑주소\')">' + escapeHtml(coinTo2) + '</span>')
                                 : '-') +
                             '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
+                            '<div class="offer-line"><div class="offer-k">구매자 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            (r.sellerCoinIssueReply
+                                ? ('<div class="offer-line"><div class="offer-k">내 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                : '');
                     } else if (status === 'sell_coin_sent' && youAreBuyer) {
                         var bankS = {
                             bankName: String(r.sellerBankName || ''),
@@ -2895,9 +2898,12 @@
                     } else if (status === 'sell_buyer_issue_coin' && youAreBuyer) {
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' +
+                            '<div class="offer-line"><div class="offer-k">내 요청</div><div class="offer-v">' +
                             escapeHtml(r.issueNote || 'USDT 전송 확인 요청') +
-                            '</div></div>';
+                            '</div></div>' +
+                            (r.sellerCoinIssueReply
+                                ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                : '');
                     }
                 } else if (status === 'seller_approved' && youAreBuyer) {
                     var bankParts = {
@@ -2987,7 +2993,9 @@
                         '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
                 }
                 if (!youAreBuyer && status === 'sell_buyer_issue_coin') {
-                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">확인요청</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
                 }
                 if (!youAreBuyer && status === 'sell_fiat_paid') {
                     return '' +
@@ -3082,19 +3090,30 @@
         }
 
         function tryForceReturnToTelegramAfterWallet() {
-            // 자동 복귀가 실패하는 단말에서 t.me 링크로 한 번 더 복귀를 시도
+            // 자동 복귀가 실패하는 단말에서 t.me 링크로 복귀를 여러 방식·여러 타이밍으로 재시도
             var target = buildTelegramMiniAppReturnUrl() || TON_TWA_RETURN_URL;
             if (!target) return;
-            try {
-                // 텔레그램 WebView에서는 openTelegramLink가 더 안정적인 경우가 많음
-                if (tg && typeof tg.openTelegramLink === 'function') {
-                    tg.openTelegramLink(String(target));
-                    return;
-                }
-            } catch (e) {}
-            try {
-                window.location.href = String(target);
-            } catch (e2) {}
+            var url = String(target);
+            function tryOnce() {
+                try {
+                    if (tg && typeof tg.openTelegramLink === 'function') {
+                        tg.openTelegramLink(url);
+                        return;
+                    }
+                } catch (e) {}
+                try {
+                    if (tg && typeof tg.openLink === 'function') {
+                        tg.openLink(url, { try_instant_view: false });
+                        return;
+                    }
+                } catch (e2) {}
+                try {
+                    window.location.href = url;
+                } catch (e3) {}
+            }
+            tryOnce();
+            setTimeout(tryOnce, 350);
+            setTimeout(tryOnce, 1100);
         }
 
         async function handleOrderAction(orderId, action) {
@@ -3159,6 +3178,12 @@
                     receiver.status = 'sell_buyer_issue_coin';
                     receiver.issueNote = String(noteSell || 'USDT 전송 확인 요청');
                     receiver.issueRaisedAt = now;
+                } else if (action === 'issue_seller_coin') {
+                    // 구매자가 USDT 전송 확인 요청을 보낸 뒤, 판매자가 구매자에게 답장(메시지) 전달
+                    if (!youAreSeller0 || String(r0.status) !== 'sell_buyer_issue_coin') return;
+                    var noteSellerIssue = prompt('구매자에게 전달할 메시지를 입력해 주세요.') || '';
+                    receiver.sellerCoinIssueReply = String(noteSellerIssue || '전송 상태를 확인해 주세요.');
+                    receiver.sellerCoinIssueReplyAt = now;
                 } else if (action === 'paid') {
                     if (!youAreBuyer0) return;
                     if (String(r0.status) === 'sell_coin_sent' || String(r0.status) === 'sell_seller_issue_fiat') {
