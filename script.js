@@ -2953,6 +2953,20 @@
             }
         }
 
+        function isTonTxTimeoutAfterApprovalError(err) {
+            var msg = String(err && err.message ? err.message : err || '').trim();
+            return msg.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
+        }
+
+        function tryForceReturnToTelegramAfterWallet() {
+            // 자동 복귀가 실패하는 단말에서 t.me 링크로 한 번 더 복귀를 시도
+            var target = buildTelegramMiniAppReturnUrl() || TON_TWA_RETURN_URL;
+            if (!target) return;
+            try {
+                window.location.href = String(target);
+            } catch (e) {}
+        }
+
         async function handleOrderAction(orderId, action) {
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
                 return String(o.id) === String(orderId);
@@ -2989,6 +3003,10 @@
                         }
                         txidSell = await sendUsdtJettonOnTestnet(sellToAddress, target.usdt);
                     } catch (sendErrSell) {
+                        if (isTonTxTimeoutAfterApprovalError(sendErrSell)) {
+                            txidSell = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
+                            tryForceReturnToTelegramAfterWallet();
+                        } else {
                         var completedSell = await confirmManualTransferCompletion(sendErrSell);
                         if (!completedSell) {
                             var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
@@ -2997,6 +3015,7 @@
                             return;
                         }
                         txidSell = 'MANUAL_CONFIRMED_TX';
+                        }
                     }
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
@@ -3083,6 +3102,10 @@
                     }
                     txid = await sendUsdtJettonOnTestnet(buyToAddress, target.usdt);
                 } catch (sendErrBuy) {
+                    if (isTonTxTimeoutAfterApprovalError(sendErrBuy)) {
+                        txid = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
+                        tryForceReturnToTelegramAfterWallet();
+                    } else {
                     var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
                     if (!completedBuy) {
                         var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
@@ -3091,6 +3114,7 @@
                         return;
                     }
                     txid = 'MANUAL_CONFIRMED_TX';
+                    }
                 }
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
