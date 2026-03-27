@@ -3724,12 +3724,14 @@
             const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
 
             try {
+                // 현재 실행 중인 텔레그램 미니앱 경로를 우선 사용하고, 실패 시 기존 상수로 폴백
+                var runtimeTwaReturnUrl = getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL;
                 tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot',
                     actionsConfiguration: {
                         // TWA-to-TWA 복귀 경로 명시
-                        twaReturnUrl: TON_TWA_RETURN_URL
+                        twaReturnUrl: runtimeTwaReturnUrl
                     }
                 });
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
@@ -3765,9 +3767,19 @@
                 if (!tonRestoreHooksBound) {
                     tonRestoreHooksBound = true;
                     document.addEventListener('visibilitychange', function () {
-                        if (document.visibilityState === 'visible') restoreTonConnectionSafe();
+                        if (document.visibilityState === 'visible') {
+                            // 지갑 앱에서 돌아왔을 때 남아있는 Open Wallet 모달을 정리
+                            if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
+                                try { tonConnectUIInstance.closeModal(); } catch (eCloseVisible) {}
+                            }
+                            restoreTonConnectionSafe();
+                        }
                     });
                     window.addEventListener('focus', function () {
+                        // 포커스 복귀 시에도 모달 잔상으로 멈춘 것처럼 보이는 상태를 방지
+                        if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
+                            try { tonConnectUIInstance.closeModal(); } catch (eCloseFocus) {}
+                        }
                         restoreTonConnectionSafe();
                     });
                 }
