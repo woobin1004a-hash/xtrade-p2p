@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-return-url-robust</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-auto-return-modal-first</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5907,40 +5907,7 @@
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
             try {
-                // iOS Telegram: 모달 내부 버튼 무반응 이슈가 잦아 Tonkeeper 직접 연결 경로를 고정 사용
-                if (tg && String(tg.platform || '').toLowerCase() === 'ios') {
-                    if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') {
-                        throw new Error('TonConnect connector를 찾지 못했습니다.');
-                    }
-                    // 이미 연결된 세션이 있으면 먼저 끊고 재연결 (wallet already connected 오류 방지)
-                    if (tonConnectUIInstance.connector.connected && typeof tonConnectUIInstance.disconnect === 'function') {
-                        try { await tonConnectUIInstance.disconnect(); } catch (eDisc) {}
-                    }
-                    var source = tonkeeperSourceForIos || {
-                        universalLink: 'https://app.tonkeeper.com/ton-connect',
-                        bridgeUrl: 'https://bridge.tonapi.io/bridge'
-                    };
-                    var link = tonConnectUIInstance.connector.connect(source) || '';
-                    link = ensureWalletReturnBack(link);
-                    if (!link) throw new Error('Tonkeeper 연결 링크 생성에 실패했습니다.');
-
-                    // openLink 성공 시에는 여기서 종료 (location 이동을 함께 하면 미니앱이 Tonkeeper 웹페이지로 이동해 버릴 수 있음)
-                    var opened = false;
-                    try {
-                        if (tg && typeof tg.openLink === 'function') {
-                            tg.openLink(link, { try_instant_view: false });
-                            opened = true;
-                        }
-                    } catch (eOpen) {}
-                    if (!opened) {
-                        try { window.location.href = link; } catch (eHref) {}
-                    }
-                    if (tg && typeof tg.showAlert === 'function') {
-                        tg.showAlert('Tonkeeper에서 Connect 완료 후, 자동 복귀가 안 되면 텔레그램으로 돌아오세요. 돌아오면 연결 상태를 자동 복원합니다.');
-                    }
-                    return;
-                }
-                // 버전별 TonConnect UI 메서드 차이를 흡수
+                // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
                 } else if (typeof tonConnectUIInstance.connectWallet === 'function') {
