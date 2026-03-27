@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-modal-always</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-fill-on-change</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5634,6 +5634,10 @@
         // --------------------------------------------------------
         // TonConnect (TON wallet connect modal + connection status)
         let tonConnectUIInstance = null;
+        /** 모달을 연 시점의 연결 주소(복원된 세션과 구분해, 실제로 바뀐 경우에만 입력란에 반영) */
+        let tonConnectOpenSnapshot = '';
+        /** openTonConnectModal 직후 일정 시간만 onStatusChange에서 입력란 자동 반영 허용 */
+        let tonConnectFillUntilMs = 0;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5727,6 +5731,17 @@
                     updateTonWalletStatusText('Not connected');
                 }
 
+                // 지갑 추가 화면: 연결 버튼으로 모달 연 뒤에만, 주소가 스냅샷과 달라졌을 때만 입력 (세션만 있고 선택 안 한 것처럼 채워지는 현상 방지)
+                if (
+                    tonConnectFillUntilMs > Date.now() &&
+                    tonWalletEditAddress === null &&
+                    dom.walletAddressInput &&
+                    address &&
+                    address !== tonConnectOpenSnapshot
+                ) {
+                    dom.walletAddressInput.value = address;
+                }
+
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
                 refreshMyPageUsdtBalance();
             });
@@ -5741,6 +5756,13 @@
                 return;
             }
             // 이미 세션이 있어도 모달을 열어 다른 지갑으로 전환·재연결 가능 (막지 않음)
+            tonConnectOpenSnapshot = getTonAddressFromAccount(
+                tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
+            );
+            tonConnectFillUntilMs = Date.now() + 4000;
+            setTimeout(function () {
+                tonConnectFillUntilMs = 0;
+            }, 4000);
             try {
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
@@ -5752,16 +5774,20 @@
                 } else {
                     throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
                 }
-                // 연결 성공 시에만 입력창에 주소를 채움
+                // 모달 직후: 이전 세션과 주소가 달라진 경우에만 입력란에 반영 (선택 없이 기존 세션만 있을 때는 채우지 않음)
                 var connectedNow = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
-                if (connectedNow && dom.walletAddressInput) {
+                if (connectedNow && connectedNow !== tonConnectOpenSnapshot && dom.walletAddressInput) {
                     dom.walletAddressInput.value = connectedNow;
                 }
                 // 모달이 즉시 닫히는 환경 대응: 연결 결과를 짧게 재확인
                 setTimeout(function () {
                     var after = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
+                    if (after && after !== tonConnectOpenSnapshot && dom.walletAddressInput) {
+                        dom.walletAddressInput.value = after;
+                        return;
+                    }
                     if (after) return;
-                    var hintMsg = '지갑 연결이 완료되지 않았습니다. Tonkeeper에서 연결 승인을 완료했는지 확인해 주세요.';
+                    var hintMsg = '지갑 연결이 완료되지 않았습니다. Tonkeeper 등에서 연결 승인을 완료했는지 확인해 주세요.';
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(hintMsg);
                     else alert(hintMsg);
                 }, 1200);
