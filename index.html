@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>XTrade P2P</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     <style>
         /* Global settings */
@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-direct-sync-open</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-stability-rollback</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5638,12 +5638,6 @@
         // --------------------------------------------------------
         // TonConnect (TON wallet connect modal + connection status)
         let tonConnectUIInstance = null;
-        /** iOS 클릭 이벤트 안에서 즉시 Tonkeeper 링크를 열기 위해 사전 캐시 */
-        let tonkeeperWalletSourceCache = null;
-        /** 모달을 연 시점의 연결 주소(복원된 세션과 구분해, 실제로 바뀐 경우에만 입력란에 반영) */
-        let tonConnectOpenSnapshot = '';
-        /** openTonConnectModal 직후 일정 시간만 onStatusChange에서 입력란 자동 반영 허용 */
-        let tonConnectFillUntilMs = 0;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5716,33 +5710,10 @@
             const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
 
             try {
-                // iOS Telegram에서는 추가 actionsConfiguration이 지갑 열기 흐름과 충돌하는 경우가 있어 기본 옵션으로 초기화
                 tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot'
                 });
-                // 지갑 목록을 미리 가져와 Tonkeeper 연결 정보를 캐시 (클릭 시점 비동기 대기 제거)
-                if (typeof tonConnectUIInstance.getWallets === 'function') {
-                    tonConnectUIInstance.getWallets()
-                        .then(function (wallets) {
-                            var tonkeeper = (wallets || []).find(function (w) {
-                                return (
-                                    w &&
-                                    String(w.appName || '').toLowerCase() === 'tonkeeper' &&
-                                    typeof w.universalLink === 'string' &&
-                                    !!String(w.universalLink).trim() &&
-                                    typeof w.bridgeUrl === 'string' &&
-                                    !!String(w.bridgeUrl).trim()
-                                );
-                            });
-                            tonkeeperWalletSourceCache = tonkeeper
-                                ? { universalLink: tonkeeper.universalLink, bridgeUrl: tonkeeper.bridgeUrl }
-                                : null;
-                        })
-                        .catch(function () {
-                            tonkeeperWalletSourceCache = null;
-                        });
-                }
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
@@ -5760,46 +5731,9 @@
                     updateTonWalletStatusText('Not connected');
                 }
 
-                // 지갑 추가 화면: 연결 버튼으로 모달 연 뒤에만, 주소가 스냅샷과 달라졌을 때만 입력 (세션만 있고 선택 안 한 것처럼 채워지는 현상 방지)
-                if (
-                    tonConnectFillUntilMs > Date.now() &&
-                    tonWalletEditAddress === null &&
-                    dom.walletAddressInput &&
-                    address &&
-                    address !== tonConnectOpenSnapshot
-                ) {
-                    dom.walletAddressInput.value = address;
-                }
-
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
                 refreshMyPageUsdtBalance();
             });
-        }
-
-        function tryOpenTonkeeperDirectOnIos() {
-            if (!tg || String(tg.platform || '').toLowerCase() !== 'ios') return false;
-            if (!tonConnectUIInstance) return false;
-            if (!tonConnectUIInstance.connector || typeof tonConnectUIInstance.connector.connect !== 'function') return false;
-            if (!tonkeeperWalletSourceCache) return false;
-
-            var deep = '';
-            try {
-                deep = tonConnectUIInstance.connector.connect(tonkeeperWalletSourceCache) || '';
-            } catch (eConnect) {
-                return false;
-            }
-            if (!deep) return false;
-
-            if (typeof tg.openLink === 'function') {
-                tg.openLink(deep, { try_instant_view: false });
-                return true;
-            }
-            try {
-                window.location.href = deep;
-                return true;
-            } catch (eHref) {
-                return false;
-            }
         }
 
         async function openTonConnectModal() {
@@ -5810,20 +5744,10 @@
                 else alert(noUiMsg);
                 return;
             }
-            // 이미 세션이 있어도 모달을 열어 다른 지갑으로 전환·재연결 가능 (막지 않음)
-            tonConnectOpenSnapshot = getTonAddressFromAccount(
+            var before = getTonAddressFromAccount(
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
-            tonConnectFillUntilMs = Date.now() + 4000;
-            setTimeout(function () {
-                tonConnectFillUntilMs = 0;
-            }, 4000);
             try {
-                // iOS Telegram에서 지갑 선택 모달 버튼이 무반응인 경우가 있어 Tonkeeper 직접 오픈을 먼저 시도
-                var openedTonkeeperOnIos = tryOpenTonkeeperDirectOnIos();
-                if (openedTonkeeperOnIos) {
-                    return;
-                }
                 // 버전별 TonConnect UI 메서드 차이를 흡수
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
@@ -5834,15 +5758,15 @@
                 } else {
                     throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
                 }
-                // 모달 직후: 이전 세션과 주소가 달라진 경우에만 입력란에 반영 (선택 없이 기존 세션만 있을 때는 채우지 않음)
+                // 모달에서 실제로 지갑이 바뀐 경우에만 입력란에 반영
                 var connectedNow = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
-                if (connectedNow && connectedNow !== tonConnectOpenSnapshot && dom.walletAddressInput) {
+                if (connectedNow && connectedNow !== before && dom.walletAddressInput) {
                     dom.walletAddressInput.value = connectedNow;
                 }
                 // 모달이 즉시 닫히는 환경 대응: 연결 결과를 짧게 재확인
                 setTimeout(function () {
                     var after = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
-                    if (after && after !== tonConnectOpenSnapshot && dom.walletAddressInput) {
+                    if (after && after !== before && dom.walletAddressInput) {
                         dom.walletAddressInput.value = after;
                         return;
                     }
