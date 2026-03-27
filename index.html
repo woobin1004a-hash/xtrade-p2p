@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-twa-return-and-modal-reset</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-28-ios-no-early-fail-alert</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5950,6 +5950,12 @@
                         return;
                     }
                     if (after) return;
+                    // iOS는 외부 앱 왕복 후 상태 복원이 지연될 수 있어 즉시 실패 알림을 띄우지 않음
+                    var isIos = !!(tg && String(tg.platform || '').toLowerCase() === 'ios');
+                    if (isIos) {
+                        restoreTonConnectionSafe();
+                        return;
+                    }
                     var hintMsg = '지갑 연결이 완료되지 않았습니다. Tonkeeper 등에서 연결 승인을 완료했는지 확인해 주세요.';
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(hintMsg);
                     else alert(hintMsg);
