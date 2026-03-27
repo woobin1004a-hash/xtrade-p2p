@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-restore-autofill-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonkeeper-address-format-sync</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3788,6 +3788,7 @@
                         network: 'TON',
                         bankAccountId: '',
                         bankText: '—',
+
                         tonWalletAddress: '',
                         tonWalletText: '—',
 
@@ -5647,17 +5648,31 @@
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
         }
 
-        // TonConnectUI.account 값은 경우에 따라 "문자열 주소"가 아니라 객체로 올 수 있습니다.
-        // 따라서 주소만 안정적으로 추출해서 input에 넣어야 `[object Object]` 문제가 사라집니다.
+        // TonConnect 계정 주소를 Tonkeeper 표기와 맞추기 위해 user-friendly(URL-safe) 형식으로 정규화합니다.
         function getTonAddressFromAccount(account) {
             if (!account) return '';
-            if (typeof account === 'string') return account;
-            if (typeof account === 'object') {
-                if (typeof account.address === 'string') return account.address;
-                if (typeof account.accountAddress === 'string') return account.accountAddress;
-                if (typeof account.publicAddress === 'string') return account.publicAddress;
+            var raw = '';
+            var chain = '';
+            if (typeof account === 'string') {
+                raw = account;
+            } else if (typeof account === 'object') {
+                if (typeof account.address === 'string') raw = account.address;
+                else if (typeof account.accountAddress === 'string') raw = account.accountAddress;
+                else if (typeof account.publicAddress === 'string') raw = account.publicAddress;
+                chain = typeof account.chain === 'string' ? account.chain : '';
             }
-            return '';
+            raw = String(raw || '').trim();
+            if (!raw) return '';
+
+            // TonWeb가 없거나 파싱 실패하면 원본을 유지합니다.
+            if (!window.TonWeb || !window.TonWeb.utils || !window.TonWeb.utils.Address) return raw;
+            try {
+                var isTestnet = String(chain || '') === '-3';
+                // user-friendly + url-safe + non-bounceable + testnet 플래그 반영
+                return new window.TonWeb.utils.Address(raw).toString(true, true, false, isTestnet);
+            } catch (e) {
+                return raw;
+            }
         }
 
         /** 마이페이지 요약: 등록된 모든 지갑의 USDT 잔액 합계 */
