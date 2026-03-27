@@ -1320,61 +1320,59 @@
             color: #ffffff;
         }
 
-        /* 주문 접수 완료 알림 — 다크모드에서 배경(#050505·보라 그라데이션)과 확실히 구분 */
+        /* 주문 접수·신규 주문 알림 — 다크모드에서 읽기 좋게, 과하지 않게 */
         #orderSubmittedOverlay.order-submitted-modal-overlay {
             z-index: 400;
             align-items: center;
             justify-content: center;
             padding: 20px;
             box-sizing: border-box;
-            background: rgba(0, 0, 0, 0.82);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
+            background: rgba(3, 7, 18, 0.58);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
         }
         .order-submitted-modal-dialog {
             width: 100%;
             max-width: 400px;
-            background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
-            border: 2px solid #c4b5fd;
-            border-radius: 18px;
-            box-shadow:
-                0 0 0 1px rgba(255, 255, 255, 0.12),
-                0 22px 48px rgba(0, 0, 0, 0.55),
-                0 0 40px rgba(124, 58, 237, 0.25);
-            padding: 22px 20px 18px;
+            background: #f8fafc;
+            border: 1px solid rgba(167, 139, 250, 0.45);
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+            padding: 20px 18px 16px;
         }
         .order-submitted-modal-message {
             margin: 0;
             font-size: 15px;
-            line-height: 1.6;
-            font-weight: 700;
-            color: #0f172a;
+            line-height: 1.55;
+            font-weight: 600;
+            color: #1e293b;
+            white-space: pre-line;
         }
         .order-submitted-modal-ok {
-            margin-top: 18px;
+            margin-top: 16px;
             width: 100%;
-            height: 48px;
+            height: 46px;
             border: none;
-            border-radius: 14px;
-            font-size: 16px;
-            font-weight: 900;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
             cursor: pointer;
-            background: linear-gradient(145deg, #7c3aed 0%, #6d28d9 100%);
+            background: #7c3aed;
             color: #ffffff;
-            box-shadow: 0 8px 20px rgba(124, 58, 237, 0.45);
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
         }
         .order-submitted-modal-ok:active {
-            transform: scale(0.98);
+            opacity: 0.92;
         }
         .theme-light #orderSubmittedOverlay.order-submitted-modal-overlay {
-            background: rgba(15, 23, 42, 0.45);
+            background: rgba(15, 23, 42, 0.35);
         }
         .theme-light .order-submitted-modal-dialog {
             background: #ffffff;
             border-color: #e2e8f0;
-            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.18);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
         }
         .theme-light .order-submitted-modal-message {
-            color: #0f172a;
+            color: #1e293b;
         }
     

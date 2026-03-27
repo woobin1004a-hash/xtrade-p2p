@@ -1882,6 +1882,8 @@
         let finalCompleteConfirmTimer = null;
         let uiThemeMode = 'dark';
         let uiLangMode = 'ko';
+        /** orderSubmittedOverlay 확인 버튼: 'myOffers' 내 주문 이동 / 'dismissOnly' 모달·지갑 UI만 닫기 */
+        let orderSubmittedOverlayAction = 'myOffers';
 
         const UI_TEXTS = {
             ko: {
@@ -2279,20 +2281,19 @@
             });
             if (newBuyCount > 0 || newSellCount > 0) {
                 saveSellerAlertedOrderIds();
+                // 구매/판매 알림을 한 번에 표시하고, 확인 시 내 주문(진행중)으로 이동
+                var parts = [];
                 if (newBuyCount > 0) {
-                    var msgB = newBuyCount === 1
+                    parts.push(newBuyCount === 1
                         ? '새 구매 요청 1건이 도착했습니다.'
-                        : ('새 구매 요청 ' + newBuyCount + '건이 도착했습니다.');
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgB);
-                    else alert(msgB);
+                        : ('새 구매 요청 ' + newBuyCount + '건이 도착했습니다.'));
                 }
                 if (newSellCount > 0) {
-                    var msgS = newSellCount === 1
+                    parts.push(newSellCount === 1
                         ? '새 판매 신청 1건이 도착했습니다.'
-                        : ('새 판매 신청 ' + newSellCount + '건이 도착했습니다.');
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgS);
-                    else alert(msgS);
+                        : ('새 판매 신청 ' + newSellCount + '건이 도착했습니다.'));
                 }
+                showOrderSubmittedPopupNavigatingToMyOffers(parts.join('\n'));
             }
         }
 
@@ -2524,15 +2525,80 @@
             updateOrderSubmitButton();
         }
 
+        /** TonConnect(Open Wallet 등) 모달을 여러 경로로 닫기 시도 */
+        function forceCloseTonConnectUI() {
+            try {
+                if (tonConnectUIInstance) {
+                    if (typeof tonConnectUIInstance.closeModal === 'function') {
+                        try { tonConnectUIInstance.closeModal(); } catch (e0) {}
+                    }
+                    if (tonConnectUIInstance.modal && typeof tonConnectUIInstance.modal.close === 'function') {
+                        try { tonConnectUIInstance.modal.close(); } catch (e0b) {}
+                    }
+                    if (tonConnectUIInstance.ui && typeof tonConnectUIInstance.ui.close === 'function') {
+                        try { tonConnectUIInstance.ui.close(); } catch (e1) {}
+                    }
+                }
+            } catch (e) {}
+            try {
+                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
+            } catch (e2) {}
+            try {
+                restoreTonConnectionSafe();
+            } catch (e3) {}
+        }
+
+        /** USDT 전송 완료 안내(확인만 — 내 주문으로 가지 않음). 닫을 때 지갑 모달도 함께 정리 */
+        function showTransferCompleteInlineModal() {
+            orderSubmittedOverlayAction = 'dismissOnly';
+            forceCloseTonConnectUI();
+            var overlay = document.getElementById('orderSubmittedOverlay');
+            var msgEl = document.getElementById('orderSubmittedModalMessage');
+            if (overlay && msgEl) {
+                msgEl.textContent = '전송이 완료되었습니다.';
+                overlay.classList.remove('hidden');
+                setTimeout(function () { forceCloseTonConnectUI(); }, 50);
+                return;
+            }
+            if (tg && typeof tg.showPopup === 'function') {
+                tg.showPopup({
+                    title: '',
+                    message: '전송이 완료되었습니다.',
+                    buttons: [{ id: 'ok', type: 'default', text: '확인' }]
+                }, function () {
+                    forceCloseTonConnectUI();
+                });
+                return;
+            }
+            if (tg && typeof tg.showAlert === 'function') {
+                try {
+                    tg.showAlert('전송이 완료되었습니다.', function () {
+                        forceCloseTonConnectUI();
+                    });
+                } catch (e) {
+                    tg.showAlert('전송이 완료되었습니다.');
+                    forceCloseTonConnectUI();
+                }
+                return;
+            }
+            alert('전송이 완료되었습니다.');
+            forceCloseTonConnectUI();
+        }
+
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
         function closeOrderSubmittedModalAndGoToMyOffers() {
             var overlay = document.getElementById('orderSubmittedOverlay');
             if (overlay) overlay.classList.add('hidden');
-            goToMyOffers();
+            forceCloseTonConnectUI();
+            if (orderSubmittedOverlayAction !== 'dismissOnly') {
+                goToMyOffers();
+            }
+            orderSubmittedOverlayAction = 'myOffers';
         }
 
-        /** 주문 접수 완료 알림: 다크모드 가시성을 위해 인앱 모달 우선(확인 → 내 주문) */
+        /** 주문 접수 완료·신규 구매/판매 알림: 인앱 모달(확인 → 내 주문 진행중) */
         function showOrderSubmittedPopupNavigatingToMyOffers(message) {
+            orderSubmittedOverlayAction = 'myOffers';
             var text = String(message || '');
             var overlay = document.getElementById('orderSubmittedOverlay');
             var msgEl = document.getElementById('orderSubmittedModalMessage');
@@ -3087,8 +3153,6 @@
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
                     receiver.txid = String(txidSell || 'TESTNET_TX_SENT').trim();
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert('테스트넷 전송이 완료되었습니다.');
-                    else alert('테스트넷 전송이 완료되었습니다.');
                 } else if (action === 'issue') {
                     if (!youAreBuyer0 || String(r0.status) !== 'sell_coin_sent') return;
                     var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
@@ -3122,6 +3186,9 @@
                 try {
                     await patchOrderReceiverToSupabase(orderId, receiver);
                     await refreshMyOffers();
+                    if (action === 'sent') {
+                        showTransferCompleteInlineModal();
+                    }
                     if (forceTelegramReturnAfterSaveSell) {
                         setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
                     }
@@ -3189,8 +3256,6 @@
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
                 receiver.txid = String(txid || 'TESTNET_TX_SENT').trim();
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('테스트넷 전송이 완료되었습니다.');
-                else alert('테스트넷 전송이 완료되었습니다.');
             } else if (action === 'confirm') {
                 var okBuyConfirm = await openFinalCompleteConfirmPopup();
                 if (!okBuyConfirm) return;
@@ -3208,6 +3273,9 @@
             try {
                 await patchOrderReceiverToSupabase(orderId, receiver);
                 await refreshMyOffers();
+                if (action === 'sent') {
+                    showTransferCompleteInlineModal();
+                }
                 if (forceTelegramReturnAfterSaveBuy) {
                     setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
                 }
@@ -4260,10 +4328,8 @@
                 ]);
             } finally {
                 // 복귀 시 Open Wallet 모달이 잔류하면 화면이 멈춘 것처럼 보여 정리합니다.
-                if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
-                    try { tonConnectUIInstance.closeModal(); } catch (eCloseAfterTx) {}
-                }
-                restoreTonConnectionSafe();
+                forceCloseTonConnectUI();
+                setTimeout(function () { forceCloseTonConnectUI(); }, 120);
             }
             var txId = '';
             if (result && typeof result === 'object') {
