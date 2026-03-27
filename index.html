@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-openlink-only-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-force-ret-back</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5772,10 +5772,8 @@
             if (!s) return '';
             try {
                 var u = new URL(s);
-                // Tonkeeper 승인 후 텔레그램 미니앱으로 복귀하도록 ret=back 강제
-                if (!u.searchParams.get('ret')) {
-                    u.searchParams.set('ret', 'back');
-                }
+                // Tonkeeper 승인 후 텔레그램으로 복귀하도록 ret 값을 항상 back으로 강제
+                u.searchParams.set('ret', 'back');
                 return u.toString();
             } catch (e) {
                 // URL 파싱 실패 시 원본 사용
