@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-twa-return-strategy</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ton-autofill-gate-restore</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5643,6 +5643,8 @@
         let tonkeeperSourceForIos = null;
         /** 수동 복귀 시 연결 복원 훅 중복 방지 */
         let tonRestoreHooksBound = false;
+        /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
+        let tonAddressAutofillArmed = false;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -5796,6 +5798,7 @@
                     ? String(dom.walletAddressInput.value).trim()
                     : '';
                 if (
+                    tonAddressAutofillArmed &&
                     isWalletSettingsOpen &&
                     tonWalletEditAddress === null &&
                     dom.walletAddressInput &&
@@ -5803,6 +5806,7 @@
                     !currentInput
                 ) {
                     dom.walletAddressInput.value = address;
+                    tonAddressAutofillArmed = false;
                 }
 
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
@@ -5861,6 +5865,8 @@
                 else alert(noUiMsg);
                 return;
             }
+            // 사용자가 실제로 연결 버튼을 누른 경우에만 자동 입력 허용
+            tonAddressAutofillArmed = true;
             var before = getTonAddressFromAccount(
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
@@ -5912,12 +5918,14 @@
                 var connectedNow = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
                 if (connectedNow && connectedNow !== before && dom.walletAddressInput) {
                     dom.walletAddressInput.value = connectedNow;
+                    tonAddressAutofillArmed = false;
                 }
                 // 모달이 즉시 닫히는 환경 대응: 연결 결과를 짧게 재확인
                 setTimeout(function () {
                     var after = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
                     if (after && after !== before && dom.walletAddressInput) {
                         dom.walletAddressInput.value = after;
+                        tonAddressAutofillArmed = false;
                         return;
                     }
                     if (after) return;
@@ -5926,6 +5934,7 @@
                     else alert(hintMsg);
                 }, 1200);
             } catch (e) {
+                tonAddressAutofillArmed = false;
                 var failMsg = 'TON 지갑 연결 창을 열지 못했습니다. ' + String(e && e.message ? e.message : e);
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(failMsg);
                 else alert(failMsg);
