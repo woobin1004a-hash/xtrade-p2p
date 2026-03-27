@@ -3916,7 +3916,7 @@
         /** 전송 서명 대기 중 restoreConnection 디바운스(연속 호출이 세션을 흔들 수 있음) */
         let tonRestoreWhileSendTimer = null;
         /** 매니페스트 생성 방식이 바뀌면 TonConnect 인스턴스를 한 번 재생성 */
-        const TONCONNECT_MANIFEST_GENERATION = '2026-03-28-data-manifest-v16';
+        const TONCONNECT_MANIFEST_GENERATION = '2026-03-28-https-manifest-v17';
         /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
         let tonAddressAutofillArmed = false;
         /** iOS 시스템 외부앱 확인창 안내는 세션당 1회만 표시 */
@@ -3993,25 +3993,13 @@
         }
 
         /**
-         * TonConnect 매니페스트 url은 "앱이 실제로 뜨는 베이스 URL"과 일치해야 지갑이 트랜잭션을 정상 표시합니다.
-         * 정적 tonconnect-manifest.json만 쓰면 Netlify vs GitHub Pages 등 배포마다 불일치 → Tonkeeper 빈 화면 후보.
-         * data: URL로 현재 origin+경로(디렉터리) 기준 매니페스트를 동적 생성합니다.
+         * TonConnect 매니페스트는 지갑 앱이 HTTPS로 직접 가져가 검증합니다.
+         * data:/blob: URL은 Tonkeeper 쪽에서 열 수 없어 "앱은 열리는데 전송 화면이 비는" 원인이 될 수 있음.
+         * 항상 배포된 origin의 tonconnect-manifest.json 전체 URL을 씁니다.
+         * (json 안의 "url" 필드도 실제 사이트 주소와 맞춰야 하며, 호스트가 바뀌면 tonconnect-manifest.json을 수정하세요.)
          */
         function buildTonConnectManifestUrl() {
-            var appBase = new URL('.', window.location.href).href;
-            var iconData =
-                'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7WqKkAAAAASUVORK5CYII=';
-            var manifest = {
-                url: appBase,
-                name: 'XTrade P2P',
-                iconUrl: iconData
-            };
-            try {
-                var json = JSON.stringify(manifest);
-                return 'data:application/json;base64,' + btoa(json);
-            } catch (e) {
-                return new URL('tonconnect-manifest.json', window.location.href).toString();
-            }
+            return new URL('tonconnect-manifest.json', window.location.href).toString();
         }
 
         function initTonConnectUIIfNeeded() {
@@ -4035,29 +4023,17 @@
                 return;
             }
 
-            var manifestUrlDynamic = buildTonConnectManifestUrl();
-            var manifestUrlStatic = new URL('tonconnect-manifest.json', window.location.href).toString();
+            var manifestUrl = buildTonConnectManifestUrl();
             var runtimeTwaReturnUrl = getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL;
 
             try {
-                try {
-                    tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
-                        manifestUrl: manifestUrlDynamic,
-                        buttonRootId: 'tonConnectButtonRoot',
-                        actionsConfiguration: {
-                            twaReturnUrl: runtimeTwaReturnUrl
-                        }
-                    });
-                } catch (eDataManifest) {
-                    // 일부 환경에서 data: 매니페스트 생성이 실패하면 저장소의 정적 JSON 사용
-                    tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
-                        manifestUrl: manifestUrlStatic,
-                        buttonRootId: 'tonConnectButtonRoot',
-                        actionsConfiguration: {
-                            twaReturnUrl: runtimeTwaReturnUrl
-                        }
-                    });
-                }
+                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
+                    manifestUrl: manifestUrl,
+                    buttonRootId: 'tonConnectButtonRoot',
+                    actionsConfiguration: {
+                        twaReturnUrl: runtimeTwaReturnUrl
+                    }
+                });
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
                 if (typeof tonConnectUIInstance.getWallets === 'function') {
                     tonConnectUIInstance.getWallets()
@@ -4453,7 +4429,8 @@
 
             var payloadCell = new TonWebClass.boc.Cell();
             payloadCell.bits.writeUint(0x0f8a7ea5, 32); // transfer op
-            payloadCell.bits.writeUint(Math.floor(Date.now() / 1000), 64); // query id
+            // query_id: 일부 지갑에서 과도하게 큰 값이 이상 동작을 유발할 수 있어 0 사용
+            payloadCell.bits.writeUint(0, 64);
             payloadCell.bits.writeCoins(toJettonNanoBn(usdtAmount)); // jetton amount (6 decimals)
             payloadCell.bits.writeAddress(toAddr); // destination
             payloadCell.bits.writeAddress(ownerAddr); // response destination
@@ -4470,7 +4447,8 @@
                 network: '-3',
                 validUntil: Math.floor(Date.now() / 1000) + 5 * 60,
                 messages: [{
-                    address: fromJettonWallet.toString(true, true, true),
+                    // 네 번째 인자 true = 테스트넷 user-friendly (지갑이 체인과 일치시키지 않으면 전송 UI가 깨질 수 있음)
+                    address: fromJettonWallet.toString(true, true, true, true),
                     // Jetton wallet 내부 전송 + forward에 필요한 TON (테스트넷)
                     amount: TonWebClass.utils.toNano('0.12').toString(),
                     payload: payloadBase64
