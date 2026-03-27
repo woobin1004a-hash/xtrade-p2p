@@ -1884,6 +1884,8 @@
         let uiLangMode = 'ko';
         /** orderSubmittedOverlay 확인 버튼: 'myOffers' 내 주문 이동 / 'dismissOnly' 모달·지갑 UI만 닫기 */
         let orderSubmittedOverlayAction = 'myOffers';
+        /** TonConnect sendTransaction 대기 중 — 이 때 closeModal·포커스 정리하면 전송이 취소될 수 있음 */
+        let tonSendTransactionInFlight = false;
 
         const UI_TEXTS = {
             ko: {
@@ -2540,9 +2542,7 @@
                     }
                 }
             } catch (e) {}
-            try {
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
-            } catch (e2) {}
+            // Escape 키 이벤트는 TonConnect/지갑 전송 흐름을 끊을 수 있어 사용하지 않음
             try {
                 restoreTonConnectionSafe();
             } catch (e3) {}
@@ -3985,7 +3985,10 @@
                     tonRestoreHooksBound = true;
                     document.addEventListener('visibilitychange', function () {
                         if (document.visibilityState === 'visible') {
-                            // 지갑 앱에서 돌아왔을 때 남아있는 Open Wallet 모달을 정리
+                            // Tonkeeper로 넘어가 전송 서명 중일 때 closeModal 하면 전송이 취소될 수 있음
+                            if (tonSendTransactionInFlight) {
+                                return;
+                            }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
                                 try { tonConnectUIInstance.closeModal(); } catch (eCloseVisible) {}
                             }
@@ -3993,7 +3996,9 @@
                         }
                     });
                     window.addEventListener('focus', function () {
-                        // 포커스 복귀 시에도 모달 잔상으로 멈춘 것처럼 보이는 상태를 방지
+                        if (tonSendTransactionInFlight) {
+                            return;
+                        }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
                             try { tonConnectUIInstance.closeModal(); } catch (eCloseFocus) {}
                         }
@@ -4342,6 +4347,7 @@
             };
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
             var result;
+            tonSendTransactionInFlight = true;
             try {
                 result = await Promise.race([
                     tonConnectUIInstance.sendTransaction(tx),
@@ -4352,7 +4358,8 @@
                     })
                 ]);
             } finally {
-                // 복귀 시 Open Wallet 모달이 잔류하면 화면이 멈춘 것처럼 보여 정리합니다.
+                tonSendTransactionInFlight = false;
+                // 전송 완료/실패 후에만 지갑 모달 정리(진행 중에는 위 visibility/focus에서 건드리지 않음)
                 forceCloseTonConnectUI();
                 setTimeout(function () { forceCloseTonConnectUI(); }, 120);
             }
