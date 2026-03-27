@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-ton-autofill-gate-restore</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-ios-return-url-robust</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5829,16 +5829,52 @@
         }
 
         function buildTelegramMiniAppReturnUrl() {
-            if (!tg || !tg.initDataUnsafe || typeof tg.initDataUnsafe !== 'object') return '';
-            var data = tg.initDataUnsafe;
-            var receiver = data.receiver && typeof data.receiver === 'object' ? data.receiver : null;
-            var botUsername = receiver && typeof receiver.username === 'string' ? String(receiver.username).trim() : '';
+            var botUsername = '';
+            var appPath = '';
+            var startParam = '';
+
+            // 1) Telegram WebApp initDataUnsafe 우선 사용
+            if (tg && tg.initDataUnsafe && typeof tg.initDataUnsafe === 'object') {
+                var data = tg.initDataUnsafe;
+                var receiver = data.receiver && typeof data.receiver === 'object' ? data.receiver : null;
+                if (receiver && typeof receiver.username === 'string') {
+                    botUsername = String(receiver.username).trim();
+                }
+                if (!startParam && typeof data.start_param === 'string') {
+                    startParam = String(data.start_param).trim();
+                }
+            }
+
+            // 2) URL 쿼리/해시 파라미터 보조 추출
+            try {
+                var qs = new URLSearchParams(window.location.search || '');
+                var hs = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+                if (!startParam) startParam = String(qs.get('tgWebAppStartParam') || hs.get('tgWebAppStartParam') || '').trim();
+                if (!botUsername) botUsername = String(qs.get('tgWebAppBotUsername') || hs.get('tgWebAppBotUsername') || '').trim();
+            } catch (eUrl) {}
+
+            // 3) referrer(t.me 링크)에서 bot username / mini app path 추출
+            try {
+                var ref = String(document.referrer || '').trim();
+                if (ref && /^https?:\/\/t\.me\//i.test(ref)) {
+                    var ru = new URL(ref);
+                    var segs = String(ru.pathname || '').split('/').filter(Boolean);
+                    if (!botUsername && segs.length >= 1) botUsername = segs[0];
+                    if (!appPath && segs.length >= 2) appPath = segs[1];
+                }
+            } catch (eRef) {}
+
+            // username 정리(@ 제거)
+            botUsername = String(botUsername || '').replace(/^@+/, '').trim();
             if (!botUsername) return '';
-            var startParam = typeof data.start_param === 'string' ? String(data.start_param).trim() : '';
-            // start_param이 있으면 mini app 진입 상태를 최대한 보존
-            return startParam
-                ? ('https://t.me/' + botUsername + '?startapp=' + encodeURIComponent(startParam))
+
+            // appPath가 있으면 /bot/app 형태로, 없으면 /bot 형태로 복귀 링크 생성
+            var base = appPath
+                ? ('https://t.me/' + botUsername + '/' + appPath)
                 : ('https://t.me/' + botUsername);
+            return startParam
+                ? (base + '?startapp=' + encodeURIComponent(startParam))
+                : base;
         }
 
         function getTonkeeperReturnStrategy() {
