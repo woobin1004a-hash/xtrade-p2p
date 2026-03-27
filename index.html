@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-connect-fix</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-wallet-prefill-fix</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5720,15 +5720,11 @@
             tonConnectUIInstance.onStatusChange(() => {
                 const account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
                 const address = getTonAddressFromAccount(account);
-                const isWalletModalOpen = dom.walletSettingsView && !dom.walletSettingsView.classList.contains('hidden');
 
                 if (address) {
-                    updateTonWalletStatusText('Connected: ' + address);
-                    if (isWalletModalOpen && dom.walletAddressInput) {
-                        dom.walletAddressInput.value = address;
-                    }
+                    updateTonWalletStatusText('Connected');
                 } else {
-                    updateTonWalletStatusText('Not connected yet.');
+                    updateTonWalletStatusText('Not connected');
                 }
 
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
@@ -5737,14 +5733,19 @@
         }
 
         async function openTonConnectModal() {
-            // 연결 시마다 인스턴스를 새로 만들어서,
-            // manifest를 업로드/수정한 직후 새로고침 없이도 반영되게 합니다.
-            tonConnectUIInstance = null;
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
                 var noUiMsg = 'TON Connect 초기화에 실패했습니다.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(noUiMsg);
                 else alert(noUiMsg);
+                return;
+            }
+            // 이미 연결된 경우 모달을 열지 않고 현재 상태를 안내
+            var before = getTonAddressFromAccount(tonConnectUIInstance.account);
+            if (before) {
+                var alreadyMsg = '이미 지갑이 연결되어 있습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(alreadyMsg);
+                else alert(alreadyMsg);
                 return;
             }
             try {
@@ -5758,6 +5759,19 @@
                 } else {
                     throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
                 }
+                // 연결 성공 시에만 입력창에 주소를 채움
+                var connectedNow = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
+                if (connectedNow && dom.walletAddressInput) {
+                    dom.walletAddressInput.value = connectedNow;
+                }
+                // 모달이 즉시 닫히는 환경 대응: 연결 결과를 짧게 재확인
+                setTimeout(function () {
+                    var after = getTonAddressFromAccount(tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null);
+                    if (after) return;
+                    var hintMsg = '지갑 연결이 완료되지 않았습니다. Tonkeeper에서 연결 승인을 완료했는지 확인해 주세요.';
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(hintMsg);
+                    else alert(hintMsg);
+                }, 1200);
             } catch (e) {
                 var failMsg = 'TON 지갑 연결 창을 열지 못했습니다. ' + String(e && e.message ? e.message : e);
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(failMsg);
@@ -5998,11 +6012,11 @@
 
             initTonConnectUIIfNeeded();
 
-            // Prefill connected address (if any)
+            // Add 화면에서는 자동 프리필하지 않음(연결 버튼 성공 시에만 채움)
             const connected = getTonAddressFromAccount(
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
-            if (dom.walletAddressInput) dom.walletAddressInput.value = connected;
+            if (dom.walletAddressInput) dom.walletAddressInput.value = '';
             if (dom.walletLabelInput) dom.walletLabelInput.value = '';
 
             const defaultAddress = getDefaultTonWalletAddress();
@@ -6047,6 +6061,7 @@
             tonConnectUIInstance.disconnect().catch(() => {
                 // UI updates via onStatusChange
             });
+            if (dom.walletAddressInput) dom.walletAddressInput.value = '';
         }
 
         function saveTonWallet() {
