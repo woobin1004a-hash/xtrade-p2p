@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-fill-on-change</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-telegram-openlink</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2013,6 +2013,49 @@
         // Telegram WebApp object (prevents errors on browsers without Telegram)
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
         if (tg && typeof tg.expand === 'function') tg.expand();
+        // 미니앱 준비 완료 신호(미호출 시 일부 API·링크 동작이 불안정할 수 있음)
+        if (tg && typeof tg.ready === 'function') tg.ready();
+
+        // TonConnect는 지갑 연결 시 window.open(딥링크/HTTPS)을 쓰는데, 텔레그램 미니앱 WebView에서는 막히거나 무반응인 경우가 많음 → WebApp API로 열기
+        (function installTelegramOpenForTonConnect() {
+            if (!tg || typeof tg.openLink !== 'function') return;
+            var origOpen = window.open;
+            window.open = function (url, target, features) {
+                if (typeof url !== 'string' || !url.length) return origOpen.apply(window, arguments);
+                try {
+                    var isHttp = /^https?:\/\//i.test(url);
+                    var isTon = /^ton:/i.test(url);
+                    var isTc = /^tc:/i.test(url);
+                    if (isHttp) {
+                        var parsed = new URL(url);
+                        var isTelegramTme = parsed.hostname === 't.me' || parsed.hostname.endsWith('.t.me');
+                        if (isTelegramTme && typeof tg.openTelegramLink === 'function') {
+                            tg.openTelegramLink(url);
+                        } else if (parsed.origin !== window.location.origin) {
+                            tg.openLink(url, { try_instant_view: false });
+                        } else {
+                            return origOpen.apply(window, arguments);
+                        }
+                    } else if (isTon || isTc) {
+                        tg.openLink(url, { try_instant_view: false });
+                    } else {
+                        return origOpen.apply(window, arguments);
+                    }
+                    return {
+                        closed: false,
+                        close: function () {},
+                        focus: function () {},
+                        location: { href: url }
+                    };
+                } catch (e) {
+                    try {
+                        return origOpen.apply(window, arguments);
+                    } catch (e2) {
+                        return null;
+                    }
+                }
+            };
+        })();
         // Supabase REST 연결 정보
         const SUPABASE_URL = 'https://fasigdxixqvgxurineyo.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
@@ -5710,10 +5753,17 @@
             const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
 
             try {
-                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
-                    manifestUrl,
+                var tcOpts = {
+                    manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot'
-                });
+                };
+                // 텔레그램 미니앱(TWA)에서 지갑 연결 후 돌아올 URL — 미설정 시 일부 환경에서 연결/복귀가 깨질 수 있음
+                if (tg && typeof window.location !== 'undefined' && window.location.href) {
+                    tcOpts.actionsConfiguration = {
+                        twaReturnUrl: String(window.location.href.replace(/#.*$/, ''))
+                    };
+                }
+                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI(tcOpts);
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
