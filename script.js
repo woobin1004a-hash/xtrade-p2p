@@ -3133,6 +3133,8 @@
         }
 
         function tryForceReturnToTelegramAfterWallet() {
+            // TonConnect는 sendTransaction에 twaReturnUrl이 항상 적용되지 않아, 지갑에서 Done 후에도
+            // 미니앱 WebView가 앞으로 안 올 수 있음 → 저장 완료 뒤 t.me로 한 번 더 복귀 유도
             // 자동 복귀가 실패하는 단말에서 t.me 링크로 복귀를 여러 방식·여러 타이밍으로 재시도
             var target = buildTelegramMiniAppReturnUrl() || TON_TWA_RETURN_URL;
             if (!target) return;
@@ -3276,8 +3278,9 @@
                     if (action === 'sent') {
                         showTransferCompleteInlineModal();
                     }
-                    if (forceTelegramReturnAfterSaveSell) {
-                        setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
+                    // 전송 성공·타임아웃(가정 성공) 모두: 지갑 앱에서 Done 후 텔레그램 미니앱으로 돌아오기
+                    if (action === 'sent' || forceTelegramReturnAfterSaveSell) {
+                        setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 650);
                     }
                 } catch (e) {
                     var msgS = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
@@ -3363,8 +3366,8 @@
                 if (action === 'sent') {
                     showTransferCompleteInlineModal();
                 }
-                if (forceTelegramReturnAfterSaveBuy) {
-                    setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 500);
+                if (action === 'sent' || forceTelegramReturnAfterSaveBuy) {
+                    setTimeout(function () { tryForceReturnToTelegramAfterWallet(); }, 650);
                 }
             } catch (e) {
                 var msg = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
