@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>XTrade P2P</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     <style>
         /* Global settings */
@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-rollback</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-tonconnect-ios-pin-ui-2-0-9</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -5714,17 +5714,11 @@
             const manifestUrl = new URL('tonconnect-manifest.json', window.location.href).toString();
 
             try {
-                var tcOpts = {
+                // iOS Telegram에서는 추가 actionsConfiguration이 지갑 열기 흐름과 충돌하는 경우가 있어 기본 옵션으로 초기화
+                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot'
-                };
-                // 텔레그램 미니앱(TWA)에서 지갑 연결 후 돌아올 URL — 미설정 시 일부 환경에서 연결/복귀가 깨질 수 있음
-                if (tg && typeof window.location !== 'undefined' && window.location.href) {
-                    tcOpts.actionsConfiguration = {
-                        twaReturnUrl: String(window.location.href.replace(/#.*$/, ''))
-                    };
-                }
-                tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI(tcOpts);
+                });
             } catch (e) {
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.remove('hidden');
                 updateTonWalletStatusText('TON manifest error. Check tonconnect-manifest.json.');
