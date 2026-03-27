@@ -117,7 +117,8 @@
         .theme-light #myOffersView .offer-v { color: #0f172a; }
         .theme-light #myOffersView .offer-empty { color: #64748b; }
         .theme-light #myOffersView .myoffers-tab { color: #64748b; }
-        .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+        .theme-light #myOffersView .myoffers-tab.active { color: #7c3aed; }
+        .theme-light #myOffersView .myoffers-tab.active::after { background: #7c3aed; }
         /* 내 제안 버튼: 첨부 2 스타일 — 보조=연회색+진한 글자, 주요=진보라+흰 글자 */
         .theme-light #myOffersView .offer-btn {
             border: 1px solid transparent;
@@ -295,24 +296,43 @@
         .myoffers-view { min-height: 100vh; background: #07060d; }
         .myoffers-wrap { padding: 14px 16px 80px; }
         .myoffers-tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
             gap: 8px;
             margin-bottom: 14px;
         }
         .myoffers-tab {
+            flex: 1;
+            min-width: 0;
+            position: relative;
             background: transparent;
             color: #8f8f9a;
             border: none;
-            border-bottom: 2px solid transparent;
-            height: 36px;
-            font-size: 18px;
+            min-height: 44px;
+            padding: 10px 6px 12px;
+            font-size: 15px;
             font-weight: 900;
             cursor: pointer;
-            text-align: left;
-            padding: 0 2px;
+            text-align: center;
+            line-height: 1.28;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
         }
-        .myoffers-tab.active { color: #a855f7; border-bottom-color: #a855f7; }
+        .myoffers-tab::after {
+            content: '';
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            bottom: 0;
+            height: 2px;
+            border-radius: 1px;
+            background: transparent;
+        }
+        .myoffers-tab.active { color: #a855f7; }
+        .myoffers-tab.active::after { background: #a855f7; }
         .offer-card {
             background: linear-gradient(145deg, #221a31 0%, #171322 100%);
             border: 1px solid #32294a;
@@ -480,15 +500,30 @@
             line-height: 1;
         }
         .menu-count-badge.hidden { display: none; }
-        .nav-sub { color: #cbd5e1; font-size: 14px; padding: 10px 20px 10px 55px; cursor: pointer; }
+        .nav-sub {
+            color: #cbd5e1;
+            font-size: 14px;
+            line-height: 1.35;
+            padding: 10px 20px 10px 55px;
+            cursor: pointer;
+            text-decoration: none;
+        }
         .nav-group-title {
-            padding: 10px 20px 4px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px 6px 20px;
             font-size: 11px;
             font-weight: 800;
             letter-spacing: 0.06em;
             color: #64748b;
             cursor: default;
             user-select: none;
+        }
+        .nav-group-title-icon {
+            font-size: 16px;
+            line-height: 1;
+            flex-shrink: 0;
         }
         .nav-sub--row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
         .theme-light .nav-group-title { color: #64748b; }
@@ -1206,7 +1241,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-myoffers-menu-i18n</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-myoffers-tab-nav</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -1854,7 +1889,10 @@
                 <div class="nav-icon-text"><span aria-hidden="true">📊</span> <span id="menuNavMarketplaceText">마켓플레이스</span></div>
             </div>
             <div class="nav-group">
-                <div class="nav-group-title" id="menuNavMyOffersGroup">내 제안</div>
+                <div class="nav-group-title">
+                    <span class="nav-group-title-icon" aria-hidden="true">🎟️</span>
+                    <span id="menuNavMyOffersGroup">내 제안</span>
+                </div>
                 <div class="nav-sub nav-sub--row" onclick="goToMyOffers()">
                     <span id="menuNavOffersActive">진행중</span>
                     <span id="myOffersCountBadge" class="menu-count-badge hidden">0</span>
@@ -3810,7 +3848,7 @@
             if (s === 'buyer_rejected_sell') return '구매자 거절';
             if (s === 'buyer_approved_sell') return 'USDT 전송 대기';
             if (s === 'seller_cancelled_sell') return '판매자 취소';
-            if (s === 'sell_coin_sent') return '법정화 입금 대기';
+            if (s === 'sell_coin_sent') return '구매자 입금 대기';
             if (s === 'sell_buyer_issue_coin') return 'USDT 전송 확인 요청';
             if (s === 'sell_fiat_paid') return '판매자 확인·완료 대기';
             if (s === 'sell_seller_issue_fiat') return '입금 재확인 요청';
