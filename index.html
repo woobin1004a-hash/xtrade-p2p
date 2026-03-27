@@ -1331,7 +1331,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-27-auto-return-modal-first</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-twa-return-and-modal-reset</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -2020,6 +2020,8 @@
         // Supabase REST 연결 정보
         const SUPABASE_URL = 'https://fasigdxixqvgxurineyo.supabase.co';
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
+        // Telegram Mini App 복귀 URL (Tonkeeper 승인 후 자동 복귀 힌트)
+        const TON_TWA_RETURN_URL = 'https://t.me/P2PxxBOT';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -5733,7 +5735,11 @@
             try {
                 tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
-                    buttonRootId: 'tonConnectButtonRoot'
+                    buttonRootId: 'tonConnectButtonRoot',
+                    actionsConfiguration: {
+                        // TWA-to-TWA 복귀 경로 명시
+                        twaReturnUrl: TON_TWA_RETURN_URL
+                    }
                 });
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
                 if (typeof tonConnectUIInstance.getWallets === 'function') {
@@ -5907,6 +5913,18 @@
                 tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
             );
             try {
+                // 이전 시도에서 남은 모달 상태가 있으면 먼저 닫아 버튼 무반응 상태를 줄임
+                if (typeof tonConnectUIInstance.closeModal === 'function') {
+                    try { tonConnectUIInstance.closeModal(); } catch (eClose) {}
+                }
+                // Add 모드에서 재연결할 때는 기존 세션을 먼저 끊고 시작 (already connected 상태 꼬임 방지)
+                if (
+                    tonWalletEditAddress === null &&
+                    tonConnectUIInstance.connected &&
+                    typeof tonConnectUIInstance.disconnect === 'function'
+                ) {
+                    try { await tonConnectUIInstance.disconnect(); } catch (eDisc) {}
+                }
                 // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
                 if (typeof tonConnectUIInstance.openModal === 'function') {
                     await tonConnectUIInstance.openModal();
