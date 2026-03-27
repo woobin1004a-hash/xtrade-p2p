@@ -1195,7 +1195,7 @@
     </style>
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 2026-03-26-offer-btn-light-22</div>
+    <div class="build-tag" id="buildTag">build: 2026-03-27-sell-flow-1</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -3750,6 +3750,12 @@
             applyLanguageMode();
         }
 
+        /** 주문의 side(buy/sell) — DB 컬럼 side 기준 */
+        function getOrderSide(order) {
+            if (order && order.side) return String(order.side);
+            return 'buy';
+        }
+
         function orderStatusLabel(status) {
             var s = String(status || 'pending_seller');
             if (s === 'pending_seller') return '판매자 승인 대기';
@@ -3762,6 +3768,15 @@
             if (s === 'buyer_confirmed') return '거래 완료';
             if (s === 'buyer_issue') return '확인 요청';
             if (s === 'buyer_cancelled') return '구매자 취소';
+            // 판매(USDT 매도) 플로우
+            if (s === 'pending_buyer') return '구매자 승인 대기';
+            if (s === 'buyer_rejected_sell') return '구매자 거절';
+            if (s === 'buyer_approved_sell') return 'USDT 전송 대기';
+            if (s === 'seller_cancelled_sell') return '판매자 취소';
+            if (s === 'sell_coin_sent') return '법정화 입금 대기';
+            if (s === 'sell_buyer_issue_coin') return 'USDT 전송 확인 요청';
+            if (s === 'sell_fiat_paid') return '판매자 확인·완료 대기';
+            if (s === 'sell_seller_issue_fiat') return '입금 재확인 요청';
             return s;
         }
 
@@ -3769,6 +3784,7 @@
             var s = String(status || '');
             if (s === 'buyer_confirmed') return 'done';
             if (s === 'seller_rejected' || s === 'buyer_cancelled') return 'reject';
+            if (s === 'buyer_rejected_sell' || s === 'seller_cancelled_sell') return 'reject';
             return 'active';
         }
 
@@ -3874,7 +3890,9 @@
                 if (!involved) return false;
                 var st = String(r.status || '');
                 // 미완료 건만 카운트(완료/거절/취소 제외)
-                return st !== 'buyer_confirmed' && st !== 'seller_rejected' && st !== 'buyer_cancelled';
+                var done = st === 'buyer_confirmed' || st === 'seller_rejected' || st === 'buyer_cancelled'
+                    || st === 'buyer_rejected_sell' || st === 'seller_cancelled_sell';
+                return !done;
             }).length;
             if (count <= 0) {
                 badge.classList.add('hidden');
@@ -3885,27 +3903,42 @@
             badge.textContent = count > 99 ? '99+' : String(count);
         }
 
+        /** 구매: pending_seller → 판매자 알림 / 판매: pending_buyer → 구매자(리스팅 주인) 알림 */
         function notifySellerForNewPendingOrders(rows) {
             var userId = String(currentUserId || '');
             if (!userId || !Array.isArray(rows)) return;
-            var newCount = 0;
+            var newBuyCount = 0;
+            var newSellCount = 0;
             rows.forEach(function (o) {
                 var id = String(o && o.id ? o.id : '');
                 var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
-                var isMySellOrder = String(r.sellerId || '') === userId;
-                var isPending = String(r.status || '') === 'pending_seller';
-                if (!id || !isMySellOrder || !isPending) return;
-                if (sellerAlertedOrderIds[id]) return;
-                sellerAlertedOrderIds[id] = 1;
-                newCount += 1;
+                if (!id || sellerAlertedOrderIds[id]) return;
+                var side = getOrderSide(o);
+                var st = String(r.status || '');
+                if (side === 'sell' && st === 'pending_buyer' && String(r.buyerId || '') === userId) {
+                    sellerAlertedOrderIds[id] = 1;
+                    newSellCount += 1;
+                } else if (side !== 'sell' && st === 'pending_seller' && String(r.sellerId || '') === userId) {
+                    sellerAlertedOrderIds[id] = 1;
+                    newBuyCount += 1;
+                }
             });
-            if (newCount > 0) {
+            if (newBuyCount > 0 || newSellCount > 0) {
                 saveSellerAlertedOrderIds();
-                var msg = newCount === 1
-                    ? '새 구매 요청 1건이 도착했습니다.'
-                    : ('새 구매 요청 ' + newCount + '건이 도착했습니다.');
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-                else alert(msg);
+                if (newBuyCount > 0) {
+                    var msgB = newBuyCount === 1
+                        ? '새 구매 요청 1건이 도착했습니다.'
+                        : ('새 구매 요청 ' + newBuyCount + '건이 도착했습니다.');
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgB);
+                    else alert(msgB);
+                }
+                if (newSellCount > 0) {
+                    var msgS = newSellCount === 1
+                        ? '새 판매 신청 1건이 도착했습니다.'
+                        : ('새 판매 신청 ' + newSellCount + '건이 도착했습니다.');
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgS);
+                    else alert(msgS);
+                }
             }
         }
 
@@ -4095,7 +4128,11 @@
             }
             if (dom.orderBuyDepositNameInput) dom.orderBuyDepositNameInput.value = myBankHolderName;
             if (dom.orderSellReceiveAccountInput) dom.orderSellReceiveAccountInput.value = myBankAccountNumber;
-            if (dom.orderSellWalletAddressInput) dom.orderSellWalletAddressInput.value = myTonAddr ? formatOrderWalletAddress(String(myTonAddr)) : '';
+            if (dom.orderSellWalletAddressInput) {
+                var sellWalletRaw = myTonAddr ? String(myTonAddr) : '';
+                dom.orderSellWalletAddressInput.value = sellWalletRaw ? formatOrderWalletAddress(sellWalletRaw) : '';
+                dom.orderSellWalletAddressInput.dataset.rawWalletAddress = sellWalletRaw;
+            }
             orderFlowState.buyUnitPrice = Number(found.sellPriceKrW || 0);
             orderFlowState.sellUnitPrice = Number(found.buyPriceKrW || 0);
 
@@ -4139,23 +4176,55 @@
                     receiver.receiverWalletAddress = '';
                 }
                 receiver.depositName = dom.orderBuyDepositNameInput ? dom.orderBuyDepositNameInput.value : '';
+                receiver.status = 'pending_seller';
+                receiver.buyerId = String(currentUserId || '');
+                receiver.buyerName = String(currentUserName || 'User');
+                receiver.sellerId = String(orderFlowState.listingOwnerId || '');
+                receiver.sellerName = String(orderFlowState.listingOwnerName || 'User');
+                receiver.sellerBankText = String(orderFlowState.listingBankText || '');
+                receiver.sellerBankAccountId = String(orderFlowState.listingBankAccountId || '');
+                var listingBank = parseBankTextParts(orderFlowState.listingBankText || '');
+                receiver.sellerBankName = listingBank.bankName || '';
+                receiver.sellerBankAccountNumber = listingBank.accountNumber || '';
+                receiver.sellerBankAccountHolder = listingBank.accountHolder || '';
+                receiver.sellerTonWalletAddress = String(orderFlowState.listingTonWalletAddress || '');
             } else {
+                // 판매: 리스팅 주인이 USDT를 사고, 주문자가 USDT를 팜 → buyerId=리스팅 주인, sellerId=주문자
+                var sellWalletRaw = '';
+                if (dom.orderSellWalletAddressInput) {
+                    sellWalletRaw = String(
+                        dom.orderSellWalletAddressInput.dataset.rawWalletAddress || dom.orderSellWalletAddressInput.value || ''
+                    ).replace(/\s+/g, '');
+                }
                 receiver.receiveAccountNumber = dom.orderSellReceiveAccountInput ? dom.orderSellReceiveAccountInput.value : '';
-                receiver.receiverWalletAddress = dom.orderSellWalletAddressInput ? dom.orderSellWalletAddressInput.value : '';
+                receiver.receiverWalletAddress = sellWalletRaw;
+                receiver.buyerReceiverWalletAddress = String(orderFlowState.listingTonWalletAddress || '');
+                receiver.status = 'pending_buyer';
+                receiver.buyerId = String(orderFlowState.listingOwnerId || '');
+                receiver.buyerName = String(orderFlowState.listingOwnerName || 'User');
+                receiver.sellerId = String(currentUserId || '');
+                receiver.sellerName = String(currentUserName || 'User');
+                var banks = loadBankAccounts();
+                var defaultBankId = localStorage.getItem(STORAGE.DEFAULT_BANK_ACCOUNT_ID);
+                var myBank = (Array.isArray(banks) ? banks : []).find(function (a) {
+                    return String(a.id) === String(defaultBankId);
+                });
+                if (myBank) {
+                    receiver.sellerBankName = String(myBank.bank || '');
+                    receiver.sellerBankAccountNumber = String(myBank.accountNumber || '');
+                    receiver.sellerBankAccountHolder = String(myBank.accountHolder || '');
+                    receiver.sellerBankText = receiver.sellerBankName + ' | ' + receiver.sellerBankAccountNumber + ' | ' + receiver.sellerBankAccountHolder;
+                    receiver.sellerBankAccountId = String(myBank.id || '');
+                } else {
+                    receiver.sellerBankName = '';
+                    receiver.sellerBankAccountNumber = String(receiver.receiveAccountNumber || '');
+                    receiver.sellerBankAccountHolder = '';
+                    receiver.sellerBankText = '';
+                    receiver.sellerBankAccountId = '';
+                }
+                receiver.sellerTonWalletAddress = '';
             }
 
-            receiver.status = 'pending_seller';
-            receiver.buyerId = String(currentUserId || '');
-            receiver.buyerName = String(currentUserName || 'User');
-            receiver.sellerId = String(orderFlowState.listingOwnerId || '');
-            receiver.sellerName = String(orderFlowState.listingOwnerName || 'User');
-            receiver.sellerBankText = String(orderFlowState.listingBankText || '');
-            receiver.sellerBankAccountId = String(orderFlowState.listingBankAccountId || '');
-            var listingBank = parseBankTextParts(orderFlowState.listingBankText || '');
-            receiver.sellerBankName = listingBank.bankName || '';
-            receiver.sellerBankAccountNumber = listingBank.accountNumber || '';
-            receiver.sellerBankAccountHolder = listingBank.accountHolder || '';
-            receiver.sellerTonWalletAddress = String(orderFlowState.listingTonWalletAddress || '');
             receiver.sellerApprovedAt = null;
             receiver.buyerPaidAt = null;
             receiver.sellerSentAt = null;
@@ -4195,7 +4264,9 @@
             }
 
             var msg = posted
-                ? (sideTxt + ' 주문이 접수되었습니다. 판매자 승인을 기다려주세요.')
+                ? (orderFlowState.side === 'sell'
+                    ? '판매 신청이 접수되었습니다. 구매자(리스팅 주인) 승인을 기다려주세요.'
+                    : (sideTxt + ' 주문이 접수되었습니다. 판매자 승인을 기다려주세요.'))
                 : (sideTxt + ' 주문 저장이 실패했습니다. ' + (errDetail ? ('· ' + errDetail) : ''));
 
             if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
@@ -4274,7 +4345,8 @@
                 var involved = String(r.buyerId || '') === userId || String(r.sellerId || '') === userId;
                 if (!involved) return false;
                 var st = String(r.status || '');
-                var finished = st === 'buyer_confirmed' || st === 'seller_rejected' || st === 'buyer_cancelled';
+                var finished = st === 'buyer_confirmed' || st === 'seller_rejected' || st === 'buyer_cancelled'
+                    || st === 'buyer_rejected_sell' || st === 'seller_cancelled_sell';
                 return showHistory ? finished : !finished;
             });
             if (!rows.length) {
@@ -4283,7 +4355,8 @@
             }
             wrap.innerHTML = rows.map(function (o) {
                 var r = o && o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
-                var status = String(r.status || 'pending_seller');
+                var orderSide = getOrderSide(o);
+                var status = String(r.status || (orderSide === 'sell' ? 'pending_buyer' : 'pending_seller'));
                 var statusTone = orderStatusTone(status);
                 var youAreBuyer = String(r.buyerId || '') === userId;
                 var counterName = youAreBuyer ? String(r.sellerName || '판매자') : String(r.buyerName || '구매자');
@@ -4291,7 +4364,60 @@
                 var price = Number(o.usdt || 0) > 0 ? (Number(o.krw || 0) / Number(o.usdt || 0)) : 0;
 
                 var extra = '';
-                if (status === 'seller_approved' && youAreBuyer) {
+                if (orderSide === 'sell') {
+                    if (status === 'buyer_approved_sell' && !youAreBuyer) {
+                        var coinTo = String(r.buyerReceiverWalletAddress || '');
+                        var coinToEsc = escapeJsSingleQuote(coinTo);
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            (coinTo
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc + '\', \'지갑주소\')">' + escapeHtml(coinTo) + '</span>')
+                                : '-') +
+                            '</div></div>';
+                    } else if (status === 'sell_buyer_issue_coin' && !youAreBuyer) {
+                        var coinTo2 = String(r.buyerReceiverWalletAddress || '');
+                        var coinToEsc2 = escapeJsSingleQuote(coinTo2);
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            (coinTo2
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc2 + '\', \'지갑주소\')">' + escapeHtml(coinTo2) + '</span>')
+                                : '-') +
+                            '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
+                    } else if (status === 'sell_coin_sent' && youAreBuyer) {
+                        var bankS = {
+                            bankName: String(r.sellerBankName || ''),
+                            accountNumber: String(r.sellerBankAccountNumber || ''),
+                            accountHolder: String(r.sellerBankAccountHolder || '')
+                        };
+                        if (!bankS.bankName && !bankS.accountNumber && !bankS.accountHolder) {
+                            bankS = parseBankTextParts(r.sellerBankText || '');
+                        }
+                        var accNumSEsc = escapeJsSingleQuote(bankS.accountNumber || '');
+                        extra =
+                            '<div class="offer-divider"></div>' +
+                            '<div class="offer-line"><div class="offer-k">판매자 계좌(입금)</div><div class="offer-v">' + escapeHtml(bankS.bankName || '-') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">계좌번호</div><div class="offer-v">' +
+                            (bankS.accountNumber
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumSEsc + '\', \'계좌번호\')">' + escapeHtml(bankS.accountNumber) + '</span>')
+                                : '-') +
+                            '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">예금주</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v">' + escapeHtml(r.txid || '-') + '</div></div>';
+                    } else if (status === 'sell_fiat_paid' && !youAreBuyer && r.sellBuyerFiatVerifyRequested) {
+                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">구매자가 법정화 입금 완료를 알렸습니다. 입금 확인 후 거래를 완료해주세요.</div></div>';
+                    } else if (status === 'sell_fiat_paid' && youAreBuyer) {
+                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 확인 및 거래 완료할 때까지 기다려주세요.</div></div>';
+                    } else if (status === 'sell_seller_issue_fiat' && youAreBuyer) {
+                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">판매자가 입금 재확인을 요청했습니다.</div></div>';
+                    } else if (status === 'sell_seller_issue_fiat' && !youAreBuyer) {
+                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">진행 상태</div><div class="offer-v">구매자에게 입금 재확인을 요청했습니다.</div></div>';
+                    } else if (status === 'sell_buyer_issue_coin') {
+                        extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">확인 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>';
+                    }
+                } else if (status === 'seller_approved' && youAreBuyer) {
                     var bankParts = {
                         bankName: String(r.sellerBankName || ''),
                         accountNumber: String(r.sellerBankAccountNumber || ''),
@@ -4345,6 +4471,7 @@
                             '<div class="offer-status offer-status--' + statusTone + '">' + escapeHtml(orderStatusLabel(status)) + '</div>' +
                         '</div>' +
                         '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' + Math.floor(price).toLocaleString() + ' KRW/USDT</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">유형</div><div class="offer-v">' + (orderSide === 'sell' ? 'USDT 판매' : 'USDT 구매') + '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' + Number(o.usdt || 0).toLocaleString() + ' USDT</div></div>' +
                         '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' + total + '</div></div>' +
                         extra +
@@ -4356,6 +4483,42 @@
         function buildOrderActionButtons(order, status, youAreBuyer) {
             var id = String(order && order.id ? order.id : '');
             if (!id) return '';
+            var side = getOrderSide(order);
+            if (side === 'sell') {
+                if (youAreBuyer && status === 'pending_buyer') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">거절</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">승인</button>';
+                }
+                if (!youAreBuyer && status === 'pending_buyer') {
+                    return '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">신청 취소</button>';
+                }
+                if (!youAreBuyer && status === 'buyer_approved_sell') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                }
+                if (youAreBuyer && status === 'sell_coin_sent') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">확인요청</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
+                }
+                if (!youAreBuyer && status === 'sell_buyer_issue_coin') {
+                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송 완료</button>';
+                }
+                if (!youAreBuyer && status === 'sell_fiat_paid') {
+                    return '' +
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_sell_fiat\')">확인요청</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+                }
+                if (youAreBuyer && status === 'sell_seller_issue_fiat') {
+                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금완료(재확인)</button>';
+                }
+                if (!youAreBuyer && status === 'sell_seller_issue_fiat') {
+                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+                }
+                return '';
+            }
             if (!youAreBuyer && status === 'pending_seller') {
                 return '' +
                     '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">거절</button>' +
@@ -4406,6 +4569,69 @@
             if (!target) return;
             var receiver = Object.assign({}, (target.receiver && typeof target.receiver === 'object') ? target.receiver : {});
             var now = Number(Date.now());
+            var side = getOrderSide(target);
+            var r0 = receiver;
+            var uid0 = String(currentUserId || '');
+            var youAreBuyer0 = String(r0.buyerId || '') === uid0;
+            var youAreSeller0 = String(r0.sellerId || '') === uid0;
+
+            // USDT 판매 주문: 구매자(리스팅 주인) 승인 → 판매자 전송 → 구매자 법정화 입금 → 판매자 완료
+            if (side === 'sell') {
+                if (action === 'approve') {
+                    if (!youAreBuyer0 || String(r0.status) !== 'pending_buyer') return;
+                    receiver.status = 'buyer_approved_sell';
+                    receiver.buyerApprovedAt = now;
+                } else if (action === 'reject') {
+                    if (!youAreBuyer0 || String(r0.status) !== 'pending_buyer') return;
+                    receiver.status = 'buyer_rejected_sell';
+                } else if (action === 'cancel') {
+                    if (!youAreSeller0 || (String(r0.status) !== 'pending_buyer' && String(r0.status) !== 'buyer_approved_sell')) return;
+                    receiver.status = 'seller_cancelled_sell';
+                    receiver.sellerCancelledAt = now;
+                } else if (action === 'sent') {
+                    if (!youAreSeller0 || (String(r0.status) !== 'buyer_approved_sell' && String(r0.status) !== 'sell_buyer_issue_coin')) return;
+                    var txidSell = prompt('전송 TxID를 입력해주세요 (선택).') || '';
+                    receiver.status = 'sell_coin_sent';
+                    receiver.sellerSentAt = now;
+                    receiver.txid = String(txidSell || '').trim();
+                } else if (action === 'issue') {
+                    if (!youAreBuyer0 || String(r0.status) !== 'sell_coin_sent') return;
+                    var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
+                    receiver.status = 'sell_buyer_issue_coin';
+                    receiver.issueNote = String(noteSell || 'USDT 전송 확인 요청');
+                    receiver.issueRaisedAt = now;
+                } else if (action === 'paid') {
+                    if (!youAreBuyer0) return;
+                    if (String(r0.status) === 'sell_coin_sent' || String(r0.status) === 'sell_seller_issue_fiat') {
+                        receiver.status = 'sell_fiat_paid';
+                        receiver.buyerPaidAt = now;
+                        receiver.sellBuyerFiatVerifyRequested = true;
+                    } else {
+                        return;
+                    }
+                } else if (action === 'issue_sell_fiat') {
+                    if (!youAreSeller0 || String(r0.status) !== 'sell_fiat_paid') return;
+                    receiver.status = 'sell_seller_issue_fiat';
+                    receiver.sellerFiatIssueAt = now;
+                } else if (action === 'confirm') {
+                    if (!youAreSeller0 || (String(r0.status) !== 'sell_fiat_paid' && String(r0.status) !== 'sell_seller_issue_fiat')) return;
+                    receiver.status = 'buyer_confirmed';
+                    receiver.buyerConfirmedAt = now;
+                } else {
+                    return;
+                }
+                receiver.updatedAt = now;
+                try {
+                    await patchOrderReceiverToSupabase(orderId, receiver);
+                    await refreshMyOffers();
+                } catch (e) {
+                    var msgS = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgS);
+                    else alert(msgS);
+                }
+                return;
+            }
+
             if (action === 'approve') {
                 receiver.status = 'seller_approved';
                 receiver.sellerApprovedAt = now;
