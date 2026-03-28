@@ -2604,12 +2604,11 @@
                 } catch (eKick) {}
             }
             kick();
+            // 지연마다 숨김만 반복 — 중간에 restoreTonConnectWidgetRootVisible를 호출하면
+            // TonConnect가 같은 모달 DOM을 다시 그려 "Confirm in Tonkeeper"가 부활함(사용자 제보와 동일).
             [80, 280, 700, 1800].forEach(function (ms) {
                 setTimeout(function () {
                     kick();
-                    try {
-                        restoreTonConnectWidgetRootVisible();
-                    } catch (eVis) {}
                 }, ms);
             });
             setTimeout(function () {
@@ -2617,6 +2616,57 @@
                     restoreTonConnectionSafe();
                 } catch (eRest) {}
             }, 160);
+            // 다음 연결·전송을 위해 위젯 루트는 모달이 닫힌 뒤 한 번만 복구
+            setTimeout(function () {
+                try {
+                    closeTonConnectModalOnly();
+                    restoreTonConnectWidgetRootVisible();
+                    restoreTonConnectionSafe();
+                } catch (eFinalRestore) {}
+            }, 1100);
+        }
+
+        /** 전송이 이미 반영된 뒤 복귀했을 때 짧은 영문 안내(왼쪽 상단 토스트) */
+        function showTonTransferCompletedHintEn() {
+            try {
+                if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+                    tg.HapticFeedback.notificationOccurred('success');
+                }
+            } catch (eH) {}
+            var el = document.createElement('div');
+            el.className = 'ton-transfer-toast';
+            el.setAttribute('role', 'status');
+            el.textContent = 'Transfer completed.';
+            try {
+                document.body.appendChild(el);
+                requestAnimationFrame(function () {
+                    el.classList.add('ton-transfer-toast--visible');
+                });
+            } catch (eApp) {
+                if (tg && typeof tg.showPopup === 'function') {
+                    try {
+                        tg.showPopup(
+                            { title: '', message: 'Transfer completed.', buttons: [{ type: 'ok', id: 'ok', text: 'OK' }] },
+                            function () {}
+                        );
+                    } catch (eP) {}
+                } else if (tg && typeof tg.showAlert === 'function') {
+                    try {
+                        tg.showAlert('Transfer completed.');
+                    } catch (eA) {}
+                }
+                return;
+            }
+            setTimeout(function () {
+                try {
+                    el.classList.add('ton-transfer-toast--out');
+                } catch (eO) {}
+                setTimeout(function () {
+                    try {
+                        if (el.parentNode) el.parentNode.removeChild(el);
+                    } catch (eRm) {}
+                }, 380);
+            }, 2200);
         }
 
         /** 모달 닫기 + 연결 복원(앱 알림·오버레이 정리용) */
@@ -2661,6 +2711,19 @@
                 return;
             }
             var st = String(receiver.status || '');
+            // sendTransaction 결과가 먼저 반영돼 상태가 이미 전송 완료인 경우(스크린샷: 구매자 확인 대기)
+            if (p.side === 'buy' && st === 'seller_sent') {
+                tonOrderSendPending = null;
+                forceDismissTonConnectSendUi();
+                showTonTransferCompletedHintEn();
+                return;
+            }
+            if (p.side === 'sell' && st === 'sell_coin_sent') {
+                tonOrderSendPending = null;
+                forceDismissTonConnectSendUi();
+                showTonTransferCompletedHintEn();
+                return;
+            }
             if (p.side === 'sell') {
                 if (st !== 'buyer_approved_sell' && st !== 'sell_buyer_issue_coin' && st !== 'sell_buyer_pending_coin_ack') {
                     tonOrderSendPending = null;

@@ -1377,4 +1377,38 @@
         .theme-light .order-submitted-modal-message {
             color: #1e293b;
         }
+
+        /* TON 전송 완료 짧은 영문 토스트(텔레그램 복귀 UX) */
+        .ton-transfer-toast {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 100002;
+            max-width: 78%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #f8fafc;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.28s ease, transform 0.28s ease;
+            pointer-events: none;
+        }
+        .ton-transfer-toast--visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .ton-transfer-toast--out {
+            opacity: 0;
+            transform: translateY(-6px);
+        }
+        .theme-light .ton-transfer-toast {
+            color: #0f172a;
+            background: rgba(255, 255, 255, 0.96);
+            border-color: rgba(148, 163, 184, 0.45);
+        }
     
