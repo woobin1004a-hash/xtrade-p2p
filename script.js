@@ -4267,6 +4267,12 @@
             try {
                 if (tonConnectUIInstance.account) return tonConnectUIInstance.account;
             } catch (e0) {}
+            // @tonconnect/ui 일부 상태에서 UI 인스턴스의 wallet.account만 채워지는 경우
+            try {
+                if (tonConnectUIInstance.wallet && tonConnectUIInstance.wallet.account) {
+                    return tonConnectUIInstance.wallet.account;
+                }
+            } catch (eW) {}
             try {
                 var c = tonConnectUIInstance.connector;
                 if (c && c.account) return c.account;
