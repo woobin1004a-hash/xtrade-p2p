@@ -2550,18 +2550,23 @@
             } catch (e) {}
         }
 
-        /** TonConnect 모달만 닫기(restore 없음 — sendTransaction 직후 restore가 SDK와 충돌할 수 있음) */
+        /**
+         * TonConnect 모달만 닫기(restore 없음 — sendTransaction 직후 restore가 SDK와 충돌할 수 있음)
+         * 주의: closeModal()/closeSingleWalletModal에 'action-cancelled'를 넘기면 SDK가
+         * "Transaction canceled" 토스트를 띄움 — 전송 성공 후 텔레그램 복귀 시에도 동일하게 호출되므로
+         * 닫기 사유는 'wallet-selected'만 사용합니다(@tonconnect/ui WalletsModalCloseReason).
+         */
         function closeTonConnectModalOnly() {
             try {
                 if (tonConnectUIInstance) {
                     if (typeof tonConnectUIInstance.closeModal === 'function') {
-                        try { tonConnectUIInstance.closeModal(); } catch (e0) {}
+                        try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (e0) {}
                     }
                     if (typeof tonConnectUIInstance.closeSingleWalletModal === 'function') {
-                        try { tonConnectUIInstance.closeSingleWalletModal('action-cancelled'); } catch (eSw) {}
+                        try { tonConnectUIInstance.closeSingleWalletModal('wallet-selected'); } catch (eSw) {}
                     }
                     if (tonConnectUIInstance.modal && typeof tonConnectUIInstance.modal.close === 'function') {
-                        try { tonConnectUIInstance.modal.close(); } catch (e0b) {}
+                        try { tonConnectUIInstance.modal.close('wallet-selected'); } catch (e0b) {}
                     }
                     if (tonConnectUIInstance.ui && typeof tonConnectUIInstance.ui.close === 'function') {
                         try { tonConnectUIInstance.ui.close(); } catch (e1) {}
@@ -4540,7 +4545,7 @@
                                 return;
                             }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
-                                try { tonConnectUIInstance.closeModal(); } catch (eCloseVisible) {}
+                                try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseVisible) {}
                             }
                             restoreTonConnectionSafe();
                         }
@@ -4557,7 +4562,7 @@
                             return;
                         }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
-                            try { tonConnectUIInstance.closeModal(); } catch (eCloseFocus) {}
+                            try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseFocus) {}
                         }
                         restoreTonConnectionSafe();
                     });
@@ -4718,7 +4723,7 @@
             try {
                 // 이전 시도에서 남은 모달 상태가 있으면 먼저 닫아 버튼 무반응 상태를 줄임
                 if (typeof tonConnectUIInstance.closeModal === 'function') {
-                    try { tonConnectUIInstance.closeModal(); } catch (eClose) {}
+                    try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eClose) {}
                 }
                 // Add 모드에서 재연결할 때는 기존 세션을 먼저 끊고 시작 (already connected 상태 꼬임 방지)
                 if (
