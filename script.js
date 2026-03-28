@@ -338,7 +338,7 @@
         function isLikelyTestnetModeForUsdt() {
             // 테스트넷 마스터를 저장해둔 경우 테스트넷 조회를 우선
             if (getSavedUsdtTestnetMasterAddress()) return true;
-            var account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            var account = getTonConnectAccountSnapshot();
             return !!(account && String(account.chain || '') === '-3');
         }
 
@@ -4258,6 +4258,23 @@
             }
         }
 
+        /**
+         * UI.account만 비고 connector 쪽에만 account가 있는 경우 대비(SDK 동작).
+         * 보관본 단순 로직은 유지하되 주소·체인 읽기 경로만 통일.
+         */
+        function getTonConnectAccountSnapshot() {
+            if (!tonConnectUIInstance) return null;
+            try {
+                if (tonConnectUIInstance.account) return tonConnectUIInstance.account;
+            } catch (e0) {}
+            try {
+                var c = tonConnectUIInstance.connector;
+                if (c && c.account) return c.account;
+                if (c && c.wallet && c.wallet.account) return c.wallet.account;
+            } catch (e1) {}
+            return null;
+        }
+
         /** 마이페이지 요약: 등록된 모든 지갑의 USDT 잔액 합계 */
         function refreshMyPageUsdtBalance() {
             var el = dom.mypageUsdtBalance || document.getElementById('mypageUsdtBalance');
@@ -4644,7 +4661,7 @@
 
             // Detect connection status changes
             tonConnectUIInstance.onStatusChange(() => {
-                const account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+                const account = getTonConnectAccountSnapshot();
                 const address = getTonAddressFromAccount(account);
 
                 if (address) {
@@ -4750,8 +4767,8 @@
         }
 
         /**
-         * TonConnect 지갑 연결 모달 (보관본 script.js와 동일 흐름).
-         * opts.skipDisconnectForTransfer === true 인 경우만: 전송하기 경로에서 기존 세션 disconnect 생략(등록용 모달과 구분).
+         * TonConnect 지갑 연결 모달 (보관본 흐름 + 전송 후 숨긴 위젯 루트 복구 필수).
+         * opts.skipDisconnectForTransfer === true: 전송 경로에서만 disconnect 생략.
          */
         async function openTonConnectModal(opts) {
             var o = opts && typeof opts === 'object' ? opts : {};
@@ -4763,11 +4780,13 @@
                 else alert(noUiMsg);
                 return;
             }
+            // sendTransaction 정리 시 hideTonConnectWidgetRootHard()로 루트가 숨겨지면 openModal이 보이지 않음 → 반드시 복구
+            try {
+                restoreTonConnectWidgetRootVisible();
+            } catch (eRw) {}
             // 사용자가 실제로 연결 버튼을 누른 경우에만 자동 입력 허용
             tonAddressAutofillArmed = true;
-            var before = getTonAddressFromAccount(
-                tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
-            );
+            var before = getTonAddressFromAccount(getTonConnectAccountSnapshot());
             try {
                 // 이전 시도에서 남은 모달 상태가 있으면 먼저 닫아 버튼 무반응 상태를 줄임
                 if (typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4793,18 +4812,14 @@
                     throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
                 }
                 // 모달에서 실제로 지갑이 바뀐 경우에만 입력란에 반영
-                var connectedNow = getTonAddressFromAccount(
-                    tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
-                );
+                var connectedNow = getTonAddressFromAccount(getTonConnectAccountSnapshot());
                 if (connectedNow && connectedNow !== before && dom.walletAddressInput) {
                     dom.walletAddressInput.value = connectedNow;
                     tonAddressAutofillArmed = false;
                 }
                 // 모달이 즉시 닫히는 환경 대응: 연결 결과를 짧게 재확인
                 setTimeout(function () {
-                    var after = getTonAddressFromAccount(
-                        tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
-                    );
+                    var after = getTonAddressFromAccount(getTonConnectAccountSnapshot());
                     if (after && after !== before && dom.walletAddressInput) {
                         dom.walletAddressInput.value = after;
                         tonAddressAutofillArmed = false;
@@ -4830,7 +4845,7 @@
         }
 
         function isTonTestnetConnected() {
-            var account = tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            var account = getTonConnectAccountSnapshot();
             if (!account || typeof account !== 'object') return false;
             return String(account.chain || '') === '-3';
         }
@@ -4841,11 +4856,11 @@
             if (!tonConnectUIInstance) {
                 throw new Error('TON Connect를 불러오지 못했습니다.');
             }
-            var account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+            var account = getTonConnectAccountSnapshot();
             var address = getTonAddressFromAccount(account);
             if (!address) {
                 await openTonConnectModal({ skipDisconnectForTransfer: true });
-                account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+                account = getTonConnectAccountSnapshot();
                 address = getTonAddressFromAccount(account);
             }
             if (!address) throw new Error('연결된 TON 지갑이 없습니다.');
@@ -5114,9 +5129,7 @@
             initTonConnectUIIfNeeded();
 
             // Add 화면에서는 자동 프리필하지 않음(연결 버튼 성공 시에만 채움)
-            const connected = getTonAddressFromAccount(
-                tonConnectUIInstance && tonConnectUIInstance.account ? tonConnectUIInstance.account : null
-            );
+            const connected = getTonAddressFromAccount(getTonConnectAccountSnapshot());
             if (dom.walletAddressInput) dom.walletAddressInput.value = '';
             if (dom.walletLabelInput) dom.walletLabelInput.value = '';
 
