@@ -2589,6 +2589,36 @@
             }
         }
 
+        /**
+         * 전송이 온체인/서버에 반영된 뒤에도 Open Wallet 레이어가 남는 경우 강제 정리.
+         * sendUsdtJettonOnTestnet의 finally(450ms 지연) 동안 tonSendTransactionInFlight가 true라
+         * closeTonConnectModalAggressive(true)가 위젯 루트를 숨기지 못하는 것이 주 원인.
+         */
+        function forceDismissTonConnectSendUi() {
+            clearTonRestoreWhileSendTimers();
+            tonSendTransactionInFlight = false;
+            function kick() {
+                try {
+                    closeTonConnectModalOnly();
+                    hideTonConnectWidgetRootHard();
+                } catch (eKick) {}
+            }
+            kick();
+            [80, 280, 700, 1800].forEach(function (ms) {
+                setTimeout(function () {
+                    kick();
+                    try {
+                        restoreTonConnectWidgetRootVisible();
+                    } catch (eVis) {}
+                }, ms);
+            });
+            setTimeout(function () {
+                try {
+                    restoreTonConnectionSafe();
+                } catch (eRest) {}
+            }, 160);
+        }
+
         /** 모달 닫기 + 연결 복원(앱 알림·오버레이 정리용) */
         function forceCloseTonConnectUI() {
             closeTonConnectModalOnly();
@@ -2662,43 +2692,19 @@
                 return;
             }
             tonOrderSendPending = null;
-            try {
-                closeTonConnectModalAggressive(true);
-                restoreTonConnectionSafe();
-                restoreTonConnectWidgetRootVisible();
-            } catch (e2) {}
-            // sendTransaction의 finally보다 늦게 도는 경우에도 남는 Open Wallet 레이어 제거
-            setTimeout(function () {
-                try {
-                    closeTonConnectModalOnly();
-                    hideTonConnectWidgetRootHard();
-                    restoreTonConnectWidgetRootVisible();
-                } catch (e3) {}
-            }, 750);
+            forceDismissTonConnectSendUi();
         }
 
         /** Tonkeeper → 텔레그램 복귀·포커스 시: 모달 정리 + 전송 완료 처리(디바운스) */
         function scheduleTonOrderSendCompleteOnTelegramReturn() {
             if (!tonOrderSendPending || !tonOrderSendPending.orderId) {
                 try {
-                    closeTonConnectModalAggressive(true);
-                    restoreTonConnectionSafe();
-                    restoreTonConnectWidgetRootVisible();
+                    forceDismissTonConnectSendUi();
                 } catch (e) {}
                 return;
             }
             try {
-                closeTonConnectModalAggressive(!tonSendTransactionInFlight);
-                setTimeout(function () {
-                    try {
-                        closeTonConnectModalAggressive(!tonSendTransactionInFlight);
-                    } catch (e1) {}
-                }, 120);
-                setTimeout(function () {
-                    try {
-                        closeTonConnectModalAggressive(!tonSendTransactionInFlight);
-                    } catch (e2) {}
-                }, 400);
+                forceDismissTonConnectSendUi();
             } catch (e0) {}
             void tryCompleteTonOrderSendOnTelegramReturn();
             if (tonTelegramReturnCompleteTimer) {
@@ -3359,12 +3365,14 @@
                         if (tonOrderSendResolvedByReturn) {
                             tonOrderSendResolvedByReturn = false;
                             tonOrderSendPending = null;
+                            forceDismissTonConnectSendUi();
                             return;
                         }
                     } catch (sendErrSell) {
                         if (tonOrderSendResolvedByReturn) {
                             tonOrderSendResolvedByReturn = false;
                             tonOrderSendPending = null;
+                            forceDismissTonConnectSendUi();
                             return;
                         }
                         if (isTonTxTimeoutAfterApprovalError(sendErrSell)) {
@@ -3373,6 +3381,7 @@
                         var completedSell = await confirmManualTransferCompletion(sendErrSell);
                         if (!completedSell) {
                             tonOrderSendPending = null;
+                            forceDismissTonConnectSendUi();
                             var sendMsgSell = '전송 실패: ' + String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
                             if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgSell);
                             else alert(sendMsgSell);
@@ -3381,6 +3390,7 @@
                         txidSell = 'MANUAL_CONFIRMED_TX';
                         }
                     }
+                    forceDismissTonConnectSendUi();
                     tonOrderSendPending = null;
                     receiver.status = 'sell_coin_sent';
                     receiver.sellerSentAt = now;
@@ -3495,12 +3505,14 @@
                     if (tonOrderSendResolvedByReturn) {
                         tonOrderSendResolvedByReturn = false;
                         tonOrderSendPending = null;
+                        forceDismissTonConnectSendUi();
                         return;
                     }
                 } catch (sendErrBuy) {
                     if (tonOrderSendResolvedByReturn) {
                         tonOrderSendResolvedByReturn = false;
                         tonOrderSendPending = null;
+                        forceDismissTonConnectSendUi();
                         return;
                     }
                     if (isTonTxTimeoutAfterApprovalError(sendErrBuy)) {
@@ -3509,6 +3521,7 @@
                     var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
                     if (!completedBuy) {
                         tonOrderSendPending = null;
+                        forceDismissTonConnectSendUi();
                         var sendMsgBuy = '전송 실패: ' + String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
                         if (tg && typeof tg.showAlert === 'function') tg.showAlert(sendMsgBuy);
                         else alert(sendMsgBuy);
@@ -3517,6 +3530,7 @@
                     txid = 'MANUAL_CONFIRMED_TX';
                     }
                 }
+                forceDismissTonConnectSendUi();
                 tonOrderSendPending = null;
                 receiver.status = 'seller_sent';
                 receiver.sellerSentAt = now;
