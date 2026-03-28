@@ -3403,6 +3403,33 @@
             return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
         }
 
+        /** 지갑 미연결·테스트넷·주소 등 '전송 시도 전' 실패 — 수동 완료 확인(톤키퍼에서 이미 보냈나요?)을 띄우면 안 됨 */
+        function shouldOfferManualTransferConfirm(err) {
+            var blob = '';
+            try {
+                if (err && typeof err === 'object' && err.message) blob += String(err.message) + ' ';
+            } catch (e0) {}
+            try {
+                blob += String(err || '');
+            } catch (e1) {}
+            var deny = [
+                '연결된 TON 지갑이 없습니다',
+                '테스트넷 지갑으로 연결해 주세요',
+                'TON Connect를 불러오지 못했습니다',
+                '테스트넷 USDT 마스터',
+                '마스킹 주소',
+                '마스킹되어',
+                '수신 지갑 주소가 없습니다',
+                '수취 지갑',
+                '지갑 전송 기능을 사용할 수 없습니다',
+                'TON 지갑 연결 창을 열지 못했습니다'
+            ];
+            for (var i = 0; i < deny.length; i++) {
+                if (blob.indexOf(deny[i]) !== -1) return false;
+            }
+            return true;
+        }
+
         async function handleOrderAction(orderId, action) {
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
                 return String(o.id) === String(orderId);
@@ -3457,6 +3484,13 @@
                         }
                         if (isTonTxTimeoutAfterApprovalError(sendErrSell)) {
                             txidSell = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
+                        } else if (!shouldOfferManualTransferConfirm(sendErrSell)) {
+                            tonOrderSendPending = null;
+                            forceDismissTonConnectSendUi();
+                            var preSell = String(sendErrSell && sendErrSell.message ? sendErrSell.message : sendErrSell);
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(preSell);
+                            else alert(preSell);
+                            return;
                         } else {
                         var completedSell = await confirmManualTransferCompletion(sendErrSell);
                         if (!completedSell) {
@@ -3597,6 +3631,13 @@
                     }
                     if (isTonTxTimeoutAfterApprovalError(sendErrBuy)) {
                         txid = 'TIMEOUT_AFTER_APPROVAL_ASSUMED_OK';
+                    } else if (!shouldOfferManualTransferConfirm(sendErrBuy)) {
+                        tonOrderSendPending = null;
+                        forceDismissTonConnectSendUi();
+                        var preBuy = String(sendErrBuy && sendErrBuy.message ? sendErrBuy.message : sendErrBuy);
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(preBuy);
+                        else alert(preBuy);
+                        return;
                     } else {
                     var completedBuy = await confirmManualTransferCompletion(sendErrBuy);
                     if (!completedBuy) {
@@ -4826,10 +4867,20 @@
             }
             if (!address) {
                 await openTonConnectModal();
+                try {
+                    await restoreTonConnectionSafe();
+                } catch (eAfterOpen) {}
+                await new Promise(function (resolve) {
+                    setTimeout(resolve, 280);
+                });
                 account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
                 address = getTonAddressFromAccount(account);
             }
-            if (!address) throw new Error('연결된 TON 지갑이 없습니다.');
+            if (!address) {
+                throw new Error(
+                    '연결된 TON 지갑이 없습니다. 하단 메뉴에서 마이페이지 → TON 지갑 연결을 완료한 뒤 다시 전송하기를 눌러 주세요.'
+                );
+            }
             if (!isTonTestnetConnected()) {
                 throw new Error('테스트넷 지갑으로 연결해 주세요.');
             }
