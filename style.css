@@ -1320,62 +1320,120 @@
             color: #ffffff;
         }
 
-        /* 주문 접수·신규 주문 알림 — 다크모드에서 읽기 좋게, 과하지 않게 */
+        /* 주문 접수·신규 요청 알림 — 다크 그라데이션 카드(data-order-popup-variant: buy | sell | both | neutral) */
         #orderSubmittedOverlay.order-submitted-modal-overlay {
             z-index: 400;
             align-items: center;
             justify-content: center;
             padding: 20px;
             box-sizing: border-box;
-            background: rgba(3, 7, 18, 0.58);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            background: rgba(2, 6, 23, 0.72);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         }
         .order-submitted-modal-dialog {
+            position: relative;
             width: 100%;
             max-width: 400px;
-            background: #f8fafc;
-            border: 1px solid rgba(167, 139, 250, 0.45);
-            border-radius: 16px;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-            padding: 20px 18px 16px;
+            border-radius: 18px;
+            padding: 0 18px 18px;
             text-align: center;
+            overflow: hidden;
+            background: linear-gradient(165deg, #14122a 0%, #0b1220 45%, #0f172a 100%);
+            border: 1px solid rgba(139, 92, 246, 0.35);
+            box-shadow:
+                0 28px 56px rgba(0, 0, 0, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+        .order-submitted-modal-headerband {
+            height: 4px;
+            margin: 0 -18px 14px -18px;
+            border-radius: 18px 18px 0 0;
+            background: linear-gradient(90deg, #8b5cf6, #6366f1, #22d3ee);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="buy"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #101828 0%, #0c1f2e 42%, #0d2f2c 100%);
+            border-color: rgba(45, 212, 191, 0.42);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="buy"] .order-submitted-modal-headerband {
+            background: linear-gradient(90deg, #14b8a6, #2dd4bf, #6366f1);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="sell"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #1a1028 0%, #221a0f 48%, #0f172a 100%);
+            border-color: rgba(251, 191, 36, 0.4);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="sell"] .order-submitted-modal-headerband {
+            background: linear-gradient(90deg, #f59e0b, #f97316, #c084fc);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="both"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #15102a 0%, #12081f 50%, #0c1828 100%);
+            border-color: rgba(167, 139, 250, 0.5);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="both"] .order-submitted-modal-headerband {
+            background: linear-gradient(90deg, #2dd4bf, #a78bfa, #fb923c);
         }
         .order-submitted-modal-message {
             margin: 0;
+            padding: 4px 2px 0;
             font-size: 15px;
-            line-height: 1.55;
+            line-height: 1.6;
             font-weight: 600;
-            color: #1e293b;
+            color: #e2e8f0;
             white-space: pre-line;
             text-align: center;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
         }
         .order-submitted-modal-ok {
-            margin-top: 16px;
+            margin-top: 18px;
             width: 100%;
-            height: 46px;
+            height: 48px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            background: #7c3aed;
             color: #ffffff;
-            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.28);
+            background: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #4f46e5 100%);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
         }
         .order-submitted-modal-ok:active {
-            opacity: 0.92;
+            opacity: 0.94;
+            transform: scale(0.99);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="buy"] .order-submitted-modal-ok {
+            background: linear-gradient(135deg, #0d9488 0%, #14b8a6 45%, #6366f1 100%);
+            box-shadow: 0 6px 22px rgba(20, 184, 166, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="sell"] .order-submitted-modal-ok {
+            background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #ea580c 100%);
+            box-shadow: 0 6px 22px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        }
+        #orderSubmittedOverlay[data-order-popup-variant="both"] .order-submitted-modal-ok {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 40%, #06b6d4 100%);
+            box-shadow: 0 6px 22px rgba(124, 58, 237, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
         .theme-light #orderSubmittedOverlay.order-submitted-modal-overlay {
-            background: rgba(15, 23, 42, 0.35);
+            background: rgba(15, 23, 42, 0.4);
         }
-        .theme-light .order-submitted-modal-dialog {
-            background: #ffffff;
-            border-color: #e2e8f0;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+        .theme-light #orderSubmittedOverlay .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #faf5ff 0%, #f8fafc 50%, #ecfeff 100%);
+            border-color: rgba(167, 139, 250, 0.35);
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
         }
-        .theme-light .order-submitted-modal-message {
-            color: #1e293b;
+        .theme-light #orderSubmittedOverlay .order-submitted-modal-message {
+            color: #0f172a;
+            text-shadow: none;
+        }
+        .theme-light #orderSubmittedOverlay[data-order-popup-variant="buy"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #f0fdfa 0%, #f8fafc 55%, #ecfeff 100%);
+            border-color: rgba(20, 184, 166, 0.45);
+        }
+        .theme-light #orderSubmittedOverlay[data-order-popup-variant="sell"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #fffbeb 0%, #fff7ed 50%, #faf5ff 100%);
+            border-color: rgba(251, 191, 36, 0.5);
+        }
+        .theme-light #orderSubmittedOverlay[data-order-popup-variant="both"] .order-submitted-modal-dialog {
+            background: linear-gradient(168deg, #f5f3ff 0%, #faf5ff 45%, #ecfeff 100%);
         }
 
         /* TON 전송 완료 짧은 영문 토스트(텔레그램 복귀 UX) */

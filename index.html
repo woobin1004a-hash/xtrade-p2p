@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@2.4.2/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260329-ton-widget-no-flicker-v39">
+<link rel="stylesheet" href="style.css?v=260329-order-popup-gradient-v40">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260329-ton-widget-no-flicker-v39</div>
+    <div class="build-tag" id="buildTag">build: 260329-order-popup-gradient-v40</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -678,9 +678,10 @@
         </div>
     </div>
 
-    <!-- 주문 접수 완료 알림(다크모드 가시성: 밝은 카드 + 진한 텍스트) -->
-    <div id="orderSubmittedOverlay" class="order-submitted-modal-overlay modal-overlay hidden">
+    <!-- 주문 접수·신규 요청 알림(다크 그라데이션 카드 — variant는 JS에서 data-order-popup-variant 설정) -->
+    <div id="orderSubmittedOverlay" class="order-submitted-modal-overlay modal-overlay hidden" data-order-popup-variant="neutral">
         <div class="order-submitted-modal-dialog" onclick="event.stopPropagation()">
+            <div class="order-submitted-modal-headerband" aria-hidden="true"></div>
             <p id="orderSubmittedModalMessage" class="order-submitted-modal-message"></p>
             <button type="button" class="order-submitted-modal-ok" onclick="closeOrderSubmittedModalAndGoToMyOffers()">확인</button>
         </div>
@@ -698,6 +699,6 @@
     </div>
 
     
-<script src="script.js?v=260329-ton-widget-no-flicker-v39"></script>
+<script src="script.js?v=260329-order-popup-gradient-v40"></script>
 </body>
 </html>

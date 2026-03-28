@@ -2299,15 +2299,19 @@
                 var parts = [];
                 if (newBuyCount > 0) {
                     parts.push(newBuyCount === 1
-                        ? '새 구매(판매) 요청 1건이 도착했습니다.'
-                        : ('새 구매(판매) 요청 ' + newBuyCount + '건이 도착했습니다.'));
+                        ? '새 구매 요청 1건이 도착했습니다.'
+                        : ('새 구매 요청 ' + newBuyCount + '건이 도착했습니다.'));
                 }
                 if (newSellCount > 0) {
                     parts.push(newSellCount === 1
-                        ? '새 판매(구매) 신청 1건이 도착했습니다.'
-                        : ('새 판매(구매) 신청 ' + newSellCount + '건이 도착했습니다.'));
+                        ? '새 판매 요청 1건이 도착했습니다.'
+                        : ('새 판매 요청 ' + newSellCount + '건이 도착했습니다.'));
                 }
-                showOrderSubmittedPopupNavigatingToMyOffers(parts.join('\n'));
+                var popupVariant = 'neutral';
+                if (newBuyCount > 0 && newSellCount > 0) popupVariant = 'both';
+                else if (newBuyCount > 0) popupVariant = 'buy';
+                else if (newSellCount > 0) popupVariant = 'sell';
+                showOrderSubmittedPopupNavigatingToMyOffers(parts.join('\n'), { variant: popupVariant });
             }
         }
 
@@ -2784,20 +2788,27 @@
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
         function closeOrderSubmittedModalAndGoToMyOffers() {
             var overlay = document.getElementById('orderSubmittedOverlay');
-            if (overlay) overlay.classList.add('hidden');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.setAttribute('data-order-popup-variant', 'neutral');
+            }
             forceCloseTonConnectUI();
             goToMyOffers();
             orderSubmittedOverlayAction = 'myOffers';
         }
 
-        /** 주문 접수 완료·신규 구매/판매 알림: 인앱 모달(확인 → 내 주문 진행중) */
-        function showOrderSubmittedPopupNavigatingToMyOffers(message) {
+        /** 주문 접수 완료·신규 요청 알림: 인앱 모달(확인 → 내 주문 진행중). opts.variant: buy | sell | both | neutral */
+        function showOrderSubmittedPopupNavigatingToMyOffers(message, opts) {
             orderSubmittedOverlayAction = 'myOffers';
             var text = String(message || '');
+            var variant = opts && opts.variant && /^(buy|sell|both|neutral)$/.test(String(opts.variant))
+                ? String(opts.variant)
+                : 'neutral';
             var overlay = document.getElementById('orderSubmittedOverlay');
             var msgEl = document.getElementById('orderSubmittedModalMessage');
             if (overlay && msgEl) {
                 msgEl.textContent = text;
+                overlay.setAttribute('data-order-popup-variant', variant);
                 overlay.classList.remove('hidden');
                 return;
             }
@@ -2932,8 +2943,8 @@
 
             var msg = posted
                 ? (orderFlowState.side === 'sell'
-                    ? '판매 주문이 접수 되었습니다.\n\n구매자(리스팅 주인) 승인을 기다려주세요.'
-                    : '구매 주문이 접수 되었습니다.\n\n판매자 승인을 기다려주세요.')
+                    ? '판매 주문이 접수되었습니다.\n\n구매자(리스팅 주인) 승인을 기다려 주세요.'
+                    : '구매 주문이 접수되었습니다.\n\n판매자 승인을 기다려 주세요.')
                 : (sideTxt + ' 주문 저장이 실패했습니다. ' + (errDetail ? ('· ' + errDetail) : ''));
 
             closeOrderFlow();
@@ -2941,7 +2952,9 @@
             await pollOrdersRealtime();
 
             if (posted) {
-                showOrderSubmittedPopupNavigatingToMyOffers(msg);
+                showOrderSubmittedPopupNavigatingToMyOffers(msg, {
+                    variant: orderFlowState.side === 'sell' ? 'sell' : 'buy'
+                });
             } else {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                 else alert(msg);
