@@ -2597,33 +2597,28 @@
         function forceDismissTonConnectSendUi() {
             clearTonRestoreWhileSendTimers();
             tonSendTransactionInFlight = false;
-            function kick() {
+            function kickOnce() {
                 try {
                     closeTonConnectModalOnly();
                     hideTonConnectWidgetRootHard();
                 } catch (eKick) {}
             }
-            kick();
-            // 지연마다 숨김만 반복 — 중간에 restoreTonConnectWidgetRootVisible를 호출하면
-            // TonConnect가 같은 모달 DOM을 다시 그려 "Confirm in Tonkeeper"가 부활함(사용자 제보와 동일).
-            [80, 280, 700, 1800].forEach(function (ms) {
-                setTimeout(function () {
-                    kick();
-                }, ms);
-            });
+            // 한 프레임에 한 번만 정리 — 여러 setTimeout으로 hide/restore를 반복하면 모달이 깜빡임
+            kickOnce();
+            try {
+                requestAnimationFrame(function () {
+                    kickOnce();
+                });
+            } catch (eRaf) {}
+            setTimeout(function () {
+                kickOnce();
+            }, 400);
             setTimeout(function () {
                 try {
                     restoreTonConnectionSafe();
                 } catch (eRest) {}
             }, 160);
-            // 다음 연결·전송을 위해 위젯 루트는 모달이 닫힌 뒤 한 번만 복구
-            setTimeout(function () {
-                try {
-                    closeTonConnectModalOnly();
-                    restoreTonConnectWidgetRootVisible();
-                    restoreTonConnectionSafe();
-                } catch (eFinalRestore) {}
-            }, 1100);
+            // 위젯 루트는 여기서 복구하지 않음(복구 시 DOM이 잠깐 보였다 사라져 깜빡임). 다음 전송·지갑 연결 시 restoreTonConnectWidgetRootVisible 호출.
         }
 
         /** 전송이 이미 반영된 뒤 복귀했을 때 짧은 영문 안내(왼쪽 상단 토스트) */
@@ -2700,14 +2695,14 @@
             } else {
                 tonOrderSendPending = null;
                 // 복귀했는데 주문 데이터가 없어도 Open Wallet 레이어는 닫음
-                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR) {} }, 200); } catch (eEarly) {}
+                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); } catch (eEarly) {}
                 return;
             }
             var uid0 = String(currentUserId || '');
             var youAreSeller0 = String(receiver.sellerId || '') === uid0;
             if (!youAreSeller0) {
                 tonOrderSendPending = null;
-                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR2) {} }, 200); } catch (eEarly2) {}
+                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); } catch (eEarly2) {}
                 return;
             }
             var st = String(receiver.status || '');
@@ -2727,13 +2722,13 @@
             if (p.side === 'sell') {
                 if (st !== 'buyer_approved_sell' && st !== 'sell_buyer_issue_coin' && st !== 'sell_buyer_pending_coin_ack') {
                     tonOrderSendPending = null;
-                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR3) {} }, 200); } catch (eEarly3) {}
+                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); } catch (eEarly3) {}
                     return;
                 }
             } else {
                 if (st !== 'buyer_paid' && st !== 'seller_deposit_checked' && st !== 'buyer_issue') {
                     tonOrderSendPending = null;
-                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR4) {} }, 200); } catch (eEarly4) {}
+                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); } catch (eEarly4) {}
                     return;
                 }
             }
@@ -4702,6 +4697,10 @@
 
         async function openTonConnectModal() {
             initTonConnectUIIfNeeded();
+            // 이전 전송 후 hide만 한 상태면 연결 UI가 안 보이므로 복구
+            try {
+                restoreTonConnectWidgetRootVisible();
+            } catch (eRw) {}
             if (!tonConnectUIInstance) {
                 var noUiMsg = 'TON Connect 초기화에 실패했습니다.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(noUiMsg);
@@ -4959,7 +4958,10 @@
                         try {
                             restoreTonConnectionSafe();
                         } catch (eRest) {}
-                        restoreTonConnectWidgetRootVisible();
+                        // inFlight가 true일 때는 aggressive가 루트를 숨기지 못했으므로, 여기서 한 번만 숨김(restore 호출 없음 → 깜빡임 방지)
+                        try {
+                            hideTonConnectWidgetRootHard();
+                        } catch (eHide) {}
                     }, 120);
                 }, 450);
             }
