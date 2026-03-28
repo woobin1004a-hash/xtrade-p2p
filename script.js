@@ -4091,6 +4091,10 @@
         const TONCONNECT_MANIFEST_GENERATION = '2026-03-28-https-manifest-v17';
         /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
         let tonAddressAutofillArmed = false;
+        /** TonConnect UI 공식 ko 로케일 없음 → 위젯 DOM 영문만 한글로 치환(연결/전송 로직 비침해) */
+        let tonConnectKoObserverInstalled = false;
+        let tonConnectKoTimer = null;
+        let tonConnectKoBodyObserver = null;
 
         function updateTonWalletStatusText(nextText) {
             if (dom.tonWalletStatusText) dom.tonWalletStatusText.innerText = nextText;
@@ -4172,6 +4176,192 @@
             return new URL('tonconnect-manifest.json', window.location.href).toString();
         }
 
+        /**
+         * TonConnect UI(@tonconnect/ui)는 en/ru만 공식 지원 → 한글 안내는 DOM 텍스트 치환으로 제공.
+         * SDK 업데이트 시 문구가 바뀌면 아래 목록만 보강하면 됨.
+         */
+        function translateTonConnectTextToKo(s) {
+            if (!s || typeof s !== 'string') return s;
+            var out = s;
+            // 동적 문구(지갑 이름 삽입) — 공백에 NBSP(\u00A0)가 섞여도 매칭
+            out = out.replace(
+                /Open[\s\u00A0]+([^.\n]+?)[\s\u00A0]+to[\s\u00A0]+confirm[\s\u00A0]+the[\s\u00A0]+transaction\.?/gi,
+                function (_, name) {
+                    return String(name).trim() + '에서 거래를 확인해 주세요.';
+                }
+            );
+            out = out.replace(
+                /Confirm[\s\u00A0]+the[\s\u00A0]+transaction[\s\u00A0]+in[\s\u00A0]+([^.\n]+?)\.[\s\u00A0]*It[\s\u00A0]+will[\s\u00A0]+only[\s\u00A0]+take[\s\u00A0]+a[\s\u00A0]+moment\.?/gi,
+                function (_, name) {
+                    return String(name).trim() + '에서 거래를 확인해 주세요. 잠시만 걸립니다.';
+                }
+            );
+            out = out.replace(
+                /Sign[\s\u00A0]+the[\s\u00A0]+data[\s\u00A0]+in[\s\u00A0]+([^.\n]+?)\.[\s\u00A0]*It[\s\u00A0]+will[\s\u00A0]+only[\s\u00A0]+take[\s\u00A0]+a[\s\u00A0]+moment\.?/gi,
+                function (_, name) {
+                    return String(name).trim() + '에서 데이터를 서명해 주세요. 잠시만 걸립니다.';
+                }
+            );
+            out = out.replace(
+                /Confirm[\s\u00A0]+operation[\s\u00A0]+in[\s\u00A0]+your[\s\u00A0]+wallet/gi,
+                '지갑에서 작업을 확인해 주세요'
+            );
+            out = out.replace(
+                /Scan[\s\u00A0]+the[\s\u00A0]+QR[\s\u00A0]+code[\s\u00A0]+below[\s\u00A0]+with[\s\u00A0]+your[\s\u00A0]+phone[\u2019']s[\s\u00A0]+or[\s\u00A0]+(.+?)[\u2019']s[\s\u00A0]+camera/gi,
+                function (_, name) {
+                    return '아래 QR 코드를 휴대폰이나 ' + String(name).trim() + ' 카메라로 스캔하세요';
+                }
+            );
+            out = out.replace(
+                /Continue[\s\u00A0]+in[\s\u00A0]+([^…\n]+?)…/gi,
+                function (_, name) {
+                    return String(name).trim() + '에서 계속…';
+                }
+            );
+            // 정적 문구(en.json 기준) — 긴 문자열을 먼저 치환(부분 일치 방지)
+            var staticPairs = [
+                ['Manage your digital identity and access decentralized applications with ease. Maintain control over your data and engage securely in the blockchain ecosystem.', '디지털 신원을 관리하고 탈중앙 앱에 접속하세요. 데이터는 본인이 통제하고 블록체인에서 안전하게 이용하세요.'],
+                ['A wallet protects and manages your digital assets including TON, tokens and collectables.', '지갑은 TON·토큰·NFT 등 디지털 자산을 보호·관리합니다.'],
+                ['Easily send, receive, monitor your cryptocurrencies. Streamline your operations with decentralized applications.', '암호화폐를 보내고 받고 확인하세요. 탈중앙 앱과 함께 이용 흐름을 단순하게 만듭니다.'],
+                ['The wallets below don’t support all features of the connected service. You can use your recovery phrase in one of the supported wallets above.', '아래 지갑은 연결된 서비스의 일부 기능을 지원하지 않을 수 있습니다. 위 목록의 지원 지갑에서 복구 문구로 복원한 뒤 연결해 보세요.'],
+                ['Enter the recovery phrase to access your wallet', '복구 문구를 입력해 지갑에 접속하세요'],
+                ['Open your wallet settings and locate the recovery phrase', '지갑 설정에서 복구 문구(시드)를 찾아 주세요'],
+                ['Write it down or copy it to a safe place', '종이에 적거나 안전한 곳에 복사해 보관하세요'],
+                ['Find your current recovery phrase', '현재 복구 문구를 확인하세요'],
+                ['Copy your recovery phrase', '복구 문구를 복사하세요'],
+                ['Restore in a supported wallet', '지원 지갑에서 복구하세요'],
+                ['Your transaction will be processed in a few seconds.', '잠시 후 거래가 처리됩니다.'],
+                ['There will be no changes to your account.', '계정에는 변경이 반영되지 않습니다.'],
+                ['Use Wallet in Telegram or choose other application', '텔레그램 지갑을 쓰거나 다른 앱을 선택하세요'],
+                ['Connect Wallet in Telegram on desktop', '데스크톱 텔레그램에서 지갑 연결'],
+                ['Connect Wallet in Telegram', '텔레그램에서 지갑 연결'],
+                ['Choose other application', '다른 앱 선택'],
+                ['Scan with your mobile wallet', '모바일 지갑으로 스캔하세요'],
+                ['Connect your TON wallet', 'TON 지갑을 연결하세요'],
+                ['Connect your TON\u00A0wallet', 'TON 지갑을 연결하세요'],
+                ['Available wallets', '사용 가능한 지갑'],
+                ['Confirm Disconnect', '연결 해제 확인'],
+                ['your version does not support required features for this dApp', '이 미니앱에 필요한 기능을 지원하지 않는 버전입니다'],
+                ['Wallet in', '지갑:'],
+                ['Transaction sent', '거래가 전송되었습니다'],
+                ['Transaction canceled', '거래가 취소되었습니다'],
+                ['Data signed', '데이터가 서명되었습니다'],
+                ['Sign data canceled', '데이터 서명이 취소되었습니다'],
+                ['What is a wallet', '지갑이란?'],
+                ['Secure digital assets storage', '디지털 자산을 안전하게 보관'],
+                ['Control your Web3 identity', 'Web3 신원을 직접 관리'],
+                ['Effortless crypto transactions', '간편한 암호화폐 거래'],
+                ['Get a Wallet', '지갑 받기'],
+                ['Loading wallets', '지갑 목록 불러오는 중…'],
+                ['Open Link', '링크 열기'],
+                ['Copy Link', '링크 복사'],
+                ['Link Copied', '링크가 복사됨'],
+                ['Address copied!', '주소가 복사되었습니다!'],
+                ['Copy address', '주소 복사'],
+                ['Browser Extension', '브라우저 확장'],
+                ['Open wallet', '지갑 열기'],
+                ['Connect Wallet', '지갑 연결'],
+                ['Disconnect', '연결 해제'],
+                ['Copied', '복사됨'],
+                ['Your Wallet', '내 지갑'],
+                ['Retry', '다시 시도'],
+                ['Mobile', '모바일'],
+                ['Desktop', '데스크톱'],
+                ['Close', '닫기'],
+                ['Popular', '인기'],
+                ['Installed', '설치됨'],
+                ['Recent', '최근'],
+                ['Wallets', '지갑'],
+                ['Restore', '복구'],
+                ['GET', 'GET']
+            ];
+            var p;
+            for (p = 0; p < staticPairs.length; p++) {
+                if (out.indexOf(staticPairs[p][0]) !== -1) {
+                    out = out.split(staticPairs[p][0]).join(staticPairs[p][1]);
+                }
+            }
+            return out;
+        }
+
+        function applyTonConnectKoToDom(root) {
+            if (!root) return;
+            var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+            var nodes = [];
+            var n;
+            while ((n = walker.nextNode())) {
+                nodes.push(n);
+            }
+            for (var i = 0; i < nodes.length; i++) {
+                var node = nodes[i];
+                var t = node.nodeValue;
+                if (!t || !String(t).trim()) continue;
+                var next = translateTonConnectTextToKo(t);
+                if (next !== t) node.nodeValue = next;
+            }
+        }
+
+        function scheduleTonConnectKoApply() {
+            if (tonConnectKoTimer) {
+                try {
+                    clearTimeout(tonConnectKoTimer);
+                } catch (eClr) {}
+            }
+            tonConnectKoTimer = setTimeout(function () {
+                tonConnectKoTimer = null;
+                var root = document.getElementById('tc-widget-root');
+                if (root) {
+                    try {
+                        applyTonConnectKoToDom(root);
+                    } catch (eApply) {}
+                }
+                try {
+                    requestAnimationFrame(function () {
+                        var r2 = document.getElementById('tc-widget-root');
+                        if (r2) applyTonConnectKoToDom(r2);
+                    });
+                } catch (eRaf) {}
+            }, 0);
+        }
+
+        function installTonConnectUiKoreanOverlay() {
+            if (tonConnectKoObserverInstalled) return;
+            tonConnectKoObserverInstalled = true;
+            function bindWidgetObserver() {
+                var root = document.getElementById('tc-widget-root');
+                if (!root) return false;
+                try {
+                    var mo = new MutationObserver(function () {
+                        scheduleTonConnectKoApply();
+                    });
+                    mo.observe(root, { subtree: true, childList: true, characterData: true });
+                } catch (eMo) {}
+                scheduleTonConnectKoApply();
+                return true;
+            }
+            if (!bindWidgetObserver()) {
+                tonConnectKoBodyObserver = new MutationObserver(function () {
+                    if (bindWidgetObserver() && tonConnectKoBodyObserver) {
+                        try {
+                            tonConnectKoBodyObserver.disconnect();
+                        } catch (eDisc) {}
+                        tonConnectKoBodyObserver = null;
+                    }
+                });
+                try {
+                    tonConnectKoBodyObserver.observe(document.body, { childList: true, subtree: true });
+                } catch (eBody) {}
+            }
+            if (tonConnectUIInstance && typeof tonConnectUIInstance.onModalStateChange === 'function') {
+                try {
+                    tonConnectUIInstance.onModalStateChange(function () {
+                        scheduleTonConnectKoApply();
+                    });
+                } catch (eModal) {}
+            }
+            scheduleTonConnectKoApply();
+        }
+
         function initTonConnectUIIfNeeded() {
             try {
                 if (sessionStorage.getItem('tonManifestGen') !== TONCONNECT_MANIFEST_GENERATION) {
@@ -4181,6 +4371,13 @@
                         } catch (eDiscOld) {}
                     }
                     tonConnectUIInstance = null;
+                    tonConnectKoObserverInstalled = false;
+                    if (tonConnectKoBodyObserver) {
+                        try {
+                            tonConnectKoBodyObserver.disconnect();
+                        } catch (eKoDisc) {}
+                        tonConnectKoBodyObserver = null;
+                    }
                     sessionStorage.setItem('tonManifestGen', TONCONNECT_MANIFEST_GENERATION);
                 }
             } catch (eGen) {}
@@ -4200,10 +4397,13 @@
                 tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
                     manifestUrl: manifestUrl,
                     buttonRootId: 'tonConnectButtonRoot',
+                    language: 'en',
                     actionsConfiguration: {
                         twaReturnUrl: runtimeTwaReturnUrl
                     }
                 });
+                // SDK는 en/ru만 공식 지원 → 위젯 DOM을 한글로 치환(아래 오버레이)
+                installTonConnectUiKoreanOverlay();
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
                 if (typeof tonConnectUIInstance.getWallets === 'function') {
                     tonConnectUIInstance.getWallets()

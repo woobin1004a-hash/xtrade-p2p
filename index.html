@@ -538,21 +538,21 @@
         <div id="walletSettingsView" class="modal-overlay hidden" onclick="closeIfOverlayClicked(event)">
             <div class="modal-dialog" onclick="event.stopPropagation()">
                 <div class="modal-header">
-                    <div class="modal-title">Add TON Wallet</div>
+                    <div class="modal-title">TON 지갑 추가</div>
                     <button class="modal-close" onclick="showMyPageSettingsMain()">×</button>
                 </div>
 
                 <div class="modal-body">
                     <div class="form-group" style="margin-top: 0;">
-                        <span class="field-label">Network</span>
+                        <span class="field-label">네트워크</span>
                         <div class="status-box">TON</div>
                     </div>
 
                     <div class="form-group">
-                        <span class="field-label">TON Wallet Connection</span>
+                        <span class="field-label">TON 지갑 연결</span>
                         <div id="tonConnectButtonRoot" style="display:none;"></div>
-                        <button class="secondary-btn" onclick="openTonConnectModal()">TON Wallet Connect</button>
-                        <div class="helper-text">You can connect first, then the wallet address will be filled automatically.</div>
+                        <button class="secondary-btn" onclick="openTonConnectModal()">TON 지갑 연결</button>
+                        <div class="helper-text ton-connect-ko-hint">아래에서 지갑을 연결하면 주소가 자동으로 채워집니다. 연결·전송 시 뜨는 창은 TonConnect 기본 안내이며, 가능한 문구는 한글로 표시됩니다.</div>
                     </div>
 
                     <div class="form-group">
@@ -698,6 +698,6 @@
     </div>
 
     
-<script src="script.js?v=260328-v31"></script>
+<script src="script.js?v=260328-tonconnect-ko-v32"></script>
 </body>
 </html>
