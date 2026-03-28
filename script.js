@@ -2649,23 +2649,28 @@
                 receiver = Object.assign({}, p.preSendReceiver);
             } else {
                 tonOrderSendPending = null;
+                // 복귀했는데 주문 데이터가 없어도 Open Wallet 레이어는 닫음
+                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR) {} }, 200); } catch (eEarly) {}
                 return;
             }
             var uid0 = String(currentUserId || '');
             var youAreSeller0 = String(receiver.sellerId || '') === uid0;
             if (!youAreSeller0) {
                 tonOrderSendPending = null;
+                try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR2) {} }, 200); } catch (eEarly2) {}
                 return;
             }
             var st = String(receiver.status || '');
             if (p.side === 'sell') {
                 if (st !== 'buyer_approved_sell' && st !== 'sell_buyer_issue_coin' && st !== 'sell_buyer_pending_coin_ack') {
                     tonOrderSendPending = null;
+                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR3) {} }, 200); } catch (eEarly3) {}
                     return;
                 }
             } else {
                 if (st !== 'buyer_paid' && st !== 'seller_deposit_checked' && st !== 'buyer_issue') {
                     tonOrderSendPending = null;
+                    try { closeTonConnectModalOnly(); hideTonConnectWidgetRootHard(); setTimeout(function () { try { restoreTonConnectWidgetRootVisible(); } catch (eR4) {} }, 200); } catch (eEarly4) {}
                     return;
                 }
             }
@@ -4463,8 +4468,11 @@
                             if (tonOrderSendPending && tonOrderSendPending.orderId) {
                                 scheduleTonOrderSendCompleteOnTelegramReturn();
                             }
-                            // 전송 서명 중: 즉시 1회 + 지연 재시도로 브리지 복구(늦게 복귀하면 650ms 디바운스 1회만으로는 부족한 경우가 있음)
+                            // 전송 서명 중: 텔레그램으로 돌아오면 Open Wallet UI는 반드시 닫고 브리지만 복구(이전에는 return만 해서 모달이 남음)
                             if (tonSendTransactionInFlight) {
+                                try {
+                                    closeTonConnectModalOnly();
+                                } catch (eVisInFlight) {}
                                 scheduleTonBridgeKickDuringSend();
                                 return;
                             }
@@ -4479,6 +4487,9 @@
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
                         if (tonSendTransactionInFlight) {
+                            try {
+                                closeTonConnectModalOnly();
+                            } catch (eFocInFlight) {}
                             scheduleTonBridgeKickDuringSend();
                             return;
                         }
@@ -4492,6 +4503,9 @@
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
                         if (tonSendTransactionInFlight) {
+                            try {
+                                closeTonConnectModalOnly();
+                            } catch (ePsInFlight) {}
                             scheduleTonBridgeKickDuringSend();
                         }
                     });
@@ -4503,6 +4517,9 @@
                                     scheduleTonOrderSendCompleteOnTelegramReturn();
                                 }
                                 if (tonSendTransactionInFlight) {
+                                    try {
+                                        closeTonConnectModalOnly();
+                                    } catch (eVpInFlight) {}
                                     scheduleTonBridgeKickDuringSend();
                                 }
                             });
