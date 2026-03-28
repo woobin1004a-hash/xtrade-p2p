@@ -2299,13 +2299,13 @@
                 var parts = [];
                 if (newBuyCount > 0) {
                     parts.push(newBuyCount === 1
-                        ? '새 구매 요청 1건이 도착했습니다.'
-                        : ('새 구매 요청 ' + newBuyCount + '건이 도착했습니다.'));
+                        ? '새 구매(판매) 요청 1건이 도착했습니다.'
+                        : ('새 구매(판매) 요청 ' + newBuyCount + '건이 도착했습니다.'));
                 }
                 if (newSellCount > 0) {
                     parts.push(newSellCount === 1
-                        ? '새 판매 신청 1건이 도착했습니다.'
-                        : ('새 판매 신청 ' + newSellCount + '건이 도착했습니다.'));
+                        ? '새 판매(구매) 신청 1건이 도착했습니다.'
+                        : ('새 판매(구매) 신청 ' + newSellCount + '건이 도착했습니다.'));
                 }
                 showOrderSubmittedPopupNavigatingToMyOffers(parts.join('\n'));
             }
@@ -2863,8 +2863,8 @@
 
             var msg = posted
                 ? (orderFlowState.side === 'sell'
-                    ? '판매 신청이 접수되었습니다. 구매자(리스팅 주인) 승인을 기다려주세요.'
-                    : (sideTxt + ' 주문이 접수되었습니다. 판매자 승인을 기다려주세요.'))
+                    ? '판매 주문이 접수 되었습니다.\n\n구매자(리스팅 주인) 승인을 기다려주세요.'
+                    : '구매 주문이 접수 되었습니다.\n\n판매자 승인을 기다려주세요.')
                 : (sideTxt + ' 주문 저장이 실패했습니다. ' + (errDetail ? ('· ' + errDetail) : ''));
 
             closeOrderFlow();
@@ -4085,8 +4085,8 @@
         let tonkeeperSourceForIos = null;
         /** 수동 복귀 시 연결 복원 훅 중복 방지 */
         let tonRestoreHooksBound = false;
-        /** 전송 서명 대기 중 restoreConnection 디바운스(연속 호출이 세션을 흔들 수 있음) */
-        let tonRestoreWhileSendTimer = null;
+        /** 전송 서명 대기 중 브리지 복구 재시도 타이머(지연 복귀 시 한 번만 restore 하면 Open Wallet에 멈추는 경우 완화) */
+        let tonRestoreWhileSendTimers = [];
         /** 매니페스트 생성 방식이 바뀌면 TonConnect 인스턴스를 한 번 재생성 */
         const TONCONNECT_MANIFEST_GENERATION = '2026-03-28-https-manifest-v17';
         /** TON Connect 버튼을 눌렀을 때만 주소 자동 입력을 허용 */
@@ -4249,23 +4249,9 @@
                             if (tonOrderSendPending && tonOrderSendPending.orderId) {
                                 scheduleTonOrderSendCompleteOnTelegramReturn();
                             }
-                            // 전송 서명 중: restore를 너무 자주 호출하면 커넥터 상태가 흔들려 지갑 쪽 요청이 꼬일 수 있어 디바운스
+                            // 전송 서명 중: 즉시 1회 + 지연 재시도로 브리지 복구(늦게 복귀하면 650ms 디바운스 1회만으로는 부족한 경우가 있음)
                             if (tonSendTransactionInFlight) {
-                                if (tonRestoreWhileSendTimer) {
-                                    try {
-                                        clearTimeout(tonRestoreWhileSendTimer);
-                                    } catch (eClr) {}
-                                }
-                                tonRestoreWhileSendTimer = setTimeout(function () {
-                                    tonRestoreWhileSendTimer = null;
-                                    try {
-                                        restoreTonConnectionSafe();
-                                    } catch (eRestoreWhileSend) {}
-                                    // 톤키퍼에서 수동으로 텔레그램 복귀 후 브리지가 이어질 때 목록 갱신
-                                    try {
-                                        refreshMyOffers();
-                                    } catch (eRf) {}
-                                }, 650);
+                                scheduleTonBridgeKickDuringSend();
                                 return;
                             }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4279,20 +4265,7 @@
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
                         if (tonSendTransactionInFlight) {
-                            if (tonRestoreWhileSendTimer) {
-                                try {
-                                    clearTimeout(tonRestoreWhileSendTimer);
-                                } catch (eClr2) {}
-                            }
-                            tonRestoreWhileSendTimer = setTimeout(function () {
-                                tonRestoreWhileSendTimer = null;
-                                try {
-                                    restoreTonConnectionSafe();
-                                } catch (eRestoreFocusSend) {}
-                                try {
-                                    refreshMyOffers();
-                                } catch (eRf2) {}
-                            }, 650);
+                            scheduleTonBridgeKickDuringSend();
                             return;
                         }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
@@ -4304,6 +4277,9 @@
                         if (tonOrderSendPending && tonOrderSendPending.orderId) {
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
+                        if (tonSendTransactionInFlight) {
+                            scheduleTonBridgeKickDuringSend();
+                        }
                     });
                     // 텔레그램 미니앱: 외부 앱 복귀 시 visibility가 안 오는 경우 보완
                     if (tg && typeof tg.onEvent === 'function') {
@@ -4311,6 +4287,9 @@
                             tg.onEvent('viewportChanged', function () {
                                 if (tonOrderSendPending && tonOrderSendPending.orderId) {
                                     scheduleTonOrderSendCompleteOnTelegramReturn();
+                                }
+                                if (tonSendTransactionInFlight) {
+                                    scheduleTonBridgeKickDuringSend();
                                 }
                             });
                         } catch (eVp) {}
@@ -4388,6 +4367,45 @@
             } catch (e) {
                 // 복원 실패는 무시하고 다음 복귀 시 재시도
             }
+        }
+
+        /** 전송 대기 중 예약된 브리지 복구 타이머를 모두 취소 */
+        function clearTonRestoreWhileSendTimers() {
+            tonRestoreWhileSendTimers.forEach(function (tid) {
+                try {
+                    clearTimeout(tid);
+                } catch (eClr) {}
+            });
+            tonRestoreWhileSendTimers = [];
+        }
+
+        /**
+         * 톤키퍼에서 승인 후 텔레그램으로 늦게 돌아올 때 Open Wallet에 멈추는 현상 완화:
+         * WebView가 백그라운드에 있으면 TonConnect 브리지가 잠시 끊겼다가 복귀 후에도 한 번의 restore만으로는
+         * sendTransaction Promise가 안 풀리는 경우가 있어, 즉시 복구 + 지연 재시도를 합니다.
+         */
+        function scheduleTonBridgeKickDuringSend() {
+            if (!tonSendTransactionInFlight) return;
+            clearTonRestoreWhileSendTimers();
+            try {
+                void restoreTonConnectionSafe();
+            } catch (e0) {}
+            try {
+                if (tg && typeof tg.expand === 'function') tg.expand();
+            } catch (eExp) {}
+            var delays = [350, 1200, 2800];
+            delays.forEach(function (ms) {
+                var tid = setTimeout(function () {
+                    if (!tonSendTransactionInFlight) return;
+                    try {
+                        void restoreTonConnectionSafe();
+                    } catch (e1) {}
+                    try {
+                        refreshMyOffers();
+                    } catch (e2) {}
+                }, ms);
+                tonRestoreWhileSendTimers.push(tid);
+            });
         }
 
         async function openTonConnectModal() {
@@ -4640,6 +4658,7 @@
             } finally {
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
+                    clearTonRestoreWhileSendTimers();
                     closeTonConnectModalAggressive(true);
                     setTimeout(function () {
                         tonSendTransactionInFlight = false;

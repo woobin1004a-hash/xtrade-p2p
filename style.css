@@ -1339,6 +1339,7 @@
             border-radius: 16px;
             box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
             padding: 20px 18px 16px;
+            text-align: center;
         }
         .order-submitted-modal-message {
             margin: 0;
@@ -1347,6 +1348,7 @@
             font-weight: 600;
             color: #1e293b;
             white-space: pre-line;
+            text-align: center;
         }
         .order-submitted-modal-ok {
             margin-top: 16px;
