@@ -4771,7 +4771,16 @@
             });
         }
 
-        async function openTonConnectModal() {
+        /**
+         * TonConnect 지갑 연결 모달을 엽니다.
+         * @param {object} [opts]
+         * @param {boolean} [opts.skipDisconnectForTransfer] — true면 이미 연결된 세션을 끊지 않음.
+         *   전송하기 직전에 account가 잠깐 비어 이 함수가 호출될 때 disconnect 하면 지갑 등록용 연결 화면만 뜨고,
+         *   이어지는 sendTransaction의 Open Wallet 흐름과 달라지는 문제가 생깁니다. 마이페이지「TON 지갑 연결」은 인자 없이 호출합니다.
+         */
+        async function openTonConnectModal(opts) {
+            var o = opts && typeof opts === 'object' ? opts : {};
+            var skipDisconnectForTransfer = o.skipDisconnectForTransfer === true;
             initTonConnectUIIfNeeded();
             // 이전 전송 후 hide만 한 상태면 연결 UI가 안 보이므로 복구
             try {
@@ -4793,8 +4802,9 @@
                 if (typeof tonConnectUIInstance.closeModal === 'function') {
                     try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eClose) {}
                 }
-                // Add 모드에서 재연결할 때는 기존 세션을 먼저 끊고 시작 (already connected 상태 꼬임 방지)
+                // Add 모드(마이페이지에서 새 지갑 연결)에서만 기존 세션을 끊고 시작 — 전송 재시도 경로에서는 끊지 않음
                 if (
+                    !skipDisconnectForTransfer &&
                     tonWalletEditAddress === null &&
                     tonConnectUIInstance.connected &&
                     typeof tonConnectUIInstance.disconnect === 'function'
@@ -4866,7 +4876,8 @@
                 address = getTonAddressFromAccount(account);
             }
             if (!address) {
-                await openTonConnectModal();
+                // 전송 경로: 세션 복원 직후 주소가 비는 타이밍에 disconnect 금지 → Open Wallet(sendTransaction)과 동일 맥락 유지
+                await openTonConnectModal({ skipDisconnectForTransfer: true });
                 try {
                     await restoreTonConnectionSafe();
                 } catch (eAfterOpen) {}
