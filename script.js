@@ -11,6 +11,9 @@
         const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_EdpKqwtWw9U3Z7_zsHuNHQ_uN9sET4M';
         // 봇 채팅방 기본 주소 (지갑 완료 후 텔레그램 복귀·Tonkeeper ret 공통)
         const TON_TWA_RETURN_URL = 'https://t.me/P2PxxBOT';
+        // tg:// 딥링크 형식: 톤키퍼가 서명 완료 후 텔레그램으로 직접 복귀할 때 사용
+        // https://t.me/ 형식은 브라우저를 거쳐 Telegram이 열리지만, tg:// 형식은 Telegram 앱을 바로 엶
+        const TON_RETURN_TG_DEEPLINK = 'tg://resolve?domain=P2PxxBOT';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -4545,7 +4548,8 @@
             }
 
             var manifestUrl = buildTonConnectManifestUrl();
-            var runtimeTwaReturnUrl = getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL;
+            // twaReturnUrl: TWA 지갑(Wallet on Telegram)용 — https://t.me/ 형식 유지
+            var runtimeTwaReturnUrl = TON_TWA_RETURN_URL;
 
             try {
                 tonConnectUIInstance = new window.TON_CONNECT_UI.TonConnectUI({
@@ -4553,9 +4557,10 @@
                     buttonRootId: 'tonConnectButtonRoot',
                     language: 'en',
                     actionsConfiguration: {
-                        // returnStrategy: Tonkeeper가 승인 후 열어야 할 복귀 URL(브라우저/앱 공통)
-                        returnStrategy: runtimeTwaReturnUrl,
-                        // twaReturnUrl: 텔레그램 미니앱(TWA) 환경에서 Tonkeeper 승인 후 복귀 URL
+                        // returnStrategy: Tonkeeper(독립 앱)가 서명 완료 후 열어야 할 복귀 딥링크
+                        // tg://resolve?domain=봇이름 형식이 https://t.me/ 보다 신뢰도 높음(브라우저 우회 없음)
+                        returnStrategy: TON_RETURN_TG_DEEPLINK,
+                        // twaReturnUrl: Wallet on Telegram 같은 TWA 지갑 사용 시 복귀 URL
                         twaReturnUrl: runtimeTwaReturnUrl
                     }
                 });
@@ -4722,8 +4727,8 @@
         }
 
         function getTonkeeperReturnStrategy() {
-            // 지갑에 넘길 ret: 봇 채팅으로 돌아가기
-            return TON_TWA_RETURN_URL;
+            // tg:// 딥링크 형식으로 반환: Tonkeeper가 서명 완료 후 Telegram 앱을 직접 열어 봇으로 이동
+            return TON_RETURN_TG_DEEPLINK;
         }
 
         async function restoreTonConnectionSafe() {
@@ -5019,7 +5024,8 @@
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
             // notifications 기본값 'all'이면 SDK가 error 계열(취소로 오인 등) 토스트를 띄울 수 있어 success/error는 끔 — 안내는 앱에서 처리
             var sendTxUiOpts = {
-                twaReturnUrl: getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL,
+                // twaReturnUrl은 TWA 지갑(Wallet on Telegram) 전용 — Tonkeeper 독립 앱은 returnStrategy 사용
+                twaReturnUrl: TON_TWA_RETURN_URL,
                 modals: ['before'],
                 notifications: ['before']
             };
