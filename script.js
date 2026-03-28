@@ -4274,28 +4274,77 @@
         }
 
         /**
-         * TonConnect UI와 내부 connector 중 어디에든 올 수 있는 account 객체를 통합해 가져옵니다.
-         * (UI.account만 보면 연결 직후·복원 직후에 비어 "지갑 없음"으로 오인하는 경우가 있음)
+         * @tonconnect/sdk 기준: connector.account 외에 connector.wallet.account 에만
+         * 주소가 잠깐(또는 계속) 남는 경우가 있어 모두 수집합니다.
          */
-        function getTonConnectAccountObjectBestEffort() {
-            if (!tonConnectUIInstance) return null;
+        function collectTonConnectRawAccountSources() {
+            var out = [];
+            if (!tonConnectUIInstance) return out;
+            function pushAcc(a) {
+                if (a == null) return;
+                if (out.indexOf(a) >= 0) return;
+                out.push(a);
+            }
             try {
-                var a = tonConnectUIInstance.account;
-                if (a && (typeof a === 'object' || typeof a === 'string')) return a;
-            } catch (eUi) {}
+                pushAcc(tonConnectUIInstance.account);
+            } catch (e0) {}
             try {
-                var conn = tonConnectUIInstance.connector;
-                if (conn && conn.account != null) return conn.account;
-            } catch (eCo) {}
-            return null;
+                var c = tonConnectUIInstance.connector;
+                if (c) {
+                    pushAcc(c.account);
+                    if (c.wallet && c.wallet.account != null) pushAcc(c.wallet.account);
+                }
+            } catch (e1) {}
+            try {
+                if (tonConnectUIInstance.wallet && tonConnectUIInstance.wallet.account != null) {
+                    pushAcc(tonConnectUIInstance.wallet.account);
+                }
+            } catch (e2) {}
+            return out;
         }
 
-        /** UI·connector 어느 쪽이든에서 정규화된 user-friendly 주소 문자열 */
+        /** 체인·상태 표시용: chain 필드가 있는 객체를 우선(테스트넷 판별 유지) */
+        function getTonConnectAccountObjectBestEffort() {
+            var list = collectTonConnectRawAccountSources();
+            var fallbackObj = null;
+            for (var i = 0; i < list.length; i++) {
+                var a = list[i];
+                if (!a) continue;
+                if (!getTonAddressFromAccount(a)) continue;
+                if (typeof a === 'object') {
+                    if (String(a.chain || '') !== '') return a;
+                    if (!fallbackObj) fallbackObj = a;
+                }
+            }
+            if (fallbackObj) return fallbackObj;
+            for (var j = 0; j < list.length; j++) {
+                var b = list[j];
+                if (!b) continue;
+                if (getTonAddressFromAccount(b)) {
+                    return typeof b === 'object' ? b : { address: String(b) };
+                }
+            }
+            return list.length ? list[0] : null;
+        }
+
+        /** UI·connector·wallet 어느 경로에서든 정규화된 user-friendly 주소 */
         function getTonConnectAddressBestEffort() {
-            var acc = getTonConnectAccountObjectBestEffort();
-            var fromObj = getTonAddressFromAccount(acc);
-            if (fromObj) return fromObj;
+            var list = collectTonConnectRawAccountSources();
+            for (var k = 0; k < list.length; k++) {
+                var addr = getTonAddressFromAccount(list[k]);
+                if (addr) return addr;
+            }
             return '';
+        }
+
+        /** SDK가 연결됨으로 표시하는데 account 필드만 늦는 경우 대비 */
+        function isTonConnectUiReportingConnected() {
+            try {
+                if (tonConnectUIInstance && tonConnectUIInstance.connected === true) return true;
+                var conn = tonConnectUIInstance && tonConnectUIInstance.connector;
+                if (conn && conn.connected === true) return true;
+            } catch (e) {}
+            return false;
         }
 
         /** 마이페이지 요약: 등록된 모든 지갑의 USDT 잔액 합계 */
@@ -4922,6 +4971,23 @@
                 address = getTonConnectAddressBestEffort();
                 attempt++;
             }
+            // SDK는 connected 인데 account 필드만 늦게 채워지는 경우 → 추가 대기
+            if (!address && isTonConnectUiReportingConnected()) {
+                var extraMax = 32;
+                var ex = 0;
+                while (!address && ex < extraMax) {
+                    if (ex % 4 === 0) {
+                        try {
+                            await restoreTonConnectionSafe();
+                        } catch (eEx) {}
+                    }
+                    await new Promise(function (resolve) {
+                        setTimeout(resolve, pollMs);
+                    });
+                    address = getTonConnectAddressBestEffort();
+                    ex++;
+                }
+            }
             if (!address) {
                 // 폴링으로도 주소가 안 잡힐 때만 연결 모달 (전송 경로에서는 disconnect 하지 않음)
                 await openTonConnectModal({ skipDisconnectForTransfer: true });
@@ -4939,13 +5005,35 @@
                     address = getTonConnectAddressBestEffort();
                 }
             }
+            // SDK가 connected 인데 address 필드만 비는 환경: 마이페이지에 저장된 기본 지갑과 실제 연결이 동일한 경우 주소 확보
+            if (!address && isTonConnectUiReportingConnected()) {
+                var defW = getDefaultTonWalletAddress();
+                if (defW) {
+                    try {
+                        address = normalizeTonAddressStrict(String(defW).trim());
+                    } catch (eDefW) {}
+                }
+            }
             if (!address) {
                 throw new Error(
                     '연결된 TON 지갑이 없습니다. 하단 메뉴에서 마이페이지 → TON 지갑 연결을 완료한 뒤 다시 전송하기를 눌러 주세요.'
                 );
             }
             if (!isTonTestnetConnected()) {
-                throw new Error('테스트넷 지갑으로 연결해 주세요.');
+                var allowTn =
+                    !!getSavedUsdtTestnetMasterAddress() &&
+                    isTonConnectUiReportingConnected() &&
+                    (function () {
+                        try {
+                            var d = getDefaultTonWalletAddress();
+                            return !!(d && normalizeTonAddressStrict(String(d).trim()) === normalizeTonAddressStrict(address));
+                        } catch (eTn) {
+                            return false;
+                        }
+                    })();
+                if (!allowTn) {
+                    throw new Error('테스트넷 지갑으로 연결해 주세요.');
+                }
             }
             return address;
         }
