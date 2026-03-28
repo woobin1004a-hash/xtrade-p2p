@@ -4553,6 +4553,9 @@
                     buttonRootId: 'tonConnectButtonRoot',
                     language: 'en',
                     actionsConfiguration: {
+                        // returnStrategy: Tonkeeper가 승인 후 열어야 할 복귀 URL(브라우저/앱 공통)
+                        returnStrategy: runtimeTwaReturnUrl,
+                        // twaReturnUrl: 텔레그램 미니앱(TWA) 환경에서 Tonkeeper 승인 후 복귀 URL
                         twaReturnUrl: runtimeTwaReturnUrl
                     }
                 });
