@@ -2552,9 +2552,7 @@
 
         /**
          * TonConnect 모달만 닫기(restore 없음 — sendTransaction 직후 restore가 SDK와 충돌할 수 있음)
-         * 주의: closeModal()/closeSingleWalletModal에 'action-cancelled'를 넘기면 SDK가
-         * "Transaction canceled" 토스트를 띄움 — 전송 성공 후 텔레그램 복귀 시에도 동일하게 호출되므로
-         * 닫기 사유는 'wallet-selected'만 사용합니다(@tonconnect/ui WalletsModalCloseReason).
+         * 닫기 사유는 'wallet-selected'(@tonconnect/ui). ui.close()는 내부적으로 취소 알림을 유발할 수 있어 호출하지 않음.
          */
         function closeTonConnectModalOnly() {
             try {
@@ -2567,9 +2565,6 @@
                     }
                     if (tonConnectUIInstance.modal && typeof tonConnectUIInstance.modal.close === 'function') {
                         try { tonConnectUIInstance.modal.close('wallet-selected'); } catch (e0b) {}
-                    }
-                    if (tonConnectUIInstance.ui && typeof tonConnectUIInstance.ui.close === 'function') {
-                        try { tonConnectUIInstance.ui.close(); } catch (e1) {}
                     }
                 }
             } catch (e) {}
@@ -4524,11 +4519,9 @@
                 if (!tonRestoreHooksBound) {
                     tonRestoreHooksBound = true;
                     document.addEventListener('visibilitychange', function () {
-                        // 톤키퍼 등 외부 앱으로 전환되면 Open Wallet 모달만 닫음(SDK 서명 흐름은 유지)
+                        // 전송 중 WebView가 hidden이 되면(톤키퍼로 전환) 절대 closeModal 등 SDK 닫기를 호출하지 말 것.
+                        // 호출 시 TonConnect가 서명을 '취소'로 처리해 복귀 후 "Transaction canceled" 토스트가 뜸(거래는 성공했는데도).
                         if (document.visibilityState === 'hidden' && tonSendTransactionInFlight) {
-                            try {
-                                closeTonConnectModalOnly();
-                            } catch (eHid) {}
                             return;
                         }
                         if (document.visibilityState === 'visible') {
@@ -4536,10 +4529,10 @@
                             if (tonOrderSendPending && tonOrderSendPending.orderId) {
                                 scheduleTonOrderSendCompleteOnTelegramReturn();
                             }
-                            // 전송 서명 중: 텔레그램으로 돌아오면 Open Wallet UI는 반드시 닫고 브리지만 복구(이전에는 return만 해서 모달이 남음)
+                            // 전송 대기 중 복귀: SDK close*는 취소 알림을 유발할 수 있어 DOM만 숨김 + 브리지 복구
                             if (tonSendTransactionInFlight) {
                                 try {
-                                    closeTonConnectModalOnly();
+                                    hideTonConnectWidgetRootHard();
                                 } catch (eVisInFlight) {}
                                 scheduleTonBridgeKickDuringSend();
                                 return;
@@ -4556,7 +4549,7 @@
                         }
                         if (tonSendTransactionInFlight) {
                             try {
-                                closeTonConnectModalOnly();
+                                hideTonConnectWidgetRootHard();
                             } catch (eFocInFlight) {}
                             scheduleTonBridgeKickDuringSend();
                             return;
@@ -4572,7 +4565,7 @@
                         }
                         if (tonSendTransactionInFlight) {
                             try {
-                                closeTonConnectModalOnly();
+                                hideTonConnectWidgetRootHard();
                             } catch (ePsInFlight) {}
                             scheduleTonBridgeKickDuringSend();
                         }
@@ -4586,7 +4579,7 @@
                                 }
                                 if (tonSendTransactionInFlight) {
                                     try {
-                                        closeTonConnectModalOnly();
+                                        hideTonConnectWidgetRootHard();
                                     } catch (eVpInFlight) {}
                                     scheduleTonBridgeKickDuringSend();
                                 }
@@ -4939,9 +4932,11 @@
                 }]
             };
             // 외부 지갑 복귀 콜백이 끊긴 경우 sendTransaction이 오래 대기할 수 있어 타임아웃을 둡니다.
-            // 전송 전 Open Wallet 안내는 TonConnect UI 기본(modals: ['before'])을 유지 — 커넥터 직접 호출은 해당 UI를 건너뜀
+            // notifications 기본값 'all'이면 SDK가 error 계열(취소로 오인 등) 토스트를 띄울 수 있어 success/error는 끔 — 안내는 앱에서 처리
             var sendTxUiOpts = {
-                twaReturnUrl: getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL
+                twaReturnUrl: getTonkeeperReturnStrategy() || TON_TWA_RETURN_URL,
+                modals: ['before'],
+                notifications: ['before']
             };
             var result;
             tonSendTransactionInFlight = true;
