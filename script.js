@@ -2346,6 +2346,10 @@
 
         function startOrdersRealtimeSync() {
             if (ordersRealtimeTimer) return;
+            // TonConnect 세션을 미리 복원해 두면 첫 '전송하기' 직후 지갑 주소가 비어 openModal이 잠깐 뜨는 현상을 줄임
+            try {
+                void waitForTonConnectSessionReady();
+            } catch (eWarm) {}
             ordersRealtimeTimer = setInterval(function () {
                 pollOrdersRealtime();
             }, ORDER_REALTIME_INTERVAL_MS);
@@ -4669,6 +4673,24 @@
             }
         }
 
+        /**
+         * 새로고침 직후 첫 전송 시 tonConnectUIInstance.account가 잠깐 비어 있을 수 있음(connectionRestored·브리지 복원 전).
+         * 이 상태에서 openTonConnectModal()이 호출되면 하단에 'TON 지갑을 연결하세요' 모달이 깜빡입니다.
+         */
+        async function waitForTonConnectSessionReady() {
+            initTonConnectUIIfNeeded();
+            if (!tonConnectUIInstance) return;
+            try {
+                var cr = tonConnectUIInstance.connectionRestored;
+                if (cr && typeof cr.then === 'function') {
+                    await cr;
+                }
+            } catch (eCr) {}
+            try {
+                await restoreTonConnectionSafe();
+            } catch (eRs) {}
+        }
+
         /** 전송 대기 중 예약된 브리지 복구 타이머를 모두 취소 */
         function clearTonRestoreWhileSendTimers() {
             tonRestoreWhileSendTimers.forEach(function (tid) {
@@ -4788,12 +4810,20 @@
         }
 
         async function ensureTonWalletConnectedForTransfer() {
-            initTonConnectUIIfNeeded();
+            await waitForTonConnectSessionReady();
             if (!tonConnectUIInstance) {
                 throw new Error('TON Connect를 불러오지 못했습니다.');
             }
             var account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
             var address = getTonAddressFromAccount(account);
+            // connectionRestored 직후에도 account 반영이 한 틱 늦는 환경 대비
+            if (!address) {
+                await new Promise(function (resolve) {
+                    setTimeout(resolve, 100);
+                });
+                account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
+                address = getTonAddressFromAccount(account);
+            }
             if (!address) {
                 await openTonConnectModal();
                 account = tonConnectUIInstance.account ? tonConnectUIInstance.account : null;
