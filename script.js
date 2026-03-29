@@ -5030,6 +5030,28 @@
                 notifications: ['before']
             };
             var result;
+
+            // ── iOS 전용 window.open 패치 ─────────────────────────────────────────────
+            // iOS 텔레그램 WKWebView는 window.open(https://app.tonkeeper.com/...) 호출 시
+            // Universal Link 대신 인앱 브라우저를 먼저 열어 ret 파라미터가 Tonkeeper 앱에
+            // 전달되지 않는 문제가 있음. tonkeeper:// 커스텀 스킴으로 변환하면 WKWebView가
+            // 즉시 Tonkeeper 앱을 직접 실행하므로 ret 파라미터가 온전히 전달됨.
+            var _iosWinOpenPatch = null;
+            var _isIosTg = !!(tg && String(tg.platform || '').toLowerCase() === 'ios');
+            if (_isIosTg) {
+                _iosWinOpenPatch = window.open;
+                window.open = function(url, target, features) {
+                    if (url && typeof url === 'string' &&
+                        url.indexOf('https://app.tonkeeper.com/') === 0) {
+                        // https://app.tonkeeper.com/ton-connect?... → tonkeeper://ton-connect?...
+                        var tkUrl = url.replace('https://app.tonkeeper.com/', 'tonkeeper://');
+                        try { return _iosWinOpenPatch.call(window, tkUrl, target, features); } catch (eTk) {}
+                    }
+                    return _iosWinOpenPatch.call(window, url, target, features);
+                };
+            }
+            // ─────────────────────────────────────────────────────────────────────────
+
             tonSendTransactionInFlight = true;
             try {
                 result = await Promise.race([
@@ -5041,6 +5063,11 @@
                     })
                 ]);
             } finally {
+                // iOS window.open 패치 해제
+                if (_iosWinOpenPatch) {
+                    window.open = _iosWinOpenPatch;
+                    _iosWinOpenPatch = null;
+                }
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
                     clearTonRestoreWhileSendTimers();
