@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@2.4.2/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260329-transaction-receipt-v53">
+<link rel="stylesheet" href="style.css?v=260329-receipt-ui-v54">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260329-transaction-receipt-v53</div>
+    <div class="build-tag" id="buildTag">build: 260329-receipt-ui-v54</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -706,11 +706,13 @@
                 <button type="button" class="transaction-receipt-close" onclick="closeTransactionReceiptDetail()" aria-label="닫기">×</button>
             </div>
             <div id="transactionReceiptBody" class="transaction-receipt-body"></div>
-            <button type="button" class="transaction-receipt-ok" onclick="closeTransactionReceiptDetail()">닫기</button>
+            <div class="transaction-receipt-footer">
+                <button type="button" class="transaction-receipt-ok" onclick="closeTransactionReceiptDetail()">닫기</button>
+            </div>
         </div>
     </div>
 
     
-<script src="script.js?v=260329-transaction-receipt-v53"></script>
+<script src="script.js?v=260329-receipt-ui-v54"></script>
 </body>
 </html>

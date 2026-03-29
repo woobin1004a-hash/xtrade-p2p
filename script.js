@@ -2397,9 +2397,41 @@
             return html;
         }
 
+        /** 영수증 모달 열릴 때 뒤 목록이 스크롤되지 않도록 body 고정(iOS 텔레그램 WebView 대응) */
+        var _receiptBodyScrollY = 0;
+
+        function lockScrollForTransactionReceipt() {
+            _receiptBodyScrollY = window.scrollY || window.pageYOffset || 0;
+            try {
+                document.documentElement.style.overflow = 'hidden';
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.top = '-' + _receiptBodyScrollY + 'px';
+                document.body.style.left = '0';
+                document.body.style.right = '0';
+                document.body.style.width = '100%';
+            } catch (e) {}
+        }
+
+        function unlockScrollForTransactionReceipt() {
+            try {
+                document.documentElement.style.overflow = '';
+                document.body.style.overflow = '';
+                document.body.style.position = '';
+                document.body.style.top = '';
+                document.body.style.left = '';
+                document.body.style.right = '';
+                document.body.style.width = '';
+            } catch (e) {}
+            try {
+                window.scrollTo(0, _receiptBodyScrollY);
+            } catch (e2) {}
+        }
+
         function closeTransactionReceiptDetail() {
             var el = document.getElementById('transactionReceiptOverlay');
             if (el) el.classList.add('hidden');
+            unlockScrollForTransactionReceipt();
         }
 
         function openTransactionReceiptDetail(orderId) {
@@ -2414,6 +2446,7 @@
             if (!body || !overlay) return;
             body.innerHTML = buildTransactionReceiptInnerHtml(o);
             overlay.classList.remove('hidden');
+            lockScrollForTransactionReceipt();
         }
 
         /** 거래 내역 카드 클릭: 복사 링크 클릭은 제외 */
