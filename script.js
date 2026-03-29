@@ -2445,8 +2445,19 @@
             var overlay = document.getElementById('transactionReceiptOverlay');
             if (!body || !overlay) return;
             body.innerHTML = buildTransactionReceiptInnerHtml(o);
+            // 이전에 맨 아래까지 스크롤한 뒤 닫았어도, 새 영수증은 항상 맨 위부터 보이게 함
+            body.scrollTop = 0;
+            try {
+                body.scrollTo(0, 0);
+            } catch (eScroll) {}
             overlay.classList.remove('hidden');
             lockScrollForTransactionReceipt();
+            requestAnimationFrame(function () {
+                try {
+                    body.scrollTop = 0;
+                    body.scrollTo(0, 0);
+                } catch (eRaf) {}
+            });
         }
 
         /** 거래 내역 카드 클릭: 복사 링크 클릭은 제외 */
