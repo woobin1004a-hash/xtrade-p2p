@@ -2218,6 +2218,213 @@
             }
         }
 
+        /** 영수증 모달용 타임스탬프 표시 */
+        function formatReceiptTimestamp(ms) {
+            var n = Number(ms || 0);
+            if (!n) return '—';
+            try {
+                return new Date(n).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
+            } catch (e) {
+                return '—';
+            }
+        }
+
+        /** 거래 영수증 한 줄(라벨·값 모두 이스케이프) */
+        function receiptRowPlain(label, valueText) {
+            var v = String(valueText == null ? '' : valueText);
+            return (
+                '<div class="receipt-row"><span class="receipt-k">' +
+                escapeHtml(label) +
+                '</span><span class="receipt-v">' +
+                escapeHtml(v) +
+                '</span></div>'
+            );
+        }
+
+        /** 거래 내역 카드에서 열리는 상세 영수증 HTML 생성 */
+        function buildTransactionReceiptInnerHtml(order) {
+            var o = order || {};
+            var r = o.receiver && typeof o.receiver === 'object' ? o.receiver : {};
+            var side = getOrderSide(o);
+            var status = String(r.status || '');
+            var usdt = Number(o.usdt || 0);
+            var krw = Number(o.krw || 0);
+            var price = usdt > 0 ? krw / usdt : 0;
+            var orderId = String(o.id || '—');
+            var listingId = String(o.listing_id != null ? o.listing_id : o.listingId != null ? o.listingId : '—');
+            var createdAt = formatReceiptTimestamp(o.created_at != null ? o.created_at : o.createdAt);
+
+            var buyerName = String(r.buyerName || '구매자');
+            var sellerName = String(r.sellerName || '판매자');
+            var buyerId = String(r.buyerId || '—');
+            var sellerId = String(r.sellerId || '—');
+
+            var typeLabel = side === 'sell' ? 'USDT 판매' : 'USDT 구매';
+            var flowText =
+                side === 'sell'
+                    ? '리스팅 소유자(구매자)가 원화를 입금하고, 판매자가 USDT를 전송하는 흐름입니다.'
+                    : '구매자가 원화를 입금하고, 판매자가 USDT를 전송하는 흐름입니다.';
+
+            var bank = {
+                bankName: String(r.sellerBankName || ''),
+                accountNumber: String(r.sellerBankAccountNumber || ''),
+                accountHolder: String(r.sellerBankAccountHolder || '')
+            };
+            if (!bank.bankName && !bank.accountNumber && !bank.accountHolder) {
+                bank = parseBankTextParts(String(r.sellerBankText || ''));
+            }
+
+            var html = '';
+            html +=
+                '<div class="receipt-section receipt-section--accent">' +
+                '<div class="receipt-title">' +
+                escapeHtml(orderStatusLabel(status)) +
+                '</div>' +
+                '<div class="receipt-sub">' +
+                escapeHtml(typeLabel + ' · 주문 #' + orderId) +
+                '</div></div>';
+
+            html += '<div class="receipt-sep"></div>';
+            html += '<div class="receipt-section-title">참여자</div>';
+            html += receiptRowPlain('구매자', buyerName + ' (ID: ' + buyerId + ')');
+            html += receiptRowPlain('판매자', sellerName + ' (ID: ' + sellerId + ')');
+
+            html += '<div class="receipt-sep"></div>';
+            html += '<div class="receipt-section-title">거래 금액</div>';
+            html += receiptRowPlain('USDT', (Number.isFinite(usdt) ? usdt : 0).toLocaleString() + ' USDT');
+            html += receiptRowPlain('원화', Math.floor(Number.isFinite(krw) ? krw : 0).toLocaleString() + ' KRW');
+            html += receiptRowPlain('적용 단가', Math.floor(Number.isFinite(price) ? price : 0).toLocaleString() + ' KRW/USDT');
+
+            html += '<div class="receipt-sep"></div>';
+            html += '<div class="receipt-section-title">거래 방식</div>';
+            html += receiptRowPlain('유형', typeLabel);
+            html += receiptRowPlain('설명', flowText);
+            html += receiptRowPlain('네트워크', 'TON (테스트넷 USDT)');
+
+            var dep = String(r.depositName || '').trim();
+            if (dep) {
+                html += receiptRowPlain('입금자명(구매)', dep);
+            }
+
+            var hasBank = !!(bank.bankName || bank.accountNumber || bank.accountHolder);
+            if (hasBank) {
+                html += '<div class="receipt-sep"></div>';
+                html += '<div class="receipt-section-title">정산 계좌 (판매자 안내)</div>';
+                html += receiptRowPlain('은행', bank.bankName || '—');
+                html += receiptRowPlain('계좌번호', bank.accountNumber || '—');
+                html += receiptRowPlain('예금주', bank.accountHolder || '—');
+            }
+
+            var wBuy = String(r.receiverWalletAddress || '').trim();
+            var wSellRecv = String(r.buyerReceiverWalletAddress || '').trim();
+            if (wBuy || wSellRecv) {
+                html += '<div class="receipt-sep"></div>';
+                html += '<div class="receipt-section-title">지갑 주소</div>';
+                if (wBuy) {
+                    html +=
+                        '<div class="receipt-row"><span class="receipt-k">' +
+                        escapeHtml('구매자 수취 지갑') +
+                        '</span><span class="receipt-v receipt-v--break">' +
+                        escapeHtml(wBuy) +
+                        '</span></div>';
+                }
+                if (wSellRecv) {
+                    html +=
+                        '<div class="receipt-row"><span class="receipt-k">' +
+                        escapeHtml('판매 건 구매자 USDT 지갑') +
+                        '</span><span class="receipt-v receipt-v--break">' +
+                        escapeHtml(wSellRecv) +
+                        '</span></div>';
+                }
+            }
+
+            var tx = String(r.txid || '').trim();
+            if (tx) {
+                html += '<div class="receipt-sep"></div>';
+                html += '<div class="receipt-section-title">온체인</div>';
+                html +=
+                    '<div class="receipt-row"><span class="receipt-k">' +
+                    escapeHtml('TxID / BOC') +
+                    '</span><span class="receipt-v receipt-v--break">' +
+                    escapeHtml(tx) +
+                    '</span></div>';
+            }
+
+            if (String(r.issueNote || '').trim()) {
+                html += receiptRowPlain('진행 중 확인 요청', String(r.issueNote || ''));
+            }
+            if (String(r.sellerCoinIssueReply || '').trim()) {
+                html += receiptRowPlain('판매자 답변(USDT)', String(r.sellerCoinIssueReply || ''));
+            }
+
+            html += '<div class="receipt-sep"></div>';
+            html += '<div class="receipt-section-title">기록</div>';
+            html += receiptRowPlain('주문 생성 시각', createdAt);
+            html += receiptRowPlain('리스팅 ID', listingId);
+            if (r.sellerApprovedAt) {
+                html += receiptRowPlain('판매자 승인', formatReceiptTimestamp(r.sellerApprovedAt));
+            }
+            if (r.buyerPaidAt) {
+                html += receiptRowPlain('구매자 입금 알림', formatReceiptTimestamp(r.buyerPaidAt));
+            }
+            if (r.sellerSentAt) {
+                html += receiptRowPlain('USDT 전송 시각', formatReceiptTimestamp(r.sellerSentAt));
+            }
+
+            html += '<div class="receipt-sep"></div>';
+            html += '<div class="receipt-section-title">종료 정보</div>';
+            if (status === 'buyer_confirmed') {
+                html += receiptRowPlain('결과', '거래 완료');
+                html += receiptRowPlain('완료 시각', formatReceiptTimestamp(r.buyerConfirmedAt));
+            } else if (status === 'seller_rejected') {
+                html += receiptRowPlain('결과', '판매자 거절');
+                html += receiptRowPlain('거절 사유', String(r.rejectReason || '').trim() || '(사유 미입력 · 과거 주문)');
+            } else if (status === 'buyer_rejected_sell') {
+                html += receiptRowPlain('결과', '구매자(리스팅 주인) 거절');
+                html += receiptRowPlain('거절 사유', String(r.rejectReason || '').trim() || '(사유 미입력 · 과거 주문)');
+            } else if (status === 'buyer_cancelled') {
+                html += receiptRowPlain('결과', '구매자 취소');
+                html += receiptRowPlain('취소 주체', '구매자');
+                html += receiptRowPlain('취소 메모', String(r.cancelNote || '').trim() || '(메모 없음 · 과거 주문)');
+            } else if (status === 'seller_cancelled_sell') {
+                html += receiptRowPlain('결과', '판매자 취소');
+                html += receiptRowPlain('취소 주체', '판매자');
+                html += receiptRowPlain('취소 메모', String(r.cancelNote || '').trim() || '(메모 없음 · 과거 주문)');
+            } else {
+                html += receiptRowPlain('결과', orderStatusLabel(status));
+            }
+
+            return html;
+        }
+
+        function closeTransactionReceiptDetail() {
+            var el = document.getElementById('transactionReceiptOverlay');
+            if (el) el.classList.add('hidden');
+        }
+
+        function openTransactionReceiptDetail(orderId) {
+            var id = String(orderId || '');
+            var orders = Array.isArray(myOffersState.orders) ? myOffersState.orders : [];
+            var o = orders.find(function (x) {
+                return String(x && x.id) === id;
+            });
+            if (!o) return;
+            var body = document.getElementById('transactionReceiptBody');
+            var overlay = document.getElementById('transactionReceiptOverlay');
+            if (!body || !overlay) return;
+            body.innerHTML = buildTransactionReceiptInnerHtml(o);
+            overlay.classList.remove('hidden');
+        }
+
+        /** 거래 내역 카드 클릭: 복사 링크 클릭은 제외 */
+        function onHistoryOfferCardClick(ev, orderId) {
+            if (ev && ev.target && typeof ev.target.closest === 'function') {
+                if (ev.target.closest('.offer-copy-link')) return;
+                if (ev.target.closest('button')) return;
+            }
+            openTransactionReceiptDetail(orderId);
+        }
+
         function loadSellerAlertedOrderIds() {
             try {
                 var raw = localStorage.getItem(STORAGE_ORDER_SELLER_ALERTED);
@@ -2244,7 +2451,9 @@
                     String(r.status || ''),
                     String(r.updatedAt || ''),
                     String(r.buyerId || ''),
-                    String(r.sellerId || '')
+                    String(r.sellerId || ''),
+                    String(r.rejectReason || ''),
+                    String(r.cancelNote || '')
                 ].join(':');
             }).join('|');
         }
@@ -3254,20 +3463,43 @@
                 }
 
                 var actions = buildOrderActionButtons(o, status, youAreBuyer);
-                return '' +
-                    '<div class="offer-card">' +
-                        '<div class="offer-head">' +
-                            '<div class="offer-name">' + escapeHtml(counterName) + '</div>' +
-                            '<div class="offer-status offer-status--' + statusTone + '">' + escapeHtml(orderStatusLabel(status)) + '</div>' +
-                        '</div>' +
-                        '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' + Math.floor(price).toLocaleString() + ' KRW/USDT</div></div>' +
-                        '<div class="offer-line"><div class="offer-k">유형</div><div class="offer-v">' + (orderSide === 'sell' ? 'USDT 판매' : 'USDT 구매') + '</div></div>' +
-                        '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' + Number(o.usdt || 0).toLocaleString() + ' USDT</div></div>' +
-                        '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' + total + '</div></div>' +
-                        progressHtml +
-                        extra +
-                        (actions ? ('<div class="offer-actions">' + actions + '</div>') : '') +
-                    '</div>';
+                // 거래 내역 탭: 카드 탭 시 영수증형 상세 모달
+                var cardOpenTag = showHistory
+                    ? '<div class="offer-card offer-card--receipt" role="button" tabindex="0" onclick="onHistoryOfferCardClick(event, \'' +
+                      escapeJsSingleQuote(String(o.id || '')) +
+                      '\')">'
+                    : '<div class="offer-card">';
+                return (
+                    '' +
+                    cardOpenTag +
+                    '<div class="offer-head">' +
+                    '<div class="offer-name">' +
+                    escapeHtml(counterName) +
+                    '</div>' +
+                    '<div class="offer-status offer-status--' +
+                    statusTone +
+                    '">' +
+                    escapeHtml(orderStatusLabel(status)) +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' +
+                    Math.floor(price).toLocaleString() +
+                    ' KRW/USDT</div></div>' +
+                    '<div class="offer-line"><div class="offer-k">유형</div><div class="offer-v">' +
+                    (orderSide === 'sell' ? 'USDT 판매' : 'USDT 구매') +
+                    '</div></div>' +
+                    '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' +
+                    Number(o.usdt || 0).toLocaleString() +
+                    ' USDT</div></div>' +
+                    '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' +
+                    total +
+                    '</div></div>' +
+                    progressHtml +
+                    extra +
+                    (actions ? '<div class="offer-actions">' + actions + '</div>' : '') +
+                    (showHistory ? '<div class="offer-receipt-hint">탭하여 상세 · 영수증 보기</div>' : '') +
+                    '</div>'
+                );
             }).join('');
             fillOfferBuyerWalletBalances(rows);
         }
@@ -3449,9 +3681,20 @@
                     receiver.buyerApprovedAt = now;
                 } else if (action === 'reject') {
                     if (!youAreBuyer0 || String(r0.status) !== 'pending_buyer') return;
+                    var rrSell = '';
+                    try {
+                        rrSell = prompt('거절 사유를 입력해 주세요. (선택)', '') || '';
+                    } catch (eRjS) {}
+                    // 영수증·상세 내역에 표시할 거절 사유
+                    receiver.rejectReason = String(rrSell || '').trim() || '(사유 미입력)';
                     receiver.status = 'buyer_rejected_sell';
                 } else if (action === 'cancel') {
                     if (!youAreSeller0 || (String(r0.status) !== 'pending_buyer' && String(r0.status) !== 'buyer_approved_sell')) return;
+                    var cnSell = '';
+                    try {
+                        cnSell = prompt('취소 사유를 입력해 주세요. (선택)', '') || '';
+                    } catch (eCnS) {}
+                    receiver.cancelNote = String(cnSell || '').trim() || '(메모 없음)';
                     receiver.status = 'seller_cancelled_sell';
                     receiver.sellerCancelledAt = now;
                 } else if (action === 'sent') {
@@ -3590,6 +3833,11 @@
                     }
                 }
             } else if (action === 'reject') {
+                var rrBuy = '';
+                try {
+                    rrBuy = prompt('거절 사유를 입력해 주세요. (선택)', '') || '';
+                } catch (eRjB) {}
+                receiver.rejectReason = String(rrBuy || '').trim() || '(사유 미입력)';
                 receiver.status = 'seller_rejected';
             } else if (action === 'paid') {
                 receiver.status = 'buyer_paid';
@@ -3601,6 +3849,11 @@
                 receiver.status = 'seller_payment_check_requested';
                 receiver.sellerPaymentCheckRequestedAt = now;
             } else if (action === 'cancel') {
+                var cnBuy = '';
+                try {
+                    cnBuy = prompt('취소 사유를 입력해 주세요. (선택)', '') || '';
+                } catch (eCnB) {}
+                receiver.cancelNote = String(cnBuy || '').trim() || '(메모 없음)';
                 receiver.status = 'buyer_cancelled';
                 receiver.buyerCancelledAt = now;
             } else if (action === 'sent') {
