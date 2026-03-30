@@ -113,15 +113,17 @@
 
             var usdtN = Number(usdt || 0);
             var krwN = Number(krw || 0);
+            // DM 각 줄 앞에 의미에 맞는 이모지(구매/판매는 제목 아이콘으로 구분)
+            var headlineIcon = side === 'buy' ? '🛒' : '📤';
             // 실제 줄바꿈(\n) 사용 — 이전 \\n 은 문자 '\'+'n' 이라 텔레그램에 그대로 보였음
             var text =
                 '📬 XTrade P2P\n\n' +
-                String(typeLine || '') + '\n\n' +
-                '신청자: ' + String(applicantName || '') + '\n\n' +
-                '금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT\n\n' +
-                '환산: ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\n\n' +
-                '주문 ID: ' + String(orderId || '') + '\n\n' +
-                '미니앱에서 「내 주문」을 확인해 주세요.';
+                headlineIcon + ' ' + String(typeLine || '') + '\n\n' +
+                '👤 신청자: ' + String(applicantName || '') + '\n\n' +
+                '💰 금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT\n\n' +
+                '💱 환산: ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\n\n' +
+                '🧾 주문 ID: ' + String(orderId || '') + '\n\n' +
+                '✅ 미니앱에서 「내 주문」을 확인해 주세요.';
 
             var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
             // 1) JSON 방식 우선
