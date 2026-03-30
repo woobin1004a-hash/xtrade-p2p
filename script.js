@@ -5799,6 +5799,13 @@
                 } catch (ePrefs) {}
                 applyThemeMode();
                 applyLanguageMode();
+                // 배포 시 index.html이 예전 버전(showPreparingNotice)이어도 푸터가 동작하도록 onclick 덮어씀
+                try {
+                    var _fp = document.getElementById('footerPrivacyBtn');
+                    var _ft = document.getElementById('footerTermsBtn');
+                    if (_fp) _fp.onclick = function () { showPrivacyPolicy(); };
+                    if (_ft) _ft.onclick = function () { showTermsOfService(); };
+                } catch (eLegalFooter) {}
                 loadSellerAlertedOrderIds();
                 // 삭제 버튼 이벤트를 JS로도 한 번 더 바인딩(웹뷰별 onclick 누락 이슈 대응)
                 try {

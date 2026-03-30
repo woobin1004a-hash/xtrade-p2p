@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@2.4.2/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260330-market-top-breath-v75">
+<link rel="stylesheet" href="style.css?v=260330-legal-footer-override-v79">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260330-market-top-breath-v75</div>
+    <div class="build-tag" id="buildTag">build: 260330-legal-footer-override-v79</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -43,8 +43,8 @@
                 </div>
             </div>
             <div class="marketplace-footer-links">
-                <button type="button" id="footerPrivacyBtn" class="marketplace-footer-link" onclick="showPreparingNotice()">개인정보 처리방침</button>
-                <button type="button" id="footerTermsBtn" class="marketplace-footer-link" onclick="showPreparingNotice()">이용약관</button>
+                <button type="button" id="footerPrivacyBtn" class="marketplace-footer-link" onclick="showPrivacyPolicy()">개인정보 처리방침</button>
+                <button type="button" id="footerTermsBtn" class="marketplace-footer-link" onclick="showTermsOfService()">이용약관</button>
             </div>
         </div>
     </div>
@@ -712,7 +712,31 @@
         </div>
     </div>
 
+    <!-- 개인정보 처리방침 (iframe: privacy-policy.html) -->
+    <div id="privacyPolicyOverlay" class="modal-overlay privacy-policy-overlay hidden" onclick="closePrivacyPolicyIfOverlay(event)">
+        <div class="modal-dialog legal-modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span id="privacyPolicyModalTitle" class="modal-title">개인정보 처리방침</span>
+                <button type="button" class="modal-close" onclick="closePrivacyPolicy()" aria-label="닫기">×</button>
+            </div>
+            <p id="privacyLangNote" class="privacy-lang-note hidden" role="note"></p>
+            <iframe id="privacyPolicyIframe" class="legal-modal-iframe" title="개인정보 처리방침"></iframe>
+        </div>
+    </div>
+
+    <!-- 서비스 이용약관 (iframe: terms-of-service.html) -->
+    <div id="termsOfServiceOverlay" class="modal-overlay privacy-policy-overlay hidden" onclick="closeTermsOfServiceIfOverlay(event)">
+        <div class="modal-dialog legal-modal-dialog" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span id="termsOfServiceModalTitle" class="modal-title">이용약관</span>
+                <button type="button" class="modal-close" onclick="closeTermsOfService()" aria-label="닫기">×</button>
+            </div>
+            <p id="termsLangNote" class="privacy-lang-note hidden" role="note"></p>
+            <iframe id="termsOfServiceIframe" class="legal-modal-iframe" title="서비스 이용약관"></iframe>
+        </div>
+    </div>
+
     
-<script src="script.js?v=260330-market-top-breath-v75"></script>
+<script src="script.js?v=260330-legal-footer-override-v79"></script>
 </body>
 </html>
