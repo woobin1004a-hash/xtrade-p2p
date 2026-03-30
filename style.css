@@ -316,6 +316,93 @@
         }
         .theme-light .field-label { color: #334155; }
         .theme-light .helper-text { color: #475569; }
+        /* 리스팅 등록·결제: 화이트 모드에서 바깥 카드·3열 미니카드·입력 가독성 */
+        .theme-light #listingCreateView,
+        .theme-light #listingConfirmView {
+            min-height: 100vh;
+            background: #f6f7fb;
+            color: #0f172a;
+        }
+        .theme-light #listingCreateView .top-header,
+        .theme-light #listingConfirmView .top-header {
+            border-bottom-color: #d8deea;
+        }
+        .theme-light #listingCreateView .logo,
+        .theme-light #listingConfirmView .logo,
+        .theme-light #listingCreateView .back-btn,
+        .theme-light #listingConfirmView .back-btn {
+            color: #0f172a;
+        }
+        .theme-light #listingCreateView .listing-section-block,
+        .theme-light #listingConfirmView .listing-boost-card,
+        .theme-light #listingConfirmView .listing-confirm-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+        }
+        .theme-light #listingCreateView .listing-section-heading,
+        .theme-light #listingConfirmView .listing-boost-title {
+            color: #0f172a;
+        }
+        .theme-light #listingCreateView .listing-section-title-check span {
+            color: #0f172a;
+        }
+        .theme-light #listingCreateView .listing-card-sub {
+            color: #6d28d9;
+        }
+        .theme-light #listingCreateView .listing-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .theme-light #listingCreateView .listing-card-label {
+            color: #64748b;
+        }
+        .theme-light #listingCreateView .listing-card-value {
+            color: #0f172a;
+        }
+        .theme-light #listingCreateView .icon-btn {
+            background: #ffffff;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light #listingCreateView .icon-btn:active {
+            background: #f1f5f9;
+        }
+        .theme-light #listingCreateView .field-row-with-btn > span {
+            color: #64748b !important;
+        }
+        .theme-light #listingCreateView .status-box {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #cbd5e1;
+        }
+        .theme-light #listingConfirmView .listing-boost-step {
+            border-color: #e2e8f0;
+            background: #f1f5f9;
+        }
+        .theme-light #listingConfirmView .boost-step-btn {
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #cbd5e1;
+        }
+        .theme-light #listingConfirmView .boost-value {
+            color: #0f172a;
+        }
+        .theme-light #listingConfirmView .listing-confirm-title {
+            color: #0f172a;
+        }
+        .theme-light #listingConfirmView .confirm-line {
+            border-top-color: #e2e8f0;
+        }
+        .theme-light #listingConfirmView .confirm-label {
+            color: #64748b;
+        }
+        .theme-light #listingConfirmView .confirm-value {
+            color: #0f172a;
+        }
+        .theme-light #listingConfirmView .confirm-subtitle {
+            color: #5b21b6;
+        }
         .theme-light .secondary-btn { background-color: #e2e8f0; color: #0f172a; border: 1px solid #cbd5e1; }
         .myoffers-view { min-height: 100vh; background: #07060d; }
         .myoffers-wrap { padding: 14px 16px 80px; }
@@ -1377,6 +1464,23 @@
             color: #fff;
         }
         .listing-register-btn:active { transform: scale(0.98); }
+        .listing-register-btn:disabled,
+        .listing-register-btn[aria-disabled="true"] {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .theme-light .listing-register-btn:disabled,
+        .theme-light .listing-register-btn[aria-disabled="true"] {
+            background: #e2e8f0;
+            color: #64748b;
+            box-shadow: none;
+        }
+        .theme-light .listing-register-btn--disabled .listing-register-btn__icon {
+            background: rgba(100, 116, 139, 0.25);
+            color: #64748b;
+        }
         #kycView { padding-bottom: 32px; }
         .kyc-body { padding: 8px 20px 24px; }
         .kyc-headline { font-size: 22px; font-weight: bold; margin: 8px 0 8px; }

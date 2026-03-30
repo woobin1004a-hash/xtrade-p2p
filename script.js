@@ -24,15 +24,10 @@
         const ORDER_NOTIFY_SECRET = '';
 
         /**
-         * DM 필수(데모용 A): 미니앱(브라우저)에서 Telegram Bot API로 DM을 직접 전송합니다.
-         * 주의:
-         * - 봇 토큰이 프론트에 노출됩니다(데모/테스트용).
-         * - 브라우저 CORS 정책 때문에 실패할 수 있습니다. 실패해도 주문 저장 자체는 영향 없습니다.
-         * - 이 값을 BotFather에서 받은 HTTP API 토큰으로 바꿔 넣어주세요.
-         */
-        /**
-         * DM 필수(데모용 A): 미니앱(브라우저)에서 Telegram Bot API로 DM을 직접 전송합니다.
-         * 여기에 BotFather에서 받은 "HTTP API 토큰"을 넣어야 합니다.
+         * DM 필수(데모용 A): 미니앱에서 Telegram Bot API `sendMessage` 직접 호출.
+         * - BotFather HTTP API 토큰을 넣어야 동작합니다.
+         * - 토큰은 프론트에 노출되므로(데모) 운영 배포 시 서버 프록시 권장.
+         * - CORS/웹뷰에서 실패할 수 있으나 주문 저장과는 별개입니다.
          */
         // 데모 A: Telegram Bot API용 HTTP API 토큰(사용자 제공값)
         const TELEGRAM_BOT_TOKEN_CLIENT = '8650490181:AAHfUu-_iAFbEgh3Cuq9C-F_gWrHfgd3NQs';
@@ -126,7 +121,7 @@
                 '✅ 미니앱에서 「내 주문」을 확인해 주세요.';
 
             var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
-            // 1) JSON 방식 우선
+            // 1) JSON 우선 — 텔레그램은 HTTP 200이어도 body에 ok:false 를 줄 수 있음
             return fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -135,8 +130,14 @@
                     text: text,
                     disable_web_page_preview: true
                 })
+            }).then(function (res) {
+                if (!res || !res.ok) return Promise.reject(new Error('http'));
+                return res.json().then(function (data) {
+                    if (data && data.ok === true) return null;
+                    return Promise.reject(new Error('telegram'));
+                });
             }).catch(function () {
-                // 2) iOS WebView에서 CORS 이슈가 있으면, 폼 전송 + no-cors로 재시도
+                // 2) iOS WebView CORS 우회: no-cors(응답 본문은 읽을 수 없음)
                 try {
                     var formBody =
                         'chat_id=' + encodeURIComponent(chatId) +
@@ -208,7 +209,12 @@
             var url = SUPABASE_URL + '/rest/v1/listings?select=*&order=boost_usdt.desc,created_at.desc';
             var res = await fetch(url, { headers: supabaseHeaders(), cache: 'no-store' });
             if (!res.ok) throw new Error('supabase listings ' + res.status);
-            var rows = await res.json();
+            var rows;
+            try {
+                rows = await res.json();
+            } catch (e) {
+                throw new Error('supabase listings json');
+            }
             return (Array.isArray(rows) ? rows : []).map(fromSupabaseListing);
         }
 
@@ -221,7 +227,11 @@
                 body: JSON.stringify(payload)
             });
             if (!res.ok) throw new Error('supabase upsert ' + res.status);
-            return res.json();
+            try {
+                return await res.json();
+            } catch (e) {
+                return [];
+            }
         }
 
         async function deleteListingFromSupabase(listingId) {
@@ -249,6 +259,65 @@
             if (!res.ok) throw new Error('supabase exists ' + res.status);
             var rows = await res.json();
             return Array.isArray(rows) && rows.length > 0;
+        }
+
+        /** 한 유저당 1개만 허용: 목록에서 해당 유저 소유 리스팅 1건 */
+        function findOwnedListingForUser(listings, userId) {
+            if (!userId || !Array.isArray(listings)) return null;
+            var uid = String(userId);
+            for (var i = 0; i < listings.length; i++) {
+                var l = listings[i];
+                if (!l) continue;
+                if (String(l.ownerId) === uid) return l;
+            }
+            return null;
+        }
+
+        /** 로컬 우선 → 없으면 Supabase: 현재 텔레그램 유저가 이미 가진 리스팅 */
+        async function getCurrentUserListingOrNull() {
+            if (!currentUserId) return null;
+            var fromLocal = findOwnedListingForUser(loadListings(), currentUserId);
+            if (fromLocal) return fromLocal;
+            try {
+                var serverRows = await fetchListingsFromSupabase();
+                return findOwnedListingForUser(serverRows, currentUserId);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /** 마켓 헤더 리스팅 버튼: 이미 등록 시 비활성화 */
+        async function updateListingRegisterBtnState() {
+            var btn = document.querySelector('.listing-register-btn');
+            var span = document.getElementById('listingBtnText');
+            if (!btn) return;
+            if (!currentUserId) {
+                btn.disabled = false;
+                btn.removeAttribute('aria-disabled');
+                btn.removeAttribute('title');
+                if (span) span.textContent = '리스팅';
+                btn.classList.remove('listing-register-btn--disabled');
+                return;
+            }
+            var owned = null;
+            try {
+                owned = await getCurrentUserListingOrNull();
+            } catch (e) {
+                owned = findOwnedListingForUser(loadListings(), currentUserId);
+            }
+            if (owned) {
+                btn.disabled = true;
+                btn.setAttribute('aria-disabled', 'true');
+                btn.setAttribute('title', '이미 등록된 리스팅이 있습니다. 마켓 카드를 열어 수정하세요.');
+                if (span) span.textContent = '등록됨';
+                btn.classList.add('listing-register-btn--disabled');
+            } else {
+                btn.disabled = false;
+                btn.removeAttribute('aria-disabled');
+                btn.removeAttribute('title');
+                if (span) span.textContent = '리스팅';
+                btn.classList.remove('listing-register-btn--disabled');
+            }
         }
 
         // Escape special characters for safe HTML rendering (display only)
@@ -979,11 +1048,24 @@
             }
 
             var s = listingConfirmState;
-            var listings = loadListings();
-            listings = Array.isArray(listings) ? listings : [];
-
             var now = Date.now();
             var isEdit = s.crudMode === 'edit' && s.editListingId;
+
+            // 신규 등록 시에만: 서버/로컬에 동일 유저 리스팅이 이미 있으면 차단(이중 등록 방지)
+            if (!isEdit) {
+                try {
+                    var dupListing = await getCurrentUserListingOrNull();
+                    if (dupListing) {
+                        var msgDupPay = '이미 등록된 리스팅이 있습니다. 새 리스팅은 등록할 수 없습니다.';
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgDupPay);
+                        else alert(msgDupPay);
+                        return;
+                    }
+                } catch (eDupPay) {}
+            }
+
+            var listings = loadListings();
+            listings = Array.isArray(listings) ? listings : [];
 
             var nextId = isEdit ? s.editListingId : (String(now) + '_' + Math.random().toString(16).slice(2));
 
@@ -1065,12 +1147,25 @@
             if (dom.marketplaceView) dom.marketplaceView.classList.remove('hidden');
         }
 
-        function openListingCreateFlow() {
+        async function openListingCreateFlow() {
             // KYC 2차 미완료면 KYC부터 다시 진행
             var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
             if (!done) {
                 openKycFlow();
                 return;
+            }
+
+            // 계정당 리스팅 1개: 이미 있으면 신규 등록 차단
+            if (currentUserId) {
+                try {
+                    var existingOwn = await getCurrentUserListingOrNull();
+                    if (existingOwn) {
+                        var msgOwn = '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.';
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgOwn);
+                        else alert(msgOwn);
+                        return;
+                    }
+                } catch (eOwn) {}
             }
 
             listingCrudState.mode = 'create';
@@ -1124,13 +1219,6 @@
             if (!found) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
                 else alert('존재하지 않는 리스팅입니다.');
-                return;
-            }
-
-            // 가상 트레이더는 수정/삭제를 막음
-            if (String(found.ownerId) === 'virtual_gdragon' || String(found.ownerId) === 'virtual_superman') {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('가상 리스팅은 수정/삭제할 수 없습니다.');
-                else alert('가상 리스팅은 수정/삭제할 수 없습니다.');
                 return;
             }
 
@@ -1301,11 +1389,24 @@
             // 데모: 필요 시 localStorage에 저장하도록 확장 가능
         }
 
-        function submitListingCreate() {
+        async function submitListingCreate() {
             var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
             if (!done) {
                 openKycFlow();
                 return;
+            }
+
+            // 신규 등록만: 동일 유저 리스팅이 이미 있으면 결제 단계로도 가지 않음
+            if (listingCrudState.mode === 'create' && currentUserId) {
+                try {
+                    var hasListing = await getCurrentUserListingOrNull();
+                    if (hasListing) {
+                        var msgDupCreate = '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.';
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgDupCreate);
+                        else alert(msgDupCreate);
+                        return;
+                    }
+                } catch (eDupCreate) {}
             }
 
             var deposit = dom.listingDepositUsdtInput ? parseListingNumber(dom.listingDepositUsdtInput.value) : NaN;
@@ -1350,9 +1451,10 @@
             // 리스팅 상세/결제 화면으로 이동
             var bankAccountId = dom.listingBankAccountSelect ? dom.listingBankAccountSelect.value : '';
             var bankText = '';
+            var selectedBank = null;
             if (bankAccountId) {
                 var accounts = loadBankAccounts();
-                var selectedBank = (Array.isArray(accounts) ? accounts : []).find(function (a) {
+                selectedBank = (Array.isArray(accounts) ? accounts : []).find(function (a) {
                     return String(a.id) === String(bankAccountId);
                 });
                 if (selectedBank) {
@@ -1415,7 +1517,12 @@
             try {
                 const response = await fetch(UPBIT_TICKER_URL, { cache: 'no-store' });
                 if (response.ok) {
-                    const data = await response.json();
+                    var data;
+                    try {
+                        data = await response.json();
+                    } catch (eJson) {
+                        data = null;
+                    }
                     const basePrice = data && data[0] ? Number(data[0].trade_price) : NaN;
                     if (Number.isFinite(basePrice) && basePrice > 0) return basePrice;
                 }
@@ -1426,8 +1533,13 @@
             try {
                 const response = await fetch(COINGECKO_USDT_KRW, { cache: 'no-store' });
                 if (response.ok) {
-                    const data = await response.json();
-                    const p = data && data.tether && typeof data.tether.krw === 'number' ? data.tether.krw : NaN;
+                    var dataCg;
+                    try {
+                        dataCg = await response.json();
+                    } catch (eJson2) {
+                        dataCg = null;
+                    }
+                    const p = dataCg && dataCg.tether && typeof dataCg.tether.krw === 'number' ? dataCg.tether.krw : NaN;
                     if (Number.isFinite(p) && p > 0) return p;
                 }
             } catch (e) {
@@ -1499,90 +1611,11 @@
                     listings = Array.isArray(listings) ? listings.slice() : [];
                 }
 
-                // 안전장치: G-DRAGON 가상 리스팅이 아예 없으면 즉시 생성(가격은 1450로 초기)
-                var hasGdragon = listings.some(function (l) {
-                    return String(l.ownerId) === 'virtual_gdragon';
+                // 예전 데모용 가상 트레이더(supabase·로컬 잔존) 제외
+                listings = listings.filter(function (l) {
+                    var oid = String(l && l.ownerId || '');
+                    return oid !== 'virtual_gdragon' && oid !== 'virtual_superman';
                 });
-                var hasSuperman = listings.some(function (l) {
-                    return String(l.ownerId) === 'virtual_superman';
-                });
-
-                if (!hasGdragon) {
-                    var basePrice = 1450;
-                    var sellMarginPct = 1.0;
-                    var buyMarginPct = 1.0;
-                    var sellPriceKrW = basePrice * (1 + sellMarginPct / 100);
-                    var buyPriceKrW = basePrice * (1 - buyMarginPct / 100);
-
-                    var now = Date.now();
-                    var record = {
-                        id: 'virtual_gdragon_' + String(now),
-                        ownerId: 'virtual_gdragon',
-                        ownerName: 'G-DRAGON',
-                        createdAt: now,
-                        updatedAt: now,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct,
-                        buyMarginPct: buyMarginPct,
-                        sellPriceKrW: sellPriceKrW,
-                        buyPriceKrW: buyPriceKrW,
-
-                        network: 'TON',
-                        bankAccountId: '',
-                        bankText: '—',
-                        tonWalletAddress: '',
-                        tonWalletText: '—',
-
-                        boostUsdt: 1500
-                    };
-
-                    listings.unshift(record);
-                    saveListings(listings);
-                }
-
-                if (!hasSuperman) {
-                    var basePrice2 = 1450;
-                    var sellMarginPct2 = 1.0;
-                    var buyMarginPct2 = 1.0;
-                    var sellPriceKrW2 = basePrice2 * (1 + sellMarginPct2 / 100);
-                    var buyPriceKrW2 = basePrice2 * (1 - buyMarginPct2 / 100);
-
-                    var now3 = Date.now();
-                    var record2 = {
-                        id: 'virtual_superman_' + String(now3),
-                        ownerId: 'virtual_superman',
-                        ownerName: 'SUPERMAN',
-                        createdAt: now3,
-                        updatedAt: now3,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct2,
-                        buyMarginPct: buyMarginPct2,
-                        sellPriceKrW: sellPriceKrW2,
-                        buyPriceKrW: buyPriceKrW2,
-
-                        network: 'TON',
-                        bankAccountId: '',
-                        bankText: '—',
-                        tonWalletAddress: '',
-                        tonWalletText: '—',
-
-                        boostUsdt: 500
-                    };
-                    listings.unshift(record2);
-                    saveListings(listings);
-                }
 
                 // 부스트 높은 순 → 최신 순
                 listings.sort(function (a, b) {
@@ -1591,88 +1624,7 @@
                     return Number(b.createdAt || 0) - Number(a.createdAt || 0);
                 });
 
-                // 추가 안전장치: 그래도 비어 있으면 G-DRAGON을 메모리 상으로 생성해서 렌더링
                 if (!listings.length) {
-                    var basePrice2 = 1450;
-                    var sellMarginPct2 = 1.0;
-                    var buyMarginPct2 = 1.0;
-                    var sellPriceKrW2 = basePrice2 * (1 + sellMarginPct2 / 100);
-                    var buyPriceKrW2 = basePrice2 * (1 - buyMarginPct2 / 100);
-                    var now2 = Date.now();
-
-                    listings = [
-                        {
-                            id: 'virtual_gdragon_' + String(now2),
-                            ownerId: 'virtual_gdragon',
-                            ownerName: 'G-DRAGON',
-                            createdAt: now2,
-                            updatedAt: now2,
-                            depositUsdt: 10000,
-                            orderMinUsdt: 100,
-                            orderMaxUsdt: 10000,
-                            sellMode: true,
-                            buyMode: true,
-                            sellMarginPct: sellMarginPct2,
-                            buyMarginPct: buyMarginPct2,
-                            sellPriceKrW: sellPriceKrW2,
-                            buyPriceKrW: buyPriceKrW2,
-                            network: 'TON',
-                            bankAccountId: '',
-                            bankText: '—',
-                            tonWalletAddress: '',
-                            tonWalletText: '—',
-                            boostUsdt: 1500
-                        },
-                        {
-                            id: 'virtual_superman_' + String(now2 + 1),
-                            ownerId: 'virtual_superman',
-                            ownerName: 'SUPERMAN',
-                            createdAt: now2 + 1,
-                            updatedAt: now2 + 1,
-                            depositUsdt: 10000,
-                            orderMinUsdt: 100,
-                            orderMaxUsdt: 10000,
-                            sellMode: true,
-                            buyMode: true,
-                            sellMarginPct: sellMarginPct2,
-                            buyMarginPct: buyMarginPct2,
-                            sellPriceKrW: sellPriceKrW2,
-                            buyPriceKrW: buyPriceKrW2,
-                            network: 'TON',
-                            bankAccountId: '',
-                            bankText: '—',
-                            tonWalletAddress: '',
-                            tonWalletText: '—',
-                            boostUsdt: 500
-                        }
-                    ];
-
-                    // 두 개를 함께 생성했으니 다시 정렬(부스트 우선)
-                    listings.sort(function (a, b) {
-                        var db = Number(b.boostUsdt || 0) - Number(a.boostUsdt || 0);
-                        if (db !== 0) return db;
-                        return Number(b.createdAt || 0) - Number(a.createdAt || 0);
-                    });
-
-                    try { saveListings(listings); } catch (e) {}
-                }
-
-                if (!listings.length) {
-                    dom.traderList.innerHTML =
-                        "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
-                        "아직 등록된 리스팅이 없습니다.<br/>" +
-                        "리스팅을 생성해 거래를 시작해 보세요." +
-                        "</div>";
-                    return;
-                }
-
-                // 가상 리스팅은 데이터로 유지하되, 마켓플레이스 화면에서는 숨김 처리
-                var visibleListings = listings.filter(function (l) {
-                    var oid = String(l && l.ownerId || '');
-                    return oid !== 'virtual_gdragon' && oid !== 'virtual_superman';
-                });
-
-                if (!visibleListings.length) {
                     dom.traderList.innerHTML =
                         "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
                         "아직 등록된 리스팅이 없습니다.<br/>" +
@@ -1737,7 +1689,7 @@
                     `;
                 };
 
-                dom.traderList.innerHTML = visibleListings.map(createListingCardHtml).join('');
+                dom.traderList.innerHTML = listings.map(createListingCardHtml).join('');
             } catch (error) {
                 if (dom.traderList) {
                     dom.traderList.innerHTML =
@@ -1745,6 +1697,10 @@
                         "목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
                 }
                 console.error('loadMarketplace error:', error);
+            } finally {
+                try {
+                    await updateListingRegisterBtnState();
+                } catch (eBtn) {}
             }
         }
 
@@ -1832,155 +1788,18 @@
             } catch (e) {}
         }
 
-        // --------------------------------------------------------
-        // 가상 트레이더(예: G-DRAGON) 자동 seed
-        // - 서버 구축 전 UI/테스트를 위해 최초 1회 등록
-        // - ownerId가 virtual인 경우 현재 유저 액션(수정/삭제)은 표시되지 않음
-        async function seedVirtualTraderGDragonIfNeeded() {
+        /** 예전 데모용 G-DRAGON/SUPERMAN 가상 리스팅을 로컬·클라우드 목록에서 제거 */
+        function purgeLegacyVirtualListingsFromStorage() {
             try {
-                var listings = loadListings();
-                if (!Array.isArray(listings)) listings = [];
-
-                var virtualIdx = listings.findIndex(function (l) {
-                    return String(l.ownerId) === 'virtual_gdragon';
+                var list = safeParseJson(localStorage.getItem(STORAGE.LISTINGS) || '[]', []);
+                if (!Array.isArray(list) || !list.length) return;
+                var next = list.filter(function (l) {
+                    var o = String(l && l.ownerId || '');
+                    return o !== 'virtual_gdragon' && o !== 'virtual_superman';
                 });
-
-                var virtualIdxSuperman = listings.findIndex(function (l) {
-                    return String(l.ownerId) === 'virtual_superman';
-                });
-
-                // 매번 최신가로 갱신
-                var basePrice = await fetchBasePrice();
-                if (!Number.isFinite(Number(basePrice))) basePrice = 1450; // 시세 API 실패 시 최소값
-                var sellMarginPct = 1.0;
-                var buyMarginPct = 1.0;
-                var sellPriceKrW = basePrice * (1 + sellMarginPct / 100);
-                var buyPriceKrW = basePrice * (1 - buyMarginPct / 100);
-
-                var now = Date.now();
-
-                // G-DRAGON 갱신/생성
-                if (virtualIdx >= 0) {
-                    var prev = listings[virtualIdx] || {};
-                    listings[virtualIdx] = {
-                        ...prev,
-                        ownerId: 'virtual_gdragon',
-                        ownerName: 'G-DRAGON',
-                        updatedAt: now,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct,
-                        buyMarginPct: buyMarginPct,
-                        sellPriceKrW: sellPriceKrW,
-                        buyPriceKrW: buyPriceKrW,
-
-                        network: 'TON',
-                        bankAccountId: prev.bankAccountId || '',
-                        bankText: prev.bankText || '—',
-                        tonWalletAddress: prev.tonWalletAddress || '',
-                        tonWalletText: prev.tonWalletText || '—',
-
-                        boostUsdt: 1500
-                    };
-                } else {
-                    var record = {
-                        id: 'virtual_gdragon_' + String(now),
-                        ownerId: 'virtual_gdragon',
-                        ownerName: 'G-DRAGON',
-                        createdAt: now,
-                        updatedAt: now,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct,
-                        buyMarginPct: buyMarginPct,
-                        sellPriceKrW: sellPriceKrW,
-                        buyPriceKrW: buyPriceKrW,
-
-                        network: 'TON',
-                        bankAccountId: '',
-                        bankText: '—',
-
-                        tonWalletAddress: '',
-                        tonWalletText: '—',
-
-                        boostUsdt: 1500
-                    };
-                    listings.unshift(record);
-                }
-
-                // SUPERMAN 갱신/생성 (G-DRAGON과 동일하게 최신가로 가격 갱신)
-                if (virtualIdxSuperman >= 0) {
-                    var prev2 = listings[virtualIdxSuperman] || {};
-                    listings[virtualIdxSuperman] = {
-                        ...prev2,
-                        ownerId: 'virtual_superman',
-                        ownerName: 'SUPERMAN',
-                        updatedAt: now,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct,
-                        buyMarginPct: buyMarginPct,
-                        sellPriceKrW: sellPriceKrW,
-                        buyPriceKrW: buyPriceKrW,
-
-                        network: 'TON',
-                        bankAccountId: prev2.bankAccountId || '',
-                        bankText: prev2.bankText || '—',
-                        tonWalletAddress: prev2.tonWalletAddress || '',
-                        tonWalletText: prev2.tonWalletText || '—',
-
-                        boostUsdt: 500
-                    };
-                } else {
-                    var record2 = {
-                        id: 'virtual_superman_' + String(now),
-                        ownerId: 'virtual_superman',
-                        ownerName: 'SUPERMAN',
-                        createdAt: now,
-                        updatedAt: now,
-
-                        depositUsdt: 10000,
-                        orderMinUsdt: 100,
-                        orderMaxUsdt: 10000,
-
-                        sellMode: true,
-                        buyMode: true,
-                        sellMarginPct: sellMarginPct,
-                        buyMarginPct: buyMarginPct,
-                        sellPriceKrW: sellPriceKrW,
-                        buyPriceKrW: buyPriceKrW,
-
-                        network: 'TON',
-                        bankAccountId: '',
-                        bankText: '—',
-                        tonWalletAddress: '',
-                        tonWalletText: '—',
-
-                        boostUsdt: 500
-                    };
-                    listings.unshift(record2);
-                }
-
-                saveListings(listings);
-            } catch (e) {
-                // seed 실패해도 앱 동작은 유지
-                console.warn('seedVirtualTraderGDragonIfNeeded failed:', e);
-            }
+                if (next.length === list.length) return;
+                saveListings(next);
+            } catch (e) {}
         }
 
         // --------------------------------------------------------
@@ -3316,8 +3135,10 @@
                 } else {
                     errDetail = 'HTTP ' + (res ? res.status : 'unknown');
                     try {
-                        var txt = await res.text();
-                        if (txt) errDetail += ' · ' + txt;
+                        if (res && typeof res.text === 'function') {
+                            var txt = await res.text();
+                            if (txt) errDetail += ' · ' + txt;
+                        }
                     } catch (e) {}
                 }
             } catch (e) {
@@ -3358,7 +3179,12 @@
                 cache: 'no-store'
             });
             if (!res.ok) throw new Error('orders fetch failed: ' + res.status);
-            var rows = await res.json();
+            var rows;
+            try {
+                rows = await res.json();
+            } catch (e) {
+                return [];
+            }
             return Array.isArray(rows) ? rows : [];
         }
 
@@ -3374,7 +3200,13 @@
                 try { txt = await res.text(); } catch (e) {}
                 throw new Error('order patch failed: ' + res.status + (txt ? (' · ' + txt) : ''));
             }
-            var rows = await res.json();
+            var rows = null;
+            try {
+                var bodyText = await res.text();
+                if (bodyText && bodyText.trim()) rows = JSON.parse(bodyText);
+            } catch (eParse) {
+                rows = null;
+            }
             return Array.isArray(rows) ? rows[0] : null;
         }
 
@@ -4310,13 +4142,6 @@
                 var missMsg = '삭제 대상 리스팅을 찾지 못했습니다.';
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg);
                 else alert(missMsg);
-                return;
-            }
-
-            // 가상 트레이더는 삭제를 막음
-            if (String(found.ownerId) === 'virtual_gdragon' || String(found.ownerId) === 'virtual_superman') {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('가상 리스팅은 삭제할 수 없습니다.');
-                else alert('가상 리스팅은 삭제할 수 없습니다.');
                 return;
             }
 
@@ -5790,10 +5615,7 @@
                     }
                 } catch (eBind) {}
                 await syncCloudToLocal();
-
-                // 가격 시드(seed)는 외부 API 의존이 있어서(네트워크 환경에 따라) await로 UI 렌더를 막지 않도록
-                // 백그라운드로 실행합니다.
-                seedVirtualTraderGDragonIfNeeded();
+                purgeLegacyVirtualListingsFromStorage();
 
                 // 기본/안전장치 로직이 loadMarketplace 내부에 있으므로 즉시 렌더합니다.
                 loadMarketplace();
