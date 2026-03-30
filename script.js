@@ -20,7 +20,8 @@
          * 비워 두면 호출하지 않음 → 기존 동작과 동일. 설정은 TELEGRAM_NOTIFY_SETUP.md 참고.
          * Edge Secret ORDER_NOTIFY_SECRET 과 반드시 동일한 값.
          */
-        const ORDER_NOTIFY_SECRET = '8650490181:AAHfUu-_iAFbEgh3Cuq9C-F_gWrHfgd3NQs';
+        // 데모 A에서는 서버 알림(Edge Function)을 사용하지 않으므로 비워 둡니다.
+        const ORDER_NOTIFY_SECRET = '';
 
         /**
          * DM 필수(데모용 A): 미니앱(브라우저)에서 Telegram Bot API로 DM을 직접 전송합니다.
@@ -29,7 +30,12 @@
          * - 브라우저 CORS 정책 때문에 실패할 수 있습니다. 실패해도 주문 저장 자체는 영향 없습니다.
          * - 이 값을 BotFather에서 받은 HTTP API 토큰으로 바꿔 넣어주세요.
          */
-        const TELEGRAM_BOT_TOKEN_CLIENT = '';
+        /**
+         * DM 필수(데모용 A): 미니앱(브라우저)에서 Telegram Bot API로 DM을 직접 전송합니다.
+         * 여기에 BotFather에서 받은 "HTTP API 토큰"을 넣어야 합니다.
+         */
+        // 데모 A: Telegram Bot API용 HTTP API 토큰(사용자 제공값)
+        const TELEGRAM_BOT_TOKEN_CLIENT = '8650490181:AAHfUu-_iAFbEgh3Cuq9C-F_gWrHfgd3NQs';
 
         function supabaseHeaders(extra) {
             var base = {
@@ -73,7 +79,16 @@
          */
         function notifyNewOrderTelegramClient(orderId, orderSide, receiver, usdt, krw) {
             var token = String(TELEGRAM_BOT_TOKEN_CLIENT || '').trim();
-            if (!token || !orderId) return Promise.resolve();
+            if (!orderId) return Promise.resolve();
+            if (!token) {
+                // 토큰이 비어있으면 DM이 아예 안 가므로 사용자에게 즉시 알려줌
+                var msg = 'DM 전송 실패: TELEGRAM_BOT_TOKEN_CLIENT 값이 비어 있습니다.\\nscript.js에서 BotFather HTTP API 토큰을 넣어주세요.';
+                try {
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                    else alert(msg);
+                } catch (e) {}
+                return Promise.resolve();
+            }
 
             var side = String(orderSide || '').toLowerCase();
             var r = receiver && typeof receiver === 'object' ? receiver : {};
@@ -106,7 +121,9 @@
                 '주문 ID: ' + String(orderId || '') + '\\n\\n' +
                 '미니앱에서 「내 주문」을 확인해 주세요.';
 
-            return fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+            var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
+            // 1) JSON 방식 우선
+            return fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -115,8 +132,21 @@
                     disable_web_page_preview: true
                 })
             }).catch(function () {
-                // DM 실패해도 주문 저장 로직은 이미 끝났으므로 조용히 무시
-                return null;
+                // 2) iOS WebView에서 CORS 이슈가 있으면, 폼 전송 + no-cors로 재시도
+                try {
+                    var formBody =
+                        'chat_id=' + encodeURIComponent(chatId) +
+                        '&text=' + encodeURIComponent(text) +
+                        '&disable_web_page_preview=true';
+                    return fetch(url, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formBody
+                    }).catch(function () { return null; });
+                } catch (e2) {
+                    return null;
+                }
             });
         }
 
