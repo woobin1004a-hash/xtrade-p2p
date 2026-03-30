@@ -180,14 +180,26 @@
             };
         }
 
+        /** Supabase/로컬 혼재 타입(boolean/string/number)을 안전하게 boolean으로 정규화 */
+        function parseModeFlag(value) {
+            if (typeof value === 'boolean') return value;
+            if (typeof value === 'number') return value !== 0;
+            if (typeof value === 'string') {
+                var s = value.trim().toLowerCase();
+                if (s === 'true' || s === 't' || s === '1' || s === 'yes' || s === 'y' || s === 'on') return true;
+                if (s === 'false' || s === 'f' || s === '0' || s === 'no' || s === 'n' || s === 'off' || s === '') return false;
+            }
+            return !!value;
+        }
+
         function fromSupabaseListing(row) {
             return {
                 id: row.id,
                 ownerId: row.owner_id,
                 ownerName: row.owner_name,
                 boostUsdt: Number(row.boost_usdt || 0),
-                sellMode: !!row.sell_mode,
-                buyMode: !!row.buy_mode,
+                sellMode: parseModeFlag(row.sell_mode),
+                buyMode: parseModeFlag(row.buy_mode),
                 sellMarginPct: Number(row.sell_margin_pct || 0),
                 buyMarginPct: Number(row.buy_margin_pct || 0),
                 sellPriceKrW: Number(row.sell_price_krw || 0),
@@ -1664,16 +1676,18 @@
                     var isOwner = currentUserId != null && String(l.ownerId) === String(currentUserId);
                     var cardVariantClass = rank === 1 ? 'trader-card--top' : 'trader-card--sub';
 
-                    var buyNum = l.buyMode ? Math.floor(Number(l.buyPriceKrW || 0)) : null;
-                    var sellNum = l.sellMode ? Math.floor(Number(l.sellPriceKrW || 0)) : null;
+                    var sellModeOn = parseModeFlag(l && l.sellMode);
+                    var buyModeOn = parseModeFlag(l && l.buyMode);
+                    var buyNum = buyModeOn ? Math.floor(Number(l.buyPriceKrW || 0)) : null;
+                    var sellNum = sellModeOn ? Math.floor(Number(l.sellPriceKrW || 0)) : null;
                     var orderMin = Math.floor(Number(l.orderMinUsdt || 0));
                     var orderMax = Math.floor(Number(l.orderMaxUsdt || 0));
                     var orderTxt = orderMin.toLocaleString() + "-" + orderMax.toLocaleString() + " USDT";
                     var boostNum = Math.floor(Number(l.boostUsdt || 0));
                     var boostTxt = boostNum.toLocaleString() + " USDT";
 
-                    var hasAnyMode = !!l.sellMode || !!l.buyMode;
-                    var preferredSide = l.sellMode ? 'buy' : 'sell';
+                    var hasAnyMode = sellModeOn || buyModeOn;
+                    var preferredSide = sellModeOn ? 'buy' : 'sell';
                     var offerBtnHtml = (isOwner || !hasAnyMode)
                         ? ''
                         : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', '${preferredSide}')">주문</button>`;
@@ -2773,8 +2787,8 @@
             if (dom.orderFlowView) dom.orderFlowView.classList.remove('hidden');
 
             var firstSide = initialSide === 'sell' ? 'sell' : 'buy';
-            var canBuy = !!found.sellMode;  // 상대의 매도 리스팅에 대해 내가 구매
-            var canSell = !!found.buyMode;  // 상대의 매수 리스팅에 대해 내가 판매
+            var canBuy = parseModeFlag(found.sellMode);  // 상대의 매도 리스팅에 대해 내가 구매
+            var canSell = parseModeFlag(found.buyMode);  // 상대의 매수 리스팅에 대해 내가 판매
             if (canSell && !orderFlowState.listingTonWalletAddress) {
                 canSell = false;
                 if (tg && typeof tg.showAlert === 'function') {
@@ -3101,8 +3115,8 @@
             try {
                 var latest = await fetchListingByIdFromSupabase(orderFlowState.listingId);
                 if (latest) {
-                    var latestCanBuy = !!latest.sellMode;
-                    var latestCanSell = !!latest.buyMode;
+                    var latestCanBuy = parseModeFlag(latest.sellMode);
+                    var latestCanSell = parseModeFlag(latest.buyMode);
                     if (latestCanSell) {
                         var latestWalletRaw = String(latest.tonWalletAddress || '');
                         if (!isValidTonAddressStrict(latestWalletRaw)) latestCanSell = false;
@@ -4088,7 +4102,10 @@
             var sellTitle = document.getElementById('detailSellTitle');
             var buyTitle = document.getElementById('detailBuyTitle');
 
-            if (found.sellMode) {
+            var detailSellModeOn = parseModeFlag(found && found.sellMode);
+            var detailBuyModeOn = parseModeFlag(found && found.buyMode);
+
+            if (detailSellModeOn) {
                 if (sellLine) sellLine.style.display = 'flex';
                 if (sellTitle) sellTitle.style.display = 'block';
                 var sp = found.sellPriceKrW != null ? formatKrw(found.sellPriceKrW) : '—';
@@ -4100,7 +4117,7 @@
                 if (sellTitle) sellTitle.style.display = 'none';
             }
 
-            if (found.buyMode) {
+            if (detailBuyModeOn) {
                 if (buyLine) buyLine.style.display = 'flex';
                 if (buyTitle) buyTitle.style.display = 'block';
                 var bp = found.buyPriceKrW != null ? formatKrw(found.buyPriceKrW) : '—';
@@ -4120,8 +4137,8 @@
             // 본인 리스팅 상세에서는 거래요청 버튼 숨김(수정/삭제만 노출)
             var makeOfferBtn = document.getElementById('detailMakeOfferBtn');
             if (makeOfferBtn) {
-                var canRequest = !!found.sellMode || !!found.buyMode;
-                var detailPreferredSide = found.sellMode ? 'buy' : 'sell';
+                var canRequest = detailSellModeOn || detailBuyModeOn;
+                var detailPreferredSide = detailSellModeOn ? 'buy' : 'sell';
                 makeOfferBtn.classList.toggle('hidden', !!isOwner || !canRequest);
                 if (canRequest) {
                     makeOfferBtn.setAttribute('onclick', "openOrderFlow(listingDetailState.listingId, '" + detailPreferredSide + "')");
