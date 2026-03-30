@@ -15,6 +15,22 @@
         // https://t.me/ 형식은 브라우저를 거쳐 Telegram이 열리지만, tg:// 형식은 Telegram 앱을 바로 엶
         const TON_RETURN_TG_DEEPLINK = 'tg://resolve?domain=P2PxxBOT';
 
+        /**
+         * 거래 신청 저장 후 상대에게 텔레그램 알림(Supabase Edge Function `notify-new-order`).
+         * 비워 두면 호출하지 않음 → 기존 동작과 동일. 설정은 TELEGRAM_NOTIFY_SETUP.md 참고.
+         * Edge Secret ORDER_NOTIFY_SECRET 과 반드시 동일한 값.
+         */
+        const ORDER_NOTIFY_SECRET = '8650490181:AAHfUu-_iAFbEgh3Cuq9C-F_gWrHfgd3NQs';
+
+        /**
+         * DM 필수(데모용 A): 미니앱(브라우저)에서 Telegram Bot API로 DM을 직접 전송합니다.
+         * 주의:
+         * - 봇 토큰이 프론트에 노출됩니다(데모/테스트용).
+         * - 브라우저 CORS 정책 때문에 실패할 수 있습니다. 실패해도 주문 저장 자체는 영향 없습니다.
+         * - 이 값을 BotFather에서 받은 HTTP API 토큰으로 바꿔 넣어주세요.
+         */
+        const TELEGRAM_BOT_TOKEN_CLIENT = '';
+
         function supabaseHeaders(extra) {
             var base = {
                 'apikey': SUPABASE_PUBLISHABLE_KEY,
@@ -25,6 +41,83 @@
                 Object.keys(extra).forEach(function (k) { base[k] = extra[k]; });
             }
             return base;
+        }
+
+        /**
+         * 주문 저장 성공 후 비동기로 알림만 시도(실패해도 주문에는 영향 없음)
+         */
+        function notifyNewOrderTelegram(orderId) {
+            var secret = String(ORDER_NOTIFY_SECRET || '').trim();
+            if (!secret || !orderId) {
+                return Promise.resolve();
+            }
+            var url = String(SUPABASE_URL || '').replace(/\/$/, '') + '/functions/v1/notify-new-order';
+            return fetch(url, {
+                method: 'POST',
+                headers: Object.assign({}, supabaseHeaders(), { 'x-order-notify-secret': secret }),
+                body: JSON.stringify({ order_id: String(orderId) })
+            }).then(function () {
+                return null;
+            }).catch(function () {
+                return null;
+            });
+        }
+
+        /**
+         * DM 필수(데모용 A): 주문(거래 신청) 생성 성공 후 상대에게 즉시 DM 전송
+         * @param {string} orderId 주문 ID
+         * @param {string} orderSide buy|sell
+         * @param {object} receiver Supabase receiver 객체
+         * @param {number} usdt USDT 수량
+         * @param {number} krw KRW 수량
+         */
+        function notifyNewOrderTelegramClient(orderId, orderSide, receiver, usdt, krw) {
+            var token = String(TELEGRAM_BOT_TOKEN_CLIENT || '').trim();
+            if (!token || !orderId) return Promise.resolve();
+
+            var side = String(orderSide || '').toLowerCase();
+            var r = receiver && typeof receiver === 'object' ? receiver : {};
+
+            // side == 'buy'  : 상대는 판매자(= 승인해야 하는 쪽) → receiver.sellerId 로 보냄
+            // side == 'sell' : 상대는 구매자(= 승인해야 하는 쪽) → receiver.buyerId 로 보냄
+            var chatId = '';
+            var applicantName = '';
+            var typeLine = '';
+
+            if (side === 'buy') {
+                chatId = String(r.sellerId || '').trim();
+                applicantName = String(r.buyerName || '').trim() || '구매 신청자';
+                typeLine = 'USDT 구매 신청이 도착했습니다.';
+            } else {
+                chatId = String(r.buyerId || '').trim();
+                applicantName = String(r.sellerName || '').trim() || '판매 신청자';
+                typeLine = 'USDT 판매 신청이 도착했습니다.';
+            }
+
+            if (!chatId) return Promise.resolve();
+
+            var usdtN = Number(usdt || 0);
+            var krwN = Number(krw || 0);
+            var text =
+                '📬 XTrade P2P\\n\\n' +
+                String(typeLine || '') + '\\n\\n' +
+                '신청자: ' + String(applicantName || '') + '\\n' +
+                '금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT / ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\\n' +
+                '주문 ID: ' + String(orderId || '') + '\\n\\n' +
+                '미니앱에서 「내 주문」을 확인해 주세요.';
+
+            return fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    text: text,
+                    disable_web_page_preview: true
+                })
+            }).catch(function () {
+                // DM 실패해도 주문 저장 로직은 이미 끝났으므로 조용히 무시
+                return null;
+            });
         }
 
         function toSupabaseListing(record) {
@@ -3169,12 +3262,13 @@
 
             var posted = false;
             var errDetail = '';
+            var newOrderId = String(Date.now());
             try {
                 var res = await fetch(SUPABASE_URL + '/rest/v1/orders', {
                     method: 'POST',
                     headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
                     body: JSON.stringify([{
-                        id: String(Date.now()),
+                        id: newOrderId,
                         listing_id: String(orderFlowState.listingId || ''),
                         side: String(orderFlowState.side || ''),
                         usdt: Number(usdt || 0),
@@ -3195,6 +3289,13 @@
             } catch (e) {
                 posted = false;
                 errDetail = String(e && e.message ? e.message : e);
+            }
+
+            if (posted) {
+                // 서버(Edge Function) 알림은 비워두면 스킵됨
+                void notifyNewOrderTelegram(newOrderId);
+                // DM 필수(데모용 A) - 토큰 값이 들어가면 브라우저에서 바로 DM 전송
+                void notifyNewOrderTelegramClient(newOrderId, orderFlowState.side, receiver, usdt, krw);
             }
 
             var msg = posted
