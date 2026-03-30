@@ -218,6 +218,23 @@
             return (Array.isArray(rows) ? rows : []).map(fromSupabaseListing);
         }
 
+        /** 단일 리스팅 최신값 조회(모드/가격 동기화용) */
+        async function fetchListingByIdFromSupabase(listingId) {
+            var id = String(listingId || '').trim();
+            if (!id) return null;
+            var url = SUPABASE_URL + '/rest/v1/listings?select=*&id=eq.' + encodeURIComponent(id) + '&limit=1';
+            var res = await fetch(url, { headers: supabaseHeaders(), cache: 'no-store' });
+            if (!res.ok) throw new Error('supabase listing by id ' + res.status);
+            var rows = [];
+            try {
+                rows = await res.json();
+            } catch (e) {
+                rows = [];
+            }
+            if (!Array.isArray(rows) || !rows.length) return null;
+            return fromSupabaseListing(rows[0]);
+        }
+
         async function upsertListingToSupabase(record) {
             var url = SUPABASE_URL + '/rest/v1/listings?on_conflict=id';
             var payload = [toSupabaseListing(record)];
@@ -2667,14 +2684,27 @@
                 return String(l.id) === String(listingId);
             });
 
-            // 로컬 저장소가 오래된 경우(삭제/재등록 직후 등) 서버 목록으로 한 번 더 확인
+            // 로컬가 stale일 수 있으므로 주문 진입 시 서버 최신 모드/가격을 우선 반영
+            try {
+                var serverFound = await fetchListingByIdFromSupabase(listingId);
+                if (serverFound) {
+                    found = serverFound;
+                    // 해당 리스팅 1건만 로컬 목록에 병합하여 화면/주문 기준을 맞춤
+                    var merged = Array.isArray(listings) ? listings.slice() : [];
+                    var idx = merged.findIndex(function (l) { return String(l && l.id) === String(serverFound.id); });
+                    if (idx >= 0) merged[idx] = serverFound;
+                    else merged.unshift(serverFound);
+                    saveListings(merged);
+                }
+            } catch (eFetchOne) {}
+
+            // 그래도 못 찾으면 전체 목록으로 한 번 더 확인
             if (!found) {
                 try {
                     var serverListings = await fetchListingsFromSupabase();
                     found = (Array.isArray(serverListings) ? serverListings : []).find(function (l) {
                         return String(l.id) === String(listingId);
                     });
-                    // 서버에서 찾았으면 로컬도 최신 상태로 맞춤
                     if (found && Array.isArray(serverListings) && serverListings.length) {
                         saveListings(serverListings);
                     }
@@ -3066,6 +3096,21 @@
 
         async function submitOrderDemo() {
             var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
+
+            // 주문 직전 서버 최신 리스팅 모드 재검증(체크 해제 반영 지연/로컬 stale 방지)
+            try {
+                var latest = await fetchListingByIdFromSupabase(orderFlowState.listingId);
+                if (latest) {
+                    var latestCanBuy = !!latest.sellMode;
+                    var latestCanSell = !!latest.buyMode;
+                    if (latestCanSell) {
+                        var latestWalletRaw = String(latest.tonWalletAddress || '');
+                        if (!isValidTonAddressStrict(latestWalletRaw)) latestCanSell = false;
+                    }
+                    orderFlowState.canBuy = latestCanBuy;
+                    orderFlowState.canSell = latestCanSell;
+                }
+            } catch (eModeSync) {}
 
             // 리스팅 설정과 다른 방향 주문은 차단
             if ((orderFlowState.side === 'buy' && !orderFlowState.canBuy) || (orderFlowState.side === 'sell' && !orderFlowState.canSell)) {
