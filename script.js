@@ -113,13 +113,17 @@
 
             var usdtN = Number(usdt || 0);
             var krwN = Number(krw || 0);
+            // DM 가독성 개선(구분선/이모지/줄 정렬)
             var text =
-                '📬 XTrade P2P\\n\\n' +
-                String(typeLine || '') + '\\n\\n' +
-                '신청자: ' + String(applicantName || '') + '\\n' +
-                '금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT / ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\\n' +
-                '주문 ID: ' + String(orderId || '') + '\\n\\n' +
-                '미니앱에서 「내 주문」을 확인해 주세요.';
+                '📬 XTrade P2P\\n' +
+                '━━━━━━━━━━━━━━\\n' +
+                String(typeLine || '') + '\\n' +
+                '━━━━━━━━━━━━━━\\n' +
+                '👤 신청자: ' + String(applicantName || '') + '\\n' +
+                '💰 금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT\\n' +
+                '🔻 환산: ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\\n' +
+                '🧾 주문 ID: ' + String(orderId || '') + '\\n\\n' +
+                '✅ 미니앱에서 「내 주문」을 확인해 주세요.';
 
             var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
             // 1) JSON 방식 우선
