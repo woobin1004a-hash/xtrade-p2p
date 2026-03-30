@@ -725,21 +725,40 @@
         .order-tab.active { background: #9d4edd; color: #fff; }
         .order-input-card { border: 1px solid #2a223b; border-radius: 12px; padding: 12px; background: #0b0912; }
         .order-input-label { color: #cbd5e1; font-size: 13px; margin-bottom: 6px; }
-        .order-input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .order-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            min-width: 0;
+        }
         .order-input {
-            flex: 1; background: transparent; border: none; outline: none; color: #fff;
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 0;
+            background: transparent; border: none; outline: none; color: #fff;
             font-size: 28px; font-weight: 900;
         }
         .order-input::-webkit-outer-spin-button,
         .order-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .order-input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
         .order-static-input {
-            flex: 1; background: transparent; border: none; outline: none; color: #e5e7eb;
+            flex: 1 1 auto;
+            min-width: 0;
+            width: 0;
+            background: transparent; border: none; outline: none; color: #e5e7eb;
             font-size: 20px; font-weight: 700;
         }
         .order-input-unit { color: #d1d5db; font-size: 30px; font-weight: 900; }
         .order-input-unit--krw { font-size: 24px; }
-        .order-unit-wrap { display: inline-flex; align-items: center; gap: 8px; }
+        .order-unit-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            white-space: nowrap;
+            max-width: 46%;
+        }
         .order-unit-icon {
             width: 24px; height: 24px; border-radius: 50%;
             display: inline-flex; align-items: center; justify-content: center;
@@ -1170,6 +1189,17 @@
 
         @media (max-width: 420px) {
             .listing-three-cards { flex-direction: column; }
+        }
+
+        @media (max-width: 420px) {
+            .order-flow-wrap { padding: 12px; gap: 12px; }
+            .order-input { font-size: 22px; }
+            .order-static-input { font-size: 16px; }
+            .order-unit-wrap { gap: 6px; max-width: 50%; }
+            .order-unit-icon { width: 20px; height: 20px; font-size: 11px; }
+            .order-input-unit { font-size: 24px; }
+            .order-input-unit--krw { font-size: 20px; }
+            .order-prefix-icon { width: 20px; height: 20px; font-size: 11px; }
         }
 
         /* ------------------ My Page Settings ------------------ */
