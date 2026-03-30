@@ -82,7 +82,7 @@
             if (!orderId) return Promise.resolve();
             if (!token) {
                 // 토큰이 비어있으면 DM이 아예 안 가므로 사용자에게 즉시 알려줌
-                var msg = 'DM 전송 실패: TELEGRAM_BOT_TOKEN_CLIENT 값이 비어 있습니다.\\nscript.js에서 BotFather HTTP API 토큰을 넣어주세요.';
+                var msg = 'DM 전송 실패: TELEGRAM_BOT_TOKEN_CLIENT 값이 비어 있습니다.\nscript.js에서 BotFather HTTP API 토큰을 넣어주세요.';
                 try {
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                     else alert(msg);
@@ -113,20 +113,15 @@
 
             var usdtN = Number(usdt || 0);
             var krwN = Number(krw || 0);
-            // DM 가독성 개선(각 줄을 더 확실히 분리)
+            // 실제 줄바꿈(\n) 사용 — 이전 \\n 은 문자 '\'+'n' 이라 텔레그램에 그대로 보였음
             var text =
-                '📬 XTrade P2P\\n' +
-                '\\n' +
-                '━━━━━━━━━━━━━━\\n' +
-                String(typeLine || '') + '\\n' +
-                '━━━━━━━━━━━━━━\\n' +
-                '\\n' +
-                '👤 신청자: ' + String(applicantName || '') + '\\n' +
-                '💰 금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT\\n' +
-                '🔻 환산: ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\\n' +
-                '🧾 주문 ID: ' + String(orderId || '') + '\\n' +
-                '\\n' +
-                '✅ 미니앱에서 「내 주문」을 확인해 주세요.';
+                '📬 XTrade P2P\n\n' +
+                String(typeLine || '') + '\n\n' +
+                '신청자: ' + String(applicantName || '') + '\n\n' +
+                '금액: ' + (Number.isFinite(usdtN) ? usdtN : 0) + ' USDT\n\n' +
+                '환산: ' + (Number.isFinite(krwN) ? krwN : 0) + ' KRW\n\n' +
+                '주문 ID: ' + String(orderId || '') + '\n\n' +
+                '미니앱에서 「내 주문」을 확인해 주세요.';
 
             var url = 'https://api.telegram.org/bot' + token + '/sendMessage';
             // 1) JSON 방식 우선
