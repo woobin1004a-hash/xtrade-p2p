@@ -1655,9 +1655,11 @@
                     var boostNum = Math.floor(Number(l.boostUsdt || 0));
                     var boostTxt = boostNum.toLocaleString() + " USDT";
 
-                    var offerBtnHtml = isOwner
+                    var hasAnyMode = !!l.sellMode || !!l.buyMode;
+                    var preferredSide = l.sellMode ? 'buy' : 'sell';
+                    var offerBtnHtml = (isOwner || !hasAnyMode)
                         ? ''
-                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', 'buy')">주문</button>`;
+                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', '${preferredSide}')">주문</button>`;
 
                     return `
                         <div class="trader-card ${cardVariantClass}" onclick="openListingDetail('${idForJs}')">
@@ -1810,6 +1812,8 @@
             unitPrice: 0,
             buyUnitPrice: 0,
             sellUnitPrice: 0,
+            canBuy: false,
+            canSell: false,
             orderMinUsdt: 0,
             orderMaxUsdt: 0,
             listingOwnerId: '',
@@ -2749,6 +2753,13 @@
                     alert('상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.');
                 }
             }
+            orderFlowState.canBuy = canBuy;
+            orderFlowState.canSell = canSell;
+            if (!canBuy && !canSell) {
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert('이 리스팅은 현재 주문 가능한 거래 모드가 없습니다.');
+                else alert('이 리스팅은 현재 주문 가능한 거래 모드가 없습니다.');
+                return;
+            }
             if (firstSide === 'buy' && !canBuy && canSell) firstSide = 'sell';
             if (firstSide === 'sell' && !canSell && canBuy) firstSide = 'buy';
 
@@ -3055,6 +3066,16 @@
 
         async function submitOrderDemo() {
             var sideTxt = orderFlowState.side === 'sell' ? '판매' : '구매';
+
+            // 리스팅 설정과 다른 방향 주문은 차단
+            if ((orderFlowState.side === 'buy' && !orderFlowState.canBuy) || (orderFlowState.side === 'sell' && !orderFlowState.canSell)) {
+                var blockedMsg = orderFlowState.side === 'buy'
+                    ? '이 리스팅은 현재 USDT 구매 요청을 받을 수 없습니다.'
+                    : '이 리스팅은 현재 USDT 판매 요청을 받을 수 없습니다.';
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(blockedMsg);
+                else alert(blockedMsg);
+                return;
+            }
 
             var usdt = parseOrderNumber(dom.orderUsdtInput ? dom.orderUsdtInput.value : 0);
             var krw = parseOrderNumber(dom.orderKrwInput ? dom.orderKrwInput.value : 0);
@@ -4053,7 +4074,14 @@
 
             // 본인 리스팅 상세에서는 거래요청 버튼 숨김(수정/삭제만 노출)
             var makeOfferBtn = document.getElementById('detailMakeOfferBtn');
-            if (makeOfferBtn) makeOfferBtn.classList.toggle('hidden', !!isOwner);
+            if (makeOfferBtn) {
+                var canRequest = !!found.sellMode || !!found.buyMode;
+                var detailPreferredSide = found.sellMode ? 'buy' : 'sell';
+                makeOfferBtn.classList.toggle('hidden', !!isOwner || !canRequest);
+                if (canRequest) {
+                    makeOfferBtn.setAttribute('onclick', "openOrderFlow(listingDetailState.listingId, '" + detailPreferredSide + "')");
+                }
+            }
         }
 
         function openListingEditFromDetail() {
