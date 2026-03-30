@@ -32,7 +32,54 @@
         }
         .rank { color: #f59e0b; font-size: 13px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .rank .crown { font-size: 14px; line-height: 1; }
-        .trader-card--top { padding: 26px 20px; margin: 0 20px 22px 20px; }
+        .rank--first { flex-wrap: wrap; gap: 6px 10px; }
+        .rank-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #0f172a;
+            background: linear-gradient(180deg, #fde68a 0%, #f59e0b 100%);
+            border: 1px solid rgba(180, 83, 9, 0.45);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        .rank-num { font-weight: 900; }
+        .trader-card--top {
+            padding: 26px 20px;
+            margin: 0 20px 22px 20px;
+            position: relative;
+            overflow: hidden;
+            border-width: 2px;
+            border-color: rgba(245, 158, 11, 0.75);
+            box-shadow:
+                0 8px 28px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(251, 191, 36, 0.35),
+                0 14px 44px rgba(245, 158, 11, 0.18);
+        }
+        .trader-card--top::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 15px;
+            pointer-events: none;
+            background: linear-gradient(125deg, rgba(251, 191, 36, 0.14) 0%, transparent 55%);
+        }
+        .trader-card--top .rank {
+            font-size: 15px;
+            letter-spacing: 0.02em;
+        }
+        .trader-card--top .rank .crown {
+            font-size: 18px;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.35));
+        }
+        .trader-card--top > * {
+            position: relative;
+            z-index: 1;
+        }
         .trader-card--sub { padding: 18px 16px; margin: 0 20px 18px 20px; }
         .trader-card--top .rank { font-size: 14px; margin-bottom: 14px; }
         .trader-card--sub .trader-name { font-size: 16px; }
@@ -49,8 +96,14 @@
         .avatar { width: 28px; height: 28px; background-color: #4a5568; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 12px; font-weight: bold; }
         .trader-name { font-size: 18px; font-weight: bold; }
         .verified { color: #10b981; font-size: 14px; }
-        .price-row { display: flex; justify-content: space-between; margin-bottom: 20px; }
-        .price-col { flex: 1; }
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .price-col { flex: 1; min-width: 0; }
         .price-label { color: #cbd5e1; font-size: 13px; margin-bottom: 8px; }
         .price-value { font-size: 22px; font-weight: bold; }
         .price-currency { font-size: 16px; font-weight: bold; }
@@ -93,6 +146,20 @@
             background: linear-gradient(145deg, #ebe8ff 0%, #ddd8ff 55%, #cfc8ff 100%);
             border-color: #bbb1ff;
             color: #0f172a;
+        }
+        .theme-light .trader-card--top {
+            background: linear-gradient(145deg, #fffbf0 0%, #fff4e0 38%, #f3e8ff 100%);
+            border-color: #f59e0b;
+            box-shadow:
+                0 10px 32px rgba(245, 158, 11, 0.22),
+                0 0 0 1px rgba(251, 191, 36, 0.45);
+        }
+        .theme-light .trader-card--top::before {
+            background: linear-gradient(125deg, rgba(251, 191, 36, 0.2) 0%, transparent 50%);
+        }
+        .theme-light .rank-badge {
+            color: #78350f;
+            border-color: rgba(245, 158, 11, 0.75);
         }
         .theme-light .price-label, .theme-light .limit-info, .theme-light .network-info { color: #334155; }
         .theme-light .marketplace-footer { border-top-color: #d8deea; color: #334155; }

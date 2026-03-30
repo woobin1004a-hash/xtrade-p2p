@@ -1665,7 +1665,7 @@
                 var createListingCardHtml = function (l, index) {
                     var rank = index + 1;
                     var rankHtml = rank === 1
-                        ? "<div class=\"rank\"><span class=\"crown\">👑</span>#1</div>"
+                        ? "<div class=\"rank rank--first\"><span class=\"crown\" aria-hidden=\"true\">👑</span><span class=\"rank-badge\">TOP</span><span class=\"rank-num\">#1</span></div>"
                         : "<div class=\"rank\">#" + rank + "</div>";
 
                     var ownerName = escapeHtml(l.ownerName || 'User');
@@ -1702,12 +1702,12 @@
 
                             <div class="price-row">
                                 <div class="price-col">
-                                    <div class="price-label">구매 USDT</div>
-                                    <div class="price-value">${buyNum != null ? ('₩' + buyNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
-                                </div>
-                                <div class="price-col">
                                     <div class="price-label">판매 USDT</div>
                                     <div class="price-value">${sellNum != null ? ('₩' + sellNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
+                                </div>
+                                <div class="price-col">
+                                    <div class="price-label">구매 USDT</div>
+                                    <div class="price-value">${buyNum != null ? ('₩' + buyNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
                                 </div>
                             </div>
 
