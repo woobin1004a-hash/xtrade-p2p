@@ -1885,7 +1885,9 @@
                 footerTheme: '테마',
                 footerLanguage: '한국어',
                 privacy: '개인정보 처리방침',
+                privacyLangNote: '',
                 terms: '이용약관',
+                termsLangNote: '',
                 preparing: '준비중입니다.',
                 menuMyOffersGroup: '내 주문',
                 myOffersActive: '진행중',
@@ -1900,7 +1902,9 @@
                 footerTheme: 'Theme',
                 footerLanguage: 'EN',
                 privacy: 'Privacy Policy',
+                privacyLangNote: 'The full text below is provided in Korean.',
                 terms: 'Terms of Service',
+                termsLangNote: 'The full text below is provided in Korean.',
                 preparing: 'Coming soon.',
                 menuMyOffersGroup: 'My Orders',
                 myOffersActive: 'In Progress',
@@ -1936,6 +1940,20 @@
             if (el5) el5.textContent = txt.footerLanguage;
             if (el6) el6.textContent = txt.privacy;
             if (el7) el7.textContent = txt.terms;
+            var privacyModalTitle = document.getElementById('privacyPolicyModalTitle');
+            if (privacyModalTitle) privacyModalTitle.textContent = txt.privacy;
+            var privacyNote = document.getElementById('privacyLangNote');
+            if (privacyNote) {
+                privacyNote.textContent = txt.privacyLangNote || '';
+                privacyNote.classList.toggle('hidden', uiLangMode !== 'en');
+            }
+            var termsModalTitle = document.getElementById('termsOfServiceModalTitle');
+            if (termsModalTitle) termsModalTitle.textContent = txt.terms;
+            var termsNote = document.getElementById('termsLangNote');
+            if (termsNote) {
+                termsNote.textContent = txt.termsLangNote || '';
+                termsNote.classList.toggle('hidden', uiLangMode !== 'en');
+            }
             var menuMp = document.getElementById('menuNavMarketplaceText');
             if (menuMp) menuMp.textContent = txt.marketplace;
             var menuGroup = document.getElementById('menuNavMyOffersGroup');
@@ -1962,9 +1980,83 @@
             else alert(msg);
         }
 
+        /** 개인정보 처리방침 iframe 테마 동기화 (?theme=light|dark) */
+        function refreshPrivacyPolicyIframeTheme() {
+            var iframe = document.getElementById('privacyPolicyIframe');
+            if (!iframe) return;
+            var light = document.body.classList.contains('theme-light');
+            iframe.src = 'privacy-policy.html?theme=' + (light ? 'light' : 'dark');
+        }
+
+        function showPrivacyPolicy() {
+            var overlay = document.getElementById('privacyPolicyOverlay');
+            if (!overlay) return;
+            refreshPrivacyPolicyIframeTheme();
+            overlay.classList.remove('hidden');
+            var txt = getUiTexts();
+            var title = document.getElementById('privacyPolicyModalTitle');
+            if (title) title.textContent = txt.privacy;
+            var note = document.getElementById('privacyLangNote');
+            if (note) {
+                note.textContent = txt.privacyLangNote || '';
+                note.classList.toggle('hidden', uiLangMode !== 'en');
+            }
+        }
+
+        function closePrivacyPolicy() {
+            var overlay = document.getElementById('privacyPolicyOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        function closePrivacyPolicyIfOverlay(event) {
+            if (!event || event.target !== event.currentTarget) return;
+            closePrivacyPolicy();
+        }
+
+        /** 서비스 이용약관 iframe 테마 동기화 */
+        function refreshTermsIframeTheme() {
+            var iframe = document.getElementById('termsOfServiceIframe');
+            if (!iframe) return;
+            var light = document.body.classList.contains('theme-light');
+            iframe.src = 'terms-of-service.html?theme=' + (light ? 'light' : 'dark');
+        }
+
+        function showTermsOfService() {
+            var overlay = document.getElementById('termsOfServiceOverlay');
+            if (!overlay) return;
+            refreshTermsIframeTheme();
+            overlay.classList.remove('hidden');
+            var txt = getUiTexts();
+            var title = document.getElementById('termsOfServiceModalTitle');
+            if (title) title.textContent = txt.terms;
+            var note = document.getElementById('termsLangNote');
+            if (note) {
+                note.textContent = txt.termsLangNote || '';
+                note.classList.toggle('hidden', uiLangMode !== 'en');
+            }
+        }
+
+        function closeTermsOfService() {
+            var overlay = document.getElementById('termsOfServiceOverlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+
+        function closeTermsOfServiceIfOverlay(event) {
+            if (!event || event.target !== event.currentTarget) return;
+            closeTermsOfService();
+        }
+
         function toggleThemeMode() {
             uiThemeMode = uiThemeMode === 'light' ? 'dark' : 'light';
             applyThemeMode();
+            var overlayP = document.getElementById('privacyPolicyOverlay');
+            if (overlayP && !overlayP.classList.contains('hidden')) {
+                refreshPrivacyPolicyIframeTheme();
+            }
+            var overlayT = document.getElementById('termsOfServiceOverlay');
+            if (overlayT && !overlayT.classList.contains('hidden')) {
+                refreshTermsIframeTheme();
+            }
         }
 
         function toggleLanguageMode() {

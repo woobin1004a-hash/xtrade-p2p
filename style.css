@@ -1930,4 +1930,61 @@
             background: rgba(255, 255, 255, 0.96);
             border-color: rgba(148, 163, 184, 0.45);
         }
+
+        /* ------------------ 개인정보 처리방침 모달 ------------------ */
+        .privacy-policy-overlay {
+            z-index: 320;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .legal-modal-dialog {
+            display: flex;
+            flex-direction: column;
+            max-height: 92vh;
+            width: 100%;
+            max-width: 520px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+            overflow: hidden;
+        }
+        .privacy-policy-overlay .modal-header {
+            flex-shrink: 0;
+        }
+        .privacy-lang-note {
+            margin: 0;
+            padding: 8px 20px 0;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.45;
+        }
+        .theme-light .privacy-lang-note {
+            color: #64748b;
+        }
+        .legal-modal-iframe {
+            flex: 1 1 auto;
+            width: 100%;
+            min-height: 0;
+            height: min(72vh, 640px);
+            border: none;
+            background: #110c1a;
+        }
+        .theme-light .legal-modal-iframe {
+            background: #f8fafc;
+        }
+        .theme-light .privacy-policy-overlay .modal-dialog.legal-modal-dialog {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+        }
+        .theme-light .privacy-policy-overlay .modal-header {
+            border-bottom-color: #e2e8f0;
+        }
+        .theme-light .privacy-policy-overlay .modal-title {
+            color: #0f172a;
+        }
+        .theme-light .privacy-policy-overlay .modal-close {
+            color: #0f172a;
+        }
     
