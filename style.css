@@ -376,6 +376,40 @@
             color: #0f172a;
             border-color: #cbd5e1;
         }
+        /* 리스팅 상세 모달: 화이트 모드 가독성 개선 */
+        .theme-light #listingDetailView.modal-overlay {
+            background: rgba(15, 23, 42, 0.35);
+        }
+        .theme-light #listingDetailView .modal-dialog {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 36px rgba(15, 23, 42, 0.15);
+        }
+        .theme-light #listingDetailView .modal-header {
+            border-bottom-color: #e2e8f0;
+        }
+        .theme-light #listingDetailView .modal-title,
+        .theme-light #listingDetailView .modal-close {
+            color: #0f172a;
+        }
+        .theme-light #listingDetailView #detailRank {
+            color: #d97706 !important;
+        }
+        .theme-light #listingDetailView #detailOwnerName {
+            color: #0f172a;
+        }
+        .theme-light #listingDetailView .confirm-line {
+            border-top-color: #e2e8f0;
+        }
+        .theme-light #listingDetailView .confirm-label {
+            color: #64748b;
+        }
+        .theme-light #listingDetailView .confirm-value {
+            color: #0f172a;
+        }
+        .theme-light #listingDetailView .confirm-subtitle {
+            color: #5b21b6;
+        }
         .theme-light #listingConfirmView .listing-boost-step {
             border-color: #e2e8f0;
             background: #f1f5f9;

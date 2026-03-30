@@ -2657,11 +2657,25 @@
             onOrderUsdtInput();
         }
 
-        function openOrderFlow(listingId, initialSide) {
+        async function openOrderFlow(listingId, initialSide) {
             var listings = loadListings();
             var found = (Array.isArray(listings) ? listings : []).find(function (l) {
                 return String(l.id) === String(listingId);
             });
+
+            // 로컬 저장소가 오래된 경우(삭제/재등록 직후 등) 서버 목록으로 한 번 더 확인
+            if (!found) {
+                try {
+                    var serverListings = await fetchListingsFromSupabase();
+                    found = (Array.isArray(serverListings) ? serverListings : []).find(function (l) {
+                        return String(l.id) === String(listingId);
+                    });
+                    // 서버에서 찾았으면 로컬도 최신 상태로 맞춤
+                    if (found && Array.isArray(serverListings) && serverListings.length) {
+                        saveListings(serverListings);
+                    }
+                } catch (e) {}
+            }
             if (!found) {
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
                 else alert('존재하지 않는 리스팅입니다.');
