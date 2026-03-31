@@ -325,7 +325,7 @@
                 btn.disabled = false;
                 btn.removeAttribute('aria-disabled');
                 btn.removeAttribute('title');
-                if (span) span.textContent = '리스팅';
+                if (span) span.textContent = langText('리스팅', 'Listing');
                 btn.classList.remove('listing-register-btn--disabled');
                 return;
             }
@@ -338,14 +338,14 @@
             if (owned) {
                 btn.disabled = true;
                 btn.setAttribute('aria-disabled', 'true');
-                btn.setAttribute('title', '이미 등록된 리스팅이 있습니다. 마켓 카드를 열어 수정하세요.');
-                if (span) span.textContent = '등록됨';
+                btn.setAttribute('title', langText('이미 등록된 리스팅이 있습니다. 마켓 카드를 열어 수정하세요.', 'Listing already exists. Open your card in Marketplace to edit.'));
+                if (span) span.textContent = langText('등록됨', 'Listed');
                 btn.classList.add('listing-register-btn--disabled');
             } else {
                 btn.disabled = false;
                 btn.removeAttribute('aria-disabled');
                 btn.removeAttribute('title');
-                if (span) span.textContent = '리스팅';
+                if (span) span.textContent = langText('리스팅', 'Listing');
                 btn.classList.remove('listing-register-btn--disabled');
             }
         }
@@ -375,8 +375,8 @@
 
         // Bind Telegram user info into the UI
         function bindTelegramUser() {
-            let userName = 'Web Test User';
-            let userHandle = 'No username';
+            let userName = langText('웹 테스트 사용자', 'Web Test User');
+            let userHandle = langText('사용자명 없음', 'No username');
             let userInitial = '?';
 
             // If Telegram provided user info successfully
@@ -715,7 +715,7 @@
             var el = dom.mypageKycStatus || document.getElementById('mypageKycStatus');
             if (!el) return;
             var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
-            el.textContent = done ? '완료' : '미완료';
+            el.textContent = done ? langText('완료', 'Completed') : langText('미완료', 'Not completed');
             el.className = 'mypage-summary-badge ' + (done ? 'mypage-summary-badge--ok' : 'mypage-summary-badge--pending');
 
             var resetBtn = document.getElementById('kycResetBtn');
@@ -798,7 +798,10 @@
             var done = localStorage.getItem(STORAGE.KYC_TIER2_COMPLETE) === '1';
             if (!done) return;
 
-            var ok = window.confirm('KYC 2차 인증을 초기화할까요? 초기화 후 다시 인증 화면이 표시됩니다.');
+            var ok = window.confirm(langText(
+                'KYC 2차 인증을 초기화할까요? 초기화 후 다시 인증 화면이 표시됩니다.',
+                'Reset KYC tier-2 verification? You will need to verify again.'
+            ));
             if (!ok) return;
 
             try { localStorage.setItem(STORAGE.KYC_TIER2_COMPLETE, '0'); } catch (e) {}
@@ -852,7 +855,7 @@
                 if (errEl) { errEl.textContent = ''; errEl.classList.add('hidden'); }
             } else if (f.size > KYC_MAX_BYTES) {
                 if (errEl) {
-                    errEl.textContent = '파일이 20MB를 초과했습니다.';
+                    errEl.textContent = langText('파일이 20MB를 초과했습니다.', 'File exceeds 20MB.');
                     errEl.classList.remove('hidden');
                 }
                 if (nameEl) nameEl.textContent = f.name;
@@ -932,7 +935,7 @@
             // 제출 완료 화면을 본 뒤 약 2초 후 텔레그램 네이티브 알림 (채팅 말풍선이 아님 — 봇 API 필요)
             kycAlertTimer = setTimeout(function () {
                 kycAlertTimer = null;
-                var msg = 'KYC인증이 완료 되었습니다';
+                var msg = langText('KYC 인증이 완료되었습니다.', 'KYC verification completed.');
                 if (tg && typeof tg.showAlert === 'function') {
                     tg.showAlert(msg);
                 } else {
@@ -980,7 +983,7 @@
                 }
 
                 var p = listingFlowState.basePriceKrW;
-                var mp = p ? formatKrw(p) : '조회 실패';
+                var mp = p ? formatKrw(p) : langText('조회 실패', 'Failed to load');
                 if (dom.listingMarketPriceSell) dom.listingMarketPriceSell.textContent = mp;
                 if (dom.listingMarketPriceBuy) dom.listingMarketPriceBuy.textContent = mp;
 
@@ -991,9 +994,9 @@
                     if (dom.listingBankAccountSelect) {
                         var opts = [];
                         if (!accounts || !accounts.length) {
-                            opts.push('<option value="">저장된 계좌 없음</option>');
+                            opts.push('<option value="">' + escapeHtml(langText('저장된 계좌 없음', 'No saved accounts')) + '</option>');
                         } else {
-                            opts.push('<option value="">계좌를 선택해 주세요</option>');
+                            opts.push('<option value="">' + escapeHtml(langText('계좌를 선택해 주세요', 'Select an account')) + '</option>');
                             accounts.forEach(function (a) {
                                 var id = a.id;
                                 var bank = a.bank || 'Bank';
@@ -1006,7 +1009,7 @@
                         dom.listingBankAccountSelect.innerHTML = opts.join('');
                     }
                 } catch (e) {
-                    if (dom.listingBankAccountSelect) dom.listingBankAccountSelect.innerHTML = '<option value="">계좌 로드 실패</option>';
+                    if (dom.listingBankAccountSelect) dom.listingBankAccountSelect.innerHTML = '<option value="">' + escapeHtml(langText('계좌 로드 실패', 'Failed to load accounts')) + '</option>';
                 }
 
                 // 3) TON 지갑 select 채우기
@@ -1016,9 +1019,9 @@
                     if (dom.listingTonWalletSelect) {
                         var walletOpts = [];
                         if (!wallets || !wallets.length) {
-                            walletOpts.push('<option value="">저장된 지갑 없음</option>');
+                            walletOpts.push('<option value="">' + escapeHtml(langText('저장된 지갑 없음', 'No saved wallets')) + '</option>');
                         } else {
-                            walletOpts.push('<option value="">지갑을 선택해 주세요</option>');
+                            walletOpts.push('<option value="">' + escapeHtml(langText('지갑을 선택해 주세요', 'Select a wallet')) + '</option>');
                             wallets.forEach(function (w) {
                                 if (!isValidTonAddressStrict(w.address)) return;
                                 var selected = defaultTon && w.address === defaultTon ? ' selected' : '';
@@ -1030,7 +1033,7 @@
                         dom.listingTonWalletSelect.innerHTML = walletOpts.join('');
                     }
                 } catch (e) {
-                    if (dom.listingTonWalletSelect) dom.listingTonWalletSelect.innerHTML = '<option value="">지갑 로드 실패</option>';
+                    if (dom.listingTonWalletSelect) dom.listingTonWalletSelect.innerHTML = '<option value="">' + escapeHtml(langText('지갑 로드 실패', 'Failed to load wallets')) + '</option>';
                 }
 
                 // 4) 가격 계산
@@ -1147,8 +1150,9 @@
                 return;
             }
             if (!currentUserId) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('텔레그램 사용자 정보가 필요합니다.');
-                else alert('텔레그램 사용자 정보가 필요합니다.');
+                var needTg = langText('텔레그램 사용자 정보가 필요합니다.', 'Telegram user information is required.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(needTg);
+                else alert(needTg);
                 return;
             }
 
@@ -1161,7 +1165,10 @@
                 try {
                     var dupListing = await getCurrentUserListingOrNull();
                     if (dupListing) {
-                        var msgDupPay = '이미 등록된 리스팅이 있습니다. 새 리스팅은 등록할 수 없습니다.';
+                        var msgDupPay = langText(
+                            '이미 등록된 리스팅이 있습니다. 새 리스팅은 등록할 수 없습니다.',
+                            'You already have a listing. Creating another listing is not allowed.'
+                        );
                         if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgDupPay);
                         else alert(msgDupPay);
                         return;
@@ -1178,8 +1185,9 @@
             if (isEdit && existingIdx >= 0) {
                 // 소유자 검증
                 if (String(listings[existingIdx].ownerId) !== String(currentUserId)) {
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 수정할 수 있습니다.');
-                    else alert('본인의 리스팅만 수정할 수 있습니다.');
+                    var ownOnlyEdit = langText('본인의 리스팅만 수정할 수 있습니다.', 'Only your own listing can be edited.');
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(ownOnlyEdit);
+                    else alert(ownOnlyEdit);
                     return;
                 }
             }
@@ -1233,9 +1241,17 @@
             saveListings(listings);
             closeListingDetail();
             if (tg && typeof tg.showAlert === 'function') {
-                tg.showAlert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!');
+                tg.showAlert(
+                    uiLangMode === 'en'
+                        ? ('Listing ' + (isEdit ? 'updated' : 'created') + ' successfully' + (serverPosted ? '!' : ' (local)!'))
+                        : ('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!')
+                );
             } else {
-                alert('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!');
+                alert(
+                    uiLangMode === 'en'
+                        ? ('Listing ' + (isEdit ? 'updated' : 'created') + ' successfully' + (serverPosted ? '!' : ' (local)!'))
+                        : ('리스팅 ' + (isEdit ? '수정' : '등록') + ' 완료' + (serverPosted ? '' : '(로컬)') + '!')
+                );
             }
 
             // 마켓으로 복귀하고 목록 갱신
@@ -1265,7 +1281,10 @@
                 try {
                     var existingOwn = await getCurrentUserListingOrNull();
                     if (existingOwn) {
-                        var msgOwn = '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.';
+                        var msgOwn = langText(
+                            '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.',
+                            'You already have a listing. Only one listing is allowed per account.\n\nTo edit it, tap your listing card in Marketplace.'
+                        );
                         if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgOwn);
                         else alert(msgOwn);
                         return;
@@ -1322,15 +1341,17 @@
             }
 
             if (!found) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
-                else alert('존재하지 않는 리스팅입니다.');
+                var listingNotFound = langText('존재하지 않는 리스팅입니다.', 'Listing not found.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(listingNotFound);
+                else alert(listingNotFound);
                 return;
             }
 
             // 소유자만 편집 가능
             if (String(found.ownerId) !== String(currentUserId)) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 수정할 수 있습니다.');
-                else alert('본인의 리스팅만 수정할 수 있습니다.');
+                var ownOnlyEdit2 = langText('본인의 리스팅만 수정할 수 있습니다.', 'Only your own listing can be edited.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(ownOnlyEdit2);
+                else alert(ownOnlyEdit2);
                 return;
             }
 
@@ -1397,7 +1418,10 @@
             if (!sellOn && !buyOn) {
                 if (which === 'sell' && dom.listingModeSell) dom.listingModeSell.checked = true;
                 else if (which === 'buy' && dom.listingModeBuy) dom.listingModeBuy.checked = true;
-                var msg = '매도·매수 중 최소 하나는 선택해야 합니다.';
+                var msg = langText(
+                    '매도·매수 중 최소 하나는 선택해야 합니다.',
+                    'Select at least one trade mode: Sell or Buy.'
+                );
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                 else alert(msg);
                 return;
@@ -1422,9 +1446,13 @@
             }
             if (dom.listingOrderHint) {
                 if (Number.isFinite(d) && d >= LISTING_ORDER_MIN_USDT) {
-                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금(' + formatListingNumber(d) + ' USDT) 이하입니다.';
+                    dom.listingOrderHint.textContent = uiLangMode === 'en'
+                        ? ('Minimum ' + LISTING_ORDER_MIN_USDT + ' USDT · Maximum is deposit (' + formatListingNumber(d) + ' USDT)')
+                        : ('최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금(' + formatListingNumber(d) + ' USDT) 이하입니다.');
                 } else {
-                    dom.listingOrderHint.textContent = '최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금을 넘을 수 없습니다.';
+                    dom.listingOrderHint.textContent = uiLangMode === 'en'
+                        ? ('Minimum ' + LISTING_ORDER_MIN_USDT + ' USDT · Maximum cannot exceed deposit')
+                        : ('최소 ' + LISTING_ORDER_MIN_USDT + ' USDT · 최대는 예치금을 넘을 수 없습니다.');
                 }
             }
             onListingOrderMaxInput();
@@ -1506,7 +1534,10 @@
                 try {
                     var hasListing = await getCurrentUserListingOrNull();
                     if (hasListing) {
-                        var msgDupCreate = '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.';
+                        var msgDupCreate = langText(
+                            '이미 등록된 리스팅이 있습니다. 한 계정당 리스팅은 하나만 등록할 수 있습니다.\n\n기존 리스팅을 수정하려면 마켓에서 내 리스팅 카드를 눌러 주세요.',
+                            'You already have a listing. Only one listing is allowed per account.\n\nTo edit it, tap your listing card in Marketplace.'
+                        );
                         if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgDupCreate);
                         else alert(msgDupCreate);
                         return;
@@ -1521,20 +1552,25 @@
             var buyMode = dom.listingModeBuy && dom.listingModeBuy.checked;
 
             if (!Number.isFinite(deposit) || deposit < LISTING_ORDER_MIN_USDT) {
-                var msg1 = '예치금은 ' + LISTING_ORDER_MIN_USDT + ' USDT 이상으로 입력해 주세요.';
+                var msg1 = uiLangMode === 'en'
+                    ? ('Deposit must be at least ' + LISTING_ORDER_MIN_USDT + ' USDT.')
+                    : ('예치금은 ' + LISTING_ORDER_MIN_USDT + ' USDT 이상으로 입력해 주세요.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg1);
                 else alert(msg1);
                 return;
             }
             if (!Number.isFinite(max) || max < min || max > deposit) {
-                var msg2 = '주문 한도: 최소 ' + min + ' USDT, 최대는 예치금(' + formatListingNumber(deposit) + ' USDT) 이하로 입력해 주세요.';
+                var msg2 = uiLangMode === 'en'
+                    ? ('Order limit: min ' + min + ' USDT, max up to deposit (' + formatListingNumber(deposit) + ' USDT).')
+                    : ('주문 한도: 최소 ' + min + ' USDT, 최대는 예치금(' + formatListingNumber(deposit) + ' USDT) 이하로 입력해 주세요.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
                 else alert(msg2);
                 return;
             }
             if (!sellMode && !buyMode) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매도 또는 매수 중 하나를 선택해 주세요.');
-                else alert('매도 또는 매수 중 하나를 선택해 주세요.');
+                var modeNeed = langText('매도 또는 매수 중 하나를 선택해 주세요.', 'Please select Sell or Buy.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(modeNeed);
+                else alert(modeNeed);
                 return;
             }
 
@@ -1543,13 +1579,15 @@
             var tonWallet = dom.listingTonWalletSelect ? dom.listingTonWalletSelect.value : '';
 
             if (sellMode && !bankId) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매도가 선택된 경우 입금 계좌를 선택해 주세요.');
-                else alert('매도가 선택된 경우 입금 계좌를 선택해 주세요.');
+                var needBank = langText('매도가 선택된 경우 입금 계좌를 선택해 주세요.', 'For Sell mode, select a receiving bank account.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(needBank);
+                else alert(needBank);
                 return;
             }
             if (buyMode && !tonWallet) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('매수가 선택된 경우 입금 지갑을 선택해 주세요.');
-                else alert('매수가 선택된 경우 입금 지갑을 선택해 주세요.');
+                var needWallet = langText('매수가 선택된 경우 입금 지갑을 선택해 주세요.', 'For Buy mode, select a receiving wallet.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(needWallet);
+                else alert(needWallet);
                 return;
             }
 
@@ -1691,8 +1729,9 @@
                 if (!listings.length) {
                     dom.traderList.innerHTML =
                         "<div style='text-align:center;color:#94a3b8;padding:50px;font-size:14px;'>" +
-                        "아직 등록된 리스팅이 없습니다.<br/>" +
-                        "리스팅을 생성해 거래를 시작해 보세요." +
+                        (uiLangMode === 'en'
+                            ? "No listings yet.<br/>Create a listing to start trading."
+                            : "아직 등록된 리스팅이 없습니다.<br/>리스팅을 생성해 거래를 시작해 보세요.") +
                         "</div>";
                     return;
                 }
@@ -1725,7 +1764,7 @@
                     var preferredSide = sellModeOn ? 'buy' : 'sell';
                     var offerBtnHtml = (isOwner || !hasAnyMode)
                         ? ''
-                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', '${preferredSide}')">주문</button>`;
+                        : `<button class="make-offer-btn" type="button" onclick="event.stopPropagation(); openOrderFlow('${idForJs}', '${preferredSide}')">${escapeHtml(langText('주문', 'Order'))}</button>`;
 
                     return `
                         <div class="trader-card ${cardVariantClass}" onclick="openListingDetail('${idForJs}')">
@@ -1737,19 +1776,19 @@
 
                             <div class="price-row">
                                 <div class="price-col">
-                                    <div class="price-label">판매 USDT</div>
+                                    <div class="price-label">${escapeHtml(langText('판매 USDT', 'Sell USDT'))}</div>
                                     <div class="price-value">${sellNum != null ? ('₩' + sellNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
                                 </div>
                                 <div class="price-col">
-                                    <div class="price-label">구매 USDT</div>
+                                    <div class="price-label">${escapeHtml(langText('구매 USDT', 'Buy USDT'))}</div>
                                     <div class="price-value">${buyNum != null ? ('₩' + buyNum.toLocaleString()) : '—'} <span class="price-currency">KRW</span></div>
                                 </div>
                             </div>
 
-                            <div class="limit-info">주문 한도: ${escapeHtml(orderTxt)}</div>
+                            <div class="limit-info">${escapeHtml(langText('주문 한도', 'Order limit'))}: ${escapeHtml(orderTxt)}</div>
                             <div class="network-info" style="margin-bottom: 14px;">
                                 <span class="dot purple"></span> TON
-                                <span class="dot yellow" style="margin-left: 10px;"></span> Boost: ${escapeHtml(boostTxt)}
+                                <span class="dot yellow" style="margin-left: 10px;"></span> ${escapeHtml(langText('부스트', 'Boost'))}: ${escapeHtml(boostTxt)}
                             </div>
 
                             ${offerBtnHtml}
@@ -1762,7 +1801,10 @@
                 if (dom.traderList) {
                     dom.traderList.innerHTML =
                         "<div style='text-align: center; color: #94a3b8; padding: 30px; font-size: 14px;'>" +
-                        "목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.</div>";
+                        (uiLangMode === 'en'
+                            ? "Failed to load list. Please try again shortly."
+                            : "목록을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.") +
+                        "</div>";
                 }
                 console.error('loadMarketplace error:', error);
             } finally {
@@ -1963,6 +2005,11 @@
             return uiLangMode === 'en' ? UI_TEXTS.en : UI_TEXTS.ko;
         }
 
+        /** 현재 언어에 맞는 짧은 문구 선택 */
+        function langText(ko, en) {
+            return uiLangMode === 'en' ? en : ko;
+        }
+
         function applyThemeMode() {
             var isLight = uiThemeMode === 'light';
             document.body.classList.toggle('theme-light', isLight);
@@ -2013,6 +2060,182 @@
             if (tabA) tabA.textContent = txt.myOffersActive;
             var tabH = document.getElementById('myOffersTabHistoryText');
             if (tabH) tabH.textContent = txt.myOffersHistory;
+            // 주문 화면 핵심 라벨(1차): 언어 전환 즉시 표시 텍스트 동기화
+            var orderTitle = document.querySelector('#orderFlowView .order-flow-title');
+            if (orderTitle) orderTitle.textContent = langText('주문', 'Order');
+            var orderBack = document.querySelector('#orderFlowView .order-flow-back');
+            if (orderBack) orderBack.setAttribute('aria-label', langText('뒤로', 'Back'));
+            var buyWalletLabel = document.querySelector('#orderBuyWalletCard .order-input-label');
+            if (buyWalletLabel) buyWalletLabel.textContent = langText('수취 지갑', 'Receiving wallet');
+            var buyNetworkLabel = document.querySelector('#orderBuyNetworkCard .order-input-label');
+            if (buyNetworkLabel) buyNetworkLabel.textContent = langText('네트워크', 'Network');
+            var buyNameLabel = document.querySelector('#orderBuyNameCard .order-input-label');
+            if (buyNameLabel) buyNameLabel.textContent = langText('입금자명', 'Depositor name');
+            var sellAccLabel = document.querySelector('#orderSellAccountCard .order-input-label');
+            if (sellAccLabel) sellAccLabel.textContent = langText('수취 계좌', 'Receiving account');
+            var sellWalletLabel = document.querySelector('#orderSellWalletCard .order-input-label');
+            if (sellWalletLabel) sellWalletLabel.textContent = langText('지갑 주소', 'Wallet address');
+            var sellNetworkLabel = document.querySelector('#orderSellNetworkCard .order-input-label');
+            if (sellNetworkLabel) sellNetworkLabel.textContent = langText('네트워크', 'Network');
+            if (dom.orderBuyTabBtn) dom.orderBuyTabBtn.textContent = langText('구매', 'Buy');
+            if (dom.orderSellTabBtn) dom.orderSellTabBtn.textContent = langText('판매', 'Sell');
+            var orderLineLabels = document.querySelectorAll('#orderFlowView .order-summary-card .order-line > span:first-child');
+            if (orderLineLabels && orderLineLabels.length >= 4) {
+                orderLineLabels[0].textContent = langText('구매가', 'Buy price');
+                orderLineLabels[1].textContent = langText('판매가', 'Sell price');
+                orderLineLabels[2].textContent = langText('주문 한도', 'Order limit');
+                orderLineLabels[3].textContent = langText('네트워크', 'Network');
+            }
+            if (typeof switchOrderSide === 'function') {
+                try { switchOrderSide(orderFlowState && orderFlowState.side ? orderFlowState.side : 'buy'); } catch (eSwLang) {}
+            }
+            // 2차: KYC/리스팅/상세 핵심 정적 문구 동기화
+            var kycTitle = document.querySelector('#kycView .settings-title');
+            if (kycTitle) kycTitle.textContent = langText('신원 인증', 'Identity Verification');
+            var kycBack = document.querySelector('#kycView .back-btn');
+            if (kycBack) kycBack.setAttribute('aria-label', langText('뒤로', 'Back'));
+            var kycHeadline = document.querySelector('#kycView .kyc-headline');
+            if (kycHeadline) kycHeadline.textContent = langText('신원을 인증하세요', 'Verify your identity');
+            var kycSub = document.querySelector('#kycView .kyc-sub');
+            if (kycSub) kycSub.textContent = langText('리스팅을 생성하려면 KYC 신원 인증이 필요합니다.', 'KYC verification is required to create listings.');
+            var kycLabels = document.querySelectorAll('#kycView .kyc-upload-label');
+            if (kycLabels && kycLabels.length >= 2) {
+                kycLabels[0].textContent = langText('① 신분증 업로드', '1) Upload ID document');
+                kycLabels[1].textContent = langText('② 신분증을 들고 있는 셀카 업로드', '2) Upload a selfie holding your ID');
+            }
+            var kycHints = document.querySelectorAll('#kycView .kyc-upload-hint');
+            kycHints.forEach(function (el) { el.textContent = langText('파일 크기 제한: 최대 20MB', 'File size limit: up to 20MB'); });
+            var kycBullets = document.querySelectorAll('#kycView .kyc-bullets li');
+            if (kycBullets && kycBullets.length >= 3) {
+                kycBullets[0].textContent = langText('밝은 곳에서 촬영하여 신분증의 모든 정보가 선명하게 보이도록 해 주세요.', 'Take photos in bright light so all ID details are clear.');
+                kycBullets[1].textContent = langText('이미지는 흐림·반사·잘림 없이 선명해야 합니다.', 'Images must be clear without blur, glare, or cropping.');
+                kycBullets[2].textContent = langText('심사는 통상 24~48시간이 소요될 수 있습니다. (데모에서는 즉시 안내만 표시됩니다.)', 'Review may take 24-48 hours. (In demo, only immediate notice is shown.)');
+            }
+            var kycSubmit = document.getElementById('kycSubmitBtn');
+            if (kycSubmit) kycSubmit.textContent = langText('제출하기', 'Submit');
+            var kycDoneTitle = document.querySelector('#kycCompleteView .kyc-complete-title');
+            if (kycDoneTitle) kycDoneTitle.textContent = langText('제출 완료', 'Submission Complete');
+            var kycDoneDesc = document.querySelector('#kycCompleteView .kyc-complete-desc');
+            if (kycDoneDesc) kycDoneDesc.textContent = langText(
+                '서류 제출이 완료되었습니다. 인증은 보통 24~48시간 이내에 완료됩니다. 인증이 완료되면 이메일로 안내드립니다. 인증 승인 후 리스팅을 생성할 수 있습니다.',
+                'Your documents were submitted. Verification usually completes within 24-48 hours. You will be notified by email, and then you can create listings.'
+            );
+            var kycDoneBtn = document.querySelector('#kycCompleteView .primary-btn');
+            if (kycDoneBtn) kycDoneBtn.textContent = langText('마켓플레이스로 이동', 'Go to Marketplace');
+            var lcLogo = document.querySelector('#listingCreateView .top-header .logo');
+            if (lcLogo) lcLogo.textContent = langText('🎟️ 리스팅 생성', '🎟️ Create Listing');
+            var lcBack = document.querySelector('#listingCreateView .top-header .back-btn');
+            if (lcBack) lcBack.setAttribute('aria-label', langText('닫기', 'Close'));
+            var lcSection = document.querySelector('#listingCreateView .listing-section-heading');
+            if (lcSection) lcSection.textContent = langText('예치금 · 주문 한도', 'Deposit · Order Limit');
+            var lcCreateBtn = document.querySelector('#listingCreateView .primary-btn');
+            if (lcCreateBtn) lcCreateBtn.textContent = langText('리스팅 생성', 'Create Listing');
+            var payLogo = document.querySelector('#listingConfirmView .top-header .logo');
+            if (payLogo) payLogo.textContent = langText('💳 결제', '💳 Payment');
+            var payBtn = document.querySelector('#listingConfirmView .listing-pay-btn');
+            if (payBtn) payBtn.textContent = langText('결제하기', 'Pay');
+            var detailTitle = document.querySelector('#listingDetailView .modal-title');
+            if (detailTitle) detailTitle.textContent = langText('리스팅 상세', 'Listing Details');
+            var detailOwnerActions = document.querySelectorAll('#detailOwnerActions button');
+            if (detailOwnerActions && detailOwnerActions.length >= 2) {
+                detailOwnerActions[0].textContent = langText('수정', 'Edit');
+                detailOwnerActions[1].textContent = langText('삭제', 'Delete');
+            }
+            var detailOfferBtn = document.getElementById('detailMakeOfferBtn');
+            if (detailOfferBtn) detailOfferBtn.textContent = langText('거래 요청', 'Request Trade');
+            var myPageLogo = document.querySelector('#myPageView .top-header .logo');
+            if (myPageLogo) myPageLogo.textContent = langText('👤 마이페이지', '👤 My Page');
+            var myNameFallback = document.getElementById('myPageName');
+            if (myNameFallback && /Loading\.\.\./.test(String(myNameFallback.textContent || ''))) {
+                myNameFallback.textContent = langText('불러오는 중...', 'Loading...');
+            }
+            var myEmailLine = document.querySelector('#myPageView .mypage-info p:nth-of-type(1) span');
+            if (myEmailLine) myEmailLine.textContent = langText('이메일 미등록', 'Email not registered');
+            var myHandleLine = document.getElementById('myPageTgHandle');
+            if (myHandleLine && /Loading\.\.\./.test(String(myHandleLine.textContent || ''))) {
+                myHandleLine.textContent = uiLangMode === 'en' ? '@Loading...' : '@불러오는 중...';
+            }
+            var myEditBtn = document.querySelector('#myPageView .edit-btn');
+            if (myEditBtn) myEditBtn.textContent = langText('✎ 편집', '✎ Edit');
+            var summaryLabels = document.querySelectorAll('#mypageSummaryCard .mypage-summary-label');
+            if (summaryLabels && summaryLabels.length >= 3) {
+                summaryLabels[0].textContent = langText('KYC 2차 인증', 'KYC Tier-2');
+                summaryLabels[2].textContent = langText('등록 지갑 USDT 합계', 'Total USDT in saved wallets');
+            }
+            var kycResetBtn = document.getElementById('kycResetBtn');
+            if (kycResetBtn) kycResetBtn.textContent = langText('인증 초기화', 'Reset KYC');
+            var paymentTitle = document.querySelector('#myPageSettingsMainView .list-title');
+            if (paymentTitle) paymentTitle.textContent = langText('결제', 'Payment');
+            var accTitles = document.querySelectorAll('#myPageSettingsMainView .accordion-title');
+            if (accTitles && accTitles.length >= 2) {
+                accTitles[0].textContent = langText('저장된 지갑', 'Saved Wallets');
+                accTitles[1].textContent = langText('저장된 계좌', 'Saved Bank Accounts');
+            }
+            var addBtns = document.querySelectorAll('#myPageSettingsMainView .add-btn');
+            if (addBtns && addBtns.length >= 2) {
+                addBtns[0].textContent = langText('+ TON 추가', '+ Add TON');
+                addBtns[1].textContent = langText('+ 계좌 추가', '+ Add Bank Account');
+            }
+            var walletModalTitle = document.querySelector('#walletSettingsView .modal-title');
+            if (walletModalTitle) walletModalTitle.textContent = langText('TON 지갑 추가', 'Add TON Wallet');
+            var walletFieldLabels = document.querySelectorAll('#walletSettingsView .field-label');
+            if (walletFieldLabels && walletFieldLabels.length >= 5) {
+                walletFieldLabels[0].textContent = langText('네트워크', 'Network');
+                walletFieldLabels[1].textContent = langText('TON 지갑 연결', 'Connect TON Wallet');
+                walletFieldLabels[2].textContent = langText('지갑 주소', 'Wallet Address');
+                walletFieldLabels[3].textContent = langText('지갑 라벨', 'Wallet Label');
+                walletFieldLabels[4].textContent = langText('USDT 테스트넷 마스터', 'USDT Testnet Master');
+            }
+            var connectBtn = document.querySelector('#walletSettingsView .secondary-btn[onclick="openTonConnectModal()"]');
+            if (connectBtn) connectBtn.textContent = langText('TON 지갑 연결', 'Connect TON Wallet');
+            var koHint = document.querySelector('#walletSettingsView .ton-connect-ko-hint');
+            if (koHint) koHint.textContent = langText(
+                '아래에서 지갑을 연결하면 주소가 자동으로 채워집니다. 연결·전송 시 뜨는 창은 TonConnect 기본 안내이며, 가능한 문구는 한글로 표시됩니다.',
+                'Connect wallet below to auto-fill address. TonConnect popups are default UI; translatable text is shown in English.'
+            );
+            if (dom.walletAddressInput) dom.walletAddressInput.placeholder = langText('예: UQ... 또는 EQ...', 'e.g., UQ... or EQ...');
+            if (dom.walletLabelInput) dom.walletLabelInput.placeholder = langText('예: 메인 지갑', 'e.g., Main Wallet');
+            if (dom.usdtTestnetMasterInput) dom.usdtTestnetMasterInput.placeholder = langText('EQ... (테스트넷 제톤 마스터)', 'EQ... (testnet jetton master)');
+            var masterHint = document.querySelector('#walletSettingsView .form-group:nth-of-type(5) .helper-text');
+            if (masterHint) masterHint.textContent = langText('테스트넷 USDT 제톤 마스터 주소를 저장하면 전송 시 바로 사용됩니다.', 'Saved testnet USDT jetton master is used for transfer.');
+            var clearMasterBtn = document.querySelector('#walletSettingsView .secondary-btn[onclick="clearUsdtTestnetMasterAddress()"]');
+            if (clearMasterBtn) clearMasterBtn.textContent = langText('마스터 주소 초기화', 'Clear master address');
+            var walletSaveBtn = document.querySelector('#walletSettingsView .primary-btn');
+            if (walletSaveBtn) walletSaveBtn.textContent = langText('저장', 'Save');
+            var walletDisconnectBtn = document.querySelector('#walletSettingsView .secondary-btn[onclick="disconnectTonWallet()"]');
+            if (walletDisconnectBtn) walletDisconnectBtn.textContent = langText('연결 해제', 'Disconnect');
+            var walletDeleteBtn = document.getElementById('tonWalletDeleteBtn');
+            if (walletDeleteBtn) walletDeleteBtn.textContent = langText('삭제', 'Delete');
+            var bankModalTitle = document.querySelector('#bankAccountsSettingsView .modal-title');
+            if (bankModalTitle) bankModalTitle.textContent = langText('은행 계좌 추가', 'Add Bank Account');
+            var bankFieldLabels = document.querySelectorAll('#bankAccountsSettingsView .field-label');
+            if (bankFieldLabels && bankFieldLabels.length >= 4) {
+                bankFieldLabels[0].textContent = langText('은행', 'Bank');
+                bankFieldLabels[1].textContent = langText('계좌번호', 'Account Number');
+                bankFieldLabels[2].textContent = langText('예금주', 'Account Holder');
+                bankFieldLabels[3].textContent = langText('계좌 라벨', 'Account Label');
+            }
+            if (dom.bankAccountNumberInput) dom.bankAccountNumberInput.placeholder = langText('숫자만 입력', 'Numbers only');
+            if (dom.bankAccountHolderInput) dom.bankAccountHolderInput.placeholder = langText('예: 홍길동', 'e.g., John Doe');
+            if (dom.bankAccountLabelInput) dom.bankAccountLabelInput.placeholder = langText('예: 주거래 계좌', 'e.g., Main Account');
+            var bankDefaultLabel = document.querySelector('#bankAccountsSettingsView .switch-label');
+            if (bankDefaultLabel) bankDefaultLabel.textContent = langText('기본 계좌로 설정', 'Set as default account');
+            var bankSaveBtn = document.querySelector('#bankAccountsSettingsView .primary-btn');
+            if (bankSaveBtn) bankSaveBtn.textContent = langText('저장', 'Save');
+            var bankDeleteBtn = document.getElementById('bankAccountDeleteBtn');
+            if (bankDeleteBtn) bankDeleteBtn.textContent = langText('삭제', 'Delete');
+            var orderOkBtn = document.querySelector('.order-submitted-modal-ok');
+            if (orderOkBtn) orderOkBtn.textContent = langText('확인', 'OK');
+            var finalTitle = document.querySelector('.final-complete-confirm-title');
+            if (finalTitle) finalTitle.textContent = langText('최종 확인', 'Final Confirmation');
+            var finalDesc = document.querySelector('.final-complete-confirm-desc');
+            if (finalDesc) finalDesc.textContent = langText('거래 완료 처리시 분쟁조정을 신청 할 수 없습니다.', 'After completing trade, dispute arbitration is not available.');
+            var finalBtns = document.querySelectorAll('.final-complete-confirm-actions .final-complete-confirm-btn');
+            if (finalBtns && finalBtns.length >= 2) {
+                finalBtns[0].textContent = langText('취소', 'Cancel');
+                if (!finalBtns[1].disabled) finalBtns[1].textContent = langText('거래 완료', 'Complete Trade');
+            }
+            try { updateListingRegisterBtnState(); } catch (eListingBtnLang) {}
             try { localStorage.setItem(UI_LANG_STORAGE_KEY, uiLangMode); } catch (e) {}
             if (typeof isMyOffersViewVisible === 'function' && isMyOffersViewVisible()) {
                 try { renderMyOffers(); } catch (eR) {}
@@ -2137,18 +2360,18 @@
                 var btn = dom.finalCompleteConfirmBtn;
                 var left = 3;
                 btn.disabled = true;
-                btn.textContent = '거래 완료 (' + String(left) + ')';
+                btn.textContent = langText('거래 완료', 'Complete Trade') + ' (' + String(left) + ')';
                 dom.finalCompleteConfirmOverlay.classList.remove('hidden');
                 clearFinalCompleteConfirmTimer();
                 finalCompleteConfirmTimer = setInterval(function () {
                     left -= 1;
                     if (left > 0) {
-                        btn.textContent = '거래 완료 (' + String(left) + ')';
+                        btn.textContent = langText('거래 완료', 'Complete Trade') + ' (' + String(left) + ')';
                         return;
                     }
                     clearFinalCompleteConfirmTimer();
                     btn.disabled = false;
-                    btn.textContent = '거래 완료';
+                    btn.textContent = langText('거래 완료', 'Complete Trade');
                 }, 1000);
             });
         }
@@ -2161,26 +2384,26 @@
 
         function orderStatusLabel(status) {
             var s = String(status || 'pending_seller');
-            if (s === 'pending_seller') return '판매자 승인 대기';
-            if (s === 'seller_approved') return '입금 대기';
-            if (s === 'seller_rejected') return '판매자 거절';
-            if (s === 'buyer_paid') return '판매자 전송 대기';
-            if (s === 'seller_deposit_checked') return '입금 확인 완료';
-            if (s === 'seller_payment_check_requested') return '입금 확인 요청';
-            if (s === 'seller_sent') return '구매자 확인 대기';
-            if (s === 'buyer_confirmed') return '거래 완료';
-            if (s === 'buyer_issue') return '확인 요청';
-            if (s === 'buyer_cancelled') return '구매자 취소';
+            if (s === 'pending_seller') return langText('판매자 승인 대기', 'Waiting for seller approval');
+            if (s === 'seller_approved') return langText('입금 대기', 'Waiting for payment');
+            if (s === 'seller_rejected') return langText('판매자 거절', 'Rejected by seller');
+            if (s === 'buyer_paid') return langText('판매자 전송 대기', 'Waiting for seller transfer');
+            if (s === 'seller_deposit_checked') return langText('입금 확인 완료', 'Deposit confirmed');
+            if (s === 'seller_payment_check_requested') return langText('입금 확인 요청', 'Payment check requested');
+            if (s === 'seller_sent') return langText('구매자 확인 대기', 'Waiting for buyer confirmation');
+            if (s === 'buyer_confirmed') return langText('거래 완료', 'Trade completed');
+            if (s === 'buyer_issue') return langText('확인 요청', 'Verification requested');
+            if (s === 'buyer_cancelled') return langText('구매자 취소', 'Cancelled by buyer');
             // 판매(USDT 매도) 플로우
-            if (s === 'pending_buyer') return '구매자 승인 대기';
-            if (s === 'buyer_rejected_sell') return '구매자 거절';
-            if (s === 'buyer_approved_sell') return 'USDT 전송 대기';
-            if (s === 'seller_cancelled_sell') return '판매자 취소';
-            if (s === 'sell_coin_sent') return '구매자 입금 대기';
-            if (s === 'sell_buyer_issue_coin') return 'USDT 전송 확인 요청';
-            if (s === 'sell_buyer_pending_coin_ack') return '구매자 USDT 수령 확인 대기';
-            if (s === 'sell_fiat_paid') return '판매자 확인·완료 대기';
-            if (s === 'sell_seller_issue_fiat') return '입금 재확인 요청';
+            if (s === 'pending_buyer') return langText('구매자 승인 대기', 'Waiting for buyer approval');
+            if (s === 'buyer_rejected_sell') return langText('구매자 거절', 'Rejected by buyer');
+            if (s === 'buyer_approved_sell') return langText('USDT 전송 대기', 'Waiting for USDT transfer');
+            if (s === 'seller_cancelled_sell') return langText('판매자 취소', 'Cancelled by seller');
+            if (s === 'sell_coin_sent') return langText('구매자 입금 대기', 'Waiting for buyer KRW payment');
+            if (s === 'sell_buyer_issue_coin') return langText('USDT 전송 확인 요청', 'USDT transfer check requested');
+            if (s === 'sell_buyer_pending_coin_ack') return langText('구매자 USDT 수령 확인 대기', 'Waiting for buyer USDT receipt confirmation');
+            if (s === 'sell_fiat_paid') return langText('판매자 확인·완료 대기', 'Waiting for seller final confirmation');
+            if (s === 'sell_seller_issue_fiat') return langText('입금 재확인 요청', 'Payment re-check requested');
             return s;
         }
 
@@ -2197,6 +2420,32 @@
          */
         function getOfferProgressHintText(status, orderSide, youAreBuyer) {
             var s = String(status || '');
+            if (uiLangMode === 'en') {
+                if (orderSide === 'sell') {
+                    if (s === 'pending_buyer') return youAreBuyer ? 'Review this sell request and approve or reject.' : 'Waiting for the buyer approval.';
+                    if (s === 'buyer_rejected_sell') return 'Buyer rejected this sell request.';
+                    if (s === 'buyer_approved_sell') return youAreBuyer ? 'Waiting for seller USDT transfer.' : 'Send USDT to buyer wallet, then press Send.';
+                    if (s === 'seller_cancelled_sell') return 'Seller cancelled this trade.';
+                    if (s === 'sell_coin_sent') return youAreBuyer ? 'Transfer KRW to seller account, then press Payment done.' : 'Waiting for buyer KRW transfer.';
+                    if (s === 'sell_buyer_issue_coin') return youAreBuyer ? 'USDT check requested. Waiting for seller response.' : 'Buyer requested transfer verification. Please respond.';
+                    if (s === 'sell_buyer_pending_coin_ack') return youAreBuyer ? 'Check seller response and confirm USDT receipt.' : 'Waiting for buyer USDT receipt confirmation.';
+                    if (s === 'sell_fiat_paid') return youAreBuyer ? 'Waiting for seller final confirmation.' : 'Buyer marked KRW paid. Confirm and complete trade.';
+                    if (s === 'sell_seller_issue_fiat') return youAreBuyer ? 'Seller requested payment re-check. Please verify payment again.' : 'Payment re-check requested. Waiting for buyer response.';
+                    if (s === 'buyer_confirmed') return 'Trade completed successfully.';
+                    return orderStatusLabel(s);
+                }
+                if (s === 'pending_seller') return youAreBuyer ? 'Waiting for seller approval.' : 'Review this request and approve or reject.';
+                if (s === 'seller_rejected') return 'Seller rejected this request.';
+                if (s === 'seller_approved') return youAreBuyer ? 'Transfer KRW to shown account, then press Payment done.' : 'Waiting for buyer payment. Continue after confirmation.';
+                if (s === 'buyer_cancelled') return 'Buyer cancelled this trade.';
+                if (s === 'buyer_paid') return youAreBuyer ? 'Waiting for seller USDT transfer.' : 'Send USDT to buyer wallet, then press Send.';
+                if (s === 'seller_deposit_checked') return youAreBuyer ? 'Seller confirmed your payment. Follow next step.' : 'Deposit confirmed. Please send USDT.';
+                if (s === 'seller_payment_check_requested') return youAreBuyer ? 'Seller requested payment verification. Please check payment status again.' : 'Waiting for buyer payment update.';
+                if (s === 'buyer_issue') return youAreBuyer ? 'Verification request sent. Waiting for seller response.' : 'Buyer requested verification. Complete transfer after review.';
+                if (s === 'seller_sent') return youAreBuyer ? 'Confirm USDT receipt, then complete trade or request check.' : 'Waiting for buyer final confirmation.';
+                if (s === 'buyer_confirmed') return 'Trade completed successfully.';
+                return orderStatusLabel(s);
+            }
             if (orderSide === 'sell') {
                 if (s === 'pending_buyer') {
                     return youAreBuyer
@@ -2326,11 +2575,15 @@
                     document.execCommand('copy');
                     document.body.removeChild(ta);
                 }
-                var msg = (label || '값') + '이(가) 복사되었습니다.';
+                var msg = uiLangMode === 'en'
+                    ? ((label || 'Value') + ' copied.')
+                    : ((label || '값') + '이(가) 복사되었습니다.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
                 else alert(msg);
             } catch (e) {
-                var err = (label || '값') + ' 복사에 실패했습니다.';
+                var err = uiLangMode === 'en'
+                    ? ('Failed to copy ' + (label || 'value') + '.')
+                    : ((label || '값') + ' 복사에 실패했습니다.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
                 else alert(err);
             }
@@ -2818,8 +3071,17 @@
                 : Number(orderFlowState.sellUnitPrice || 0);
             if (dom.orderBuyTabBtn) dom.orderBuyTabBtn.classList.toggle('active', orderFlowState.side === 'buy');
             if (dom.orderSellTabBtn) dom.orderSellTabBtn.classList.toggle('active', orderFlowState.side === 'sell');
-            if (dom.orderUsdtLabel) dom.orderUsdtLabel.textContent = orderFlowState.side === 'buy' ? '구매할 USDT' : '판매할 USDT';
-            if (dom.orderKrwLabel) dom.orderKrwLabel.textContent = orderFlowState.side === 'buy' ? '송금액' : '수령액';
+            if (dom.orderBuyTabBtn) dom.orderBuyTabBtn.textContent = langText('구매', 'Buy');
+            if (dom.orderSellTabBtn) dom.orderSellTabBtn.textContent = langText('판매', 'Sell');
+            if (dom.orderUsdtLabel) dom.orderUsdtLabel.textContent = orderFlowState.side === 'buy'
+                ? langText('구매할 USDT', 'USDT to buy')
+                : langText('판매할 USDT', 'USDT to sell');
+            if (dom.orderKrwLabel) dom.orderKrwLabel.textContent = orderFlowState.side === 'buy'
+                ? langText('송금액', 'Amount to send')
+                : langText('수령액', 'Amount to receive');
+            if (dom.orderSubmitBtn) dom.orderSubmitBtn.textContent = orderFlowState.side === 'buy'
+                ? langText('주문하기', 'Place Order')
+                : langText('판매 주문하기', 'Place Sell Order');
             if (dom.orderBuyWalletCard) dom.orderBuyWalletCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
             if (dom.orderBuyNetworkCard) dom.orderBuyNetworkCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
             if (dom.orderBuyNameCard) dom.orderBuyNameCard.style.display = orderFlowState.side === 'buy' ? 'block' : 'none';
@@ -2862,8 +3124,9 @@
                 } catch (e) {}
             }
             if (!found) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
-                else alert('존재하지 않는 리스팅입니다.');
+                var listingNotFound2 = langText('존재하지 않는 리스팅입니다.', 'Listing not found.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(listingNotFound2);
+                else alert(listingNotFound2);
                 return;
             }
 
@@ -2928,17 +3191,19 @@
             var canSell = parseModeFlag(found.buyMode);  // 상대의 매수 리스팅에 대해 내가 판매
             if (canSell && !orderFlowState.listingTonWalletAddress) {
                 canSell = false;
-                if (tg && typeof tg.showAlert === 'function') {
-                    tg.showAlert('상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.');
-                } else {
-                    alert('상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.');
-                }
+                var invalidCounterpartyWalletMsg = langText(
+                    '상대방의 USDT 수취 지갑 주소가 올바르지 않아 판매 주문을 진행할 수 없습니다.',
+                    'Cannot place sell order because counterparty USDT wallet address is invalid.'
+                );
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(invalidCounterpartyWalletMsg);
+                else alert(invalidCounterpartyWalletMsg);
             }
             orderFlowState.canBuy = canBuy;
             orderFlowState.canSell = canSell;
             if (!canBuy && !canSell) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('이 리스팅은 현재 주문 가능한 거래 모드가 없습니다.');
-                else alert('이 리스팅은 현재 주문 가능한 거래 모드가 없습니다.');
+                var noModeMsg = langText('이 리스팅은 현재 주문 가능한 거래 모드가 없습니다.', 'This listing has no available order mode right now.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(noModeMsg);
+                else alert(noModeMsg);
                 return;
             }
             if (firstSide === 'buy' && !canBuy && canSell) firstSide = 'sell';
@@ -3046,7 +3311,7 @@
             var el = document.createElement('div');
             el.className = 'ton-transfer-toast';
             el.setAttribute('role', 'status');
-            el.textContent = 'Transfer completed.';
+            el.textContent = langText('전송이 완료되었습니다.', 'Transfer completed.');
             try {
                 document.body.appendChild(el);
                 requestAnimationFrame(function () {
@@ -3056,13 +3321,13 @@
                 if (tg && typeof tg.showPopup === 'function') {
                     try {
                         tg.showPopup(
-                            { title: '', message: 'Transfer completed.', buttons: [{ type: 'ok', id: 'ok', text: 'OK' }] },
+                            { title: '', message: langText('전송이 완료되었습니다.', 'Transfer completed.'), buttons: [{ type: 'ok', id: 'ok', text: 'OK' }] },
                             function () {}
                         );
                     } catch (eP) {}
                 } else if (tg && typeof tg.showAlert === 'function') {
                     try {
-                        tg.showAlert('Transfer completed.');
+                        tg.showAlert(langText('전송이 완료되었습니다.', 'Transfer completed.'));
                     } catch (eA) {}
                 }
                 return;
@@ -3546,7 +3811,7 @@
                     if (n === null || n === undefined) el.textContent = '—';
                     else el.textContent = Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' USDT';
                 }).catch(function () {
-                    if (el && el.parentNode) el.textContent = '조회 실패';
+                    if (el && el.parentNode) el.textContent = langText('조회 실패', 'Failed to load');
                 });
             });
         }
@@ -3577,14 +3842,16 @@
                 var status = String(r.status || (orderSide === 'sell' ? 'pending_buyer' : 'pending_seller'));
                 var statusTone = orderStatusTone(status);
                 var youAreBuyer = String(r.buyerId || '') === userId;
-                var counterName = youAreBuyer ? String(r.sellerName || '판매자') : String(r.buyerName || '구매자');
+                var counterName = youAreBuyer
+                    ? String(r.sellerName || langText('판매자', 'Seller'))
+                    : String(r.buyerName || langText('구매자', 'Buyer'));
                 var total = Number(o.krw || 0).toLocaleString() + ' KRW';
                 var price = Number(o.usdt || 0) > 0 ? (Number(o.krw || 0) / Number(o.usdt || 0)) : 0;
 
                 var progressHint = getOfferProgressHintText(status, orderSide, youAreBuyer);
                 var progressHtml =
                     '<div class="offer-divider"></div>' +
-                    '<div class="offer-line"><div class="offer-k">진행 안내</div><div class="offer-v">' +
+                    '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('진행 안내', 'Progress')) + '</div><div class="offer-v">' +
                     escapeHtml(progressHint) +
                     '</div></div>';
 
@@ -3595,9 +3862,9 @@
                         var coinToEsc = escapeJsSingleQuote(coinTo);
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 USDT 수취 지갑', 'Buyer USDT wallet')) + '</div><div class="offer-v offer-v--wrap">' +
                             (coinTo
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc + '\', \'지갑주소\')">' + escapeHtml(coinTo) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc + '\', \'' + escapeJsSingleQuote(langText('지갑주소', 'Wallet address')) + '\')">' + escapeHtml(coinTo) + '</span>')
                                 : '-') +
                             '</div></div>';
                     } else if (status === 'sell_buyer_issue_coin' && !youAreBuyer) {
@@ -3605,14 +3872,14 @@
                         var coinToEsc2 = escapeJsSingleQuote(coinTo2);
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 USDT 수취 지갑', 'Buyer USDT wallet')) + '</div><div class="offer-v offer-v--wrap">' +
                             (coinTo2
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc2 + '\', \'지갑주소\')">' + escapeHtml(coinTo2) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc2 + '\', \'' + escapeJsSingleQuote(langText('지갑주소', 'Wallet address')) + '\')">' + escapeHtml(coinTo2) + '</span>')
                                 : '-') +
                             '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">구매자 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 요청', 'Buyer request')) + '</div><div class="offer-v">' + escapeHtml(r.issueNote || langText('USDT 전송 확인 요청', 'USDT transfer check request')) + '</div></div>' +
                             (r.sellerCoinIssueReply
-                                ? ('<div class="offer-line"><div class="offer-k">내 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                ? ('<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('내 답변', 'My reply')) + '</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '');
                     } else if (status === 'sell_coin_sent' && youAreBuyer) {
                         var bankS = {
@@ -3626,44 +3893,44 @@
                         var accNumSEsc = escapeJsSingleQuote(bankS.accountNumber || '');
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">판매자 계좌(입금)</div><div class="offer-v">' + escapeHtml(bankS.bankName || '-') + '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">계좌번호</div><div class="offer-v">' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('판매자 계좌(입금)', 'Seller bank account (deposit)')) + '</div><div class="offer-v">' + escapeHtml(bankS.bankName || '-') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('계좌번호', 'Account number')) + '</div><div class="offer-v">' +
                             (bankS.accountNumber
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumSEsc + '\', \'계좌번호\')">' + escapeHtml(bankS.accountNumber) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumSEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankS.accountNumber) + '</span>')
                                 : '-') +
                             '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">예금주</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('예금주', 'Account holder')) + '</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     } else if (status === 'sell_buyer_issue_coin' && youAreBuyer) {
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">내 요청</div><div class="offer-v">' +
-                            escapeHtml(r.issueNote || 'USDT 전송 확인 요청') +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('내 요청', 'My request')) + '</div><div class="offer-v">' +
+                            escapeHtml(r.issueNote || langText('USDT 전송 확인 요청', 'USDT transfer check request')) +
                             '</div></div>' +
                             (r.sellerCoinIssueReply
-                                ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                ? ('<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('판매자 답변', 'Seller reply')) + '</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '');
                     } else if (status === 'sell_buyer_pending_coin_ack' && !youAreBuyer) {
                         var coinTo3 = String(r.buyerReceiverWalletAddress || '');
                         var coinToEsc3 = escapeJsSingleQuote(coinTo3);
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">구매자 USDT 수취 지갑</div><div class="offer-v offer-v--wrap">' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 USDT 수취 지갑', 'Buyer USDT wallet')) + '</div><div class="offer-v offer-v--wrap">' +
                             (coinTo3
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc3 + '\', \'지갑주소\')">' + escapeHtml(coinTo3) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + coinToEsc3 + '\', \'' + escapeJsSingleQuote(langText('지갑주소', 'Wallet address')) + '\')">' + escapeHtml(coinTo3) + '</span>')
                                 : '-') +
                             '</div></div>' +
-                            '<div class="offer-line"><div class="offer-k">구매자 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 요청', 'Buyer request')) + '</div><div class="offer-v">' + escapeHtml(r.issueNote || langText('USDT 전송 확인 요청', 'USDT transfer check request')) + '</div></div>' +
                             (r.sellerCoinIssueReply
-                                ? ('<div class="offer-line"><div class="offer-k">내 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                ? ('<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('내 답변', 'My reply')) + '</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '') +
                             '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     } else if (status === 'sell_buyer_pending_coin_ack' && youAreBuyer) {
                         extra =
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">내 요청</div><div class="offer-v">' + escapeHtml(r.issueNote || 'USDT 전송 확인 요청') + '</div></div>' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('내 요청', 'My request')) + '</div><div class="offer-v">' + escapeHtml(r.issueNote || langText('USDT 전송 확인 요청', 'USDT transfer check request')) + '</div></div>' +
                             (r.sellerCoinIssueReply
-                                ? ('<div class="offer-line"><div class="offer-k">판매자 답변</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
+                                ? ('<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('판매자 답변', 'Seller reply')) + '</div><div class="offer-v">' + escapeHtml(String(r.sellerCoinIssueReply)) + '</div></div>')
                                 : '') +
                             '<div class="offer-line"><div class="offer-k">TxID</div><div class="offer-v offer-v--wrap">' + escapeHtml(r.txid || '-') + '</div></div>';
                     }
@@ -3679,28 +3946,28 @@
                     var accNumEsc = escapeJsSingleQuote(bankParts.accountNumber || '');
                     extra =
                         '<div class="offer-divider"></div>' +
-                        '<div class="offer-line"><div class="offer-k">은행명</div><div class="offer-v">' + escapeHtml(bankParts.bankName || '-') + '</div></div>' +
-                        '<div class="offer-line"><div class="offer-k">계좌번호</div><div class="offer-v">' +
+                        '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('은행명', 'Bank')) + '</div><div class="offer-v">' + escapeHtml(bankParts.bankName || '-') + '</div></div>' +
+                        '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('계좌번호', 'Account number')) + '</div><div class="offer-v">' +
                             (bankParts.accountNumber
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumEsc + '\', \'계좌번호\')">' + escapeHtml(bankParts.accountNumber) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankParts.accountNumber) + '</span>')
                                 : '-') +
                         '</div></div>' +
-                        '<div class="offer-line"><div class="offer-k">입금자명</div><div class="offer-v">' + escapeHtml(bankParts.accountHolder || '-') + '</div></div>';
+                        '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('입금자명', 'Depositor name')) + '</div><div class="offer-v">' + escapeHtml(bankParts.accountHolder || '-') + '</div></div>';
                 } else if (status === 'buyer_paid' && !youAreBuyer) {
                     // 구매자가 입금 완료한 뒤 판매자가 코인 전송할 수 있도록 구매자 지갑주소를 제공
                     var buyWallet = String(r.receiverWalletAddress || '');
                     var buyWalletEsc = escapeJsSingleQuote(buyWallet);
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v offer-v--wrap">' +
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 지갑주소', 'Buyer wallet address')) + '</div><div class="offer-v offer-v--wrap">' +
                         (buyWallet
-                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'지갑주소\')">' + escapeHtml(buyWallet) + '</span>')
+                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc + '\', \'' + escapeJsSingleQuote(langText('지갑주소', 'Wallet address')) + '\')">' + escapeHtml(buyWallet) + '</span>')
                             : '-') +
                     '</div></div>';
                 } else if (status === 'buyer_issue' && !youAreBuyer) {
                     var buyWallet2 = String(r.receiverWalletAddress || '');
                     var buyWalletEsc2 = escapeJsSingleQuote(buyWallet2);
-                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">구매자 지갑주소</div><div class="offer-v offer-v--wrap">' +
+                    extra = '<div class="offer-divider"></div><div class="offer-line"><div class="offer-k">' + escapeHtml(langText('구매자 지갑주소', 'Buyer wallet address')) + '</div><div class="offer-v offer-v--wrap">' +
                         (buyWallet2
-                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc2 + '\', \'지갑주소\')">' + escapeHtml(buyWallet2) + '</span>')
+                            ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + buyWalletEsc2 + '\', \'' + escapeJsSingleQuote(langText('지갑주소', 'Wallet address')) + '\')">' + escapeHtml(buyWallet2) + '</span>')
                             : '-') +
                     '</div></div>';
                 } else if (status === 'seller_sent' && youAreBuyer) {
@@ -3708,8 +3975,8 @@
                 } else if (status === 'buyer_issue' && youAreBuyer) {
                     extra =
                         '<div class="offer-divider"></div>' +
-                        '<div class="offer-line"><div class="offer-k">요청 내용</div><div class="offer-v">' +
-                        escapeHtml(r.issueNote || '입금/전송 상태 확인 요청') +
+                        '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('요청 내용', 'Request details')) + '</div><div class="offer-v">' +
+                        escapeHtml(r.issueNote || langText('입금/전송 상태 확인 요청', 'Payment/transfer status check request')) +
                         '</div></div>';
                 }
 
@@ -3719,9 +3986,9 @@
                     if (wBal && wBal.indexOf('.....') === -1) {
                         extra +=
                             '<div class="offer-divider"></div>' +
-                            '<div class="offer-line"><div class="offer-k">내 지갑 USDT 잔액</div><div class="offer-v" id="' +
+                            '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('내 지갑 USDT 잔액', 'My wallet USDT balance')) + '</div><div class="offer-v" id="' +
                             offerBuyerBalanceSafeId(o.id) +
-                            '">조회 중…</div></div>';
+                            '">' + escapeHtml(langText('조회 중…', 'Loading...')) + '</div></div>';
                     }
                 }
 
@@ -3745,22 +4012,22 @@
                     escapeHtml(orderStatusLabel(status)) +
                     '</div>' +
                     '</div>' +
-                    '<div class="offer-line"><div class="offer-k">가격</div><div class="offer-v">' +
+                    '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('가격', 'Price')) + '</div><div class="offer-v">' +
                     Math.floor(price).toLocaleString() +
                     ' KRW/USDT</div></div>' +
-                    '<div class="offer-line"><div class="offer-k">유형</div><div class="offer-v">' +
-                    (orderSide === 'sell' ? 'USDT 판매' : 'USDT 구매') +
+                    '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('유형', 'Type')) + '</div><div class="offer-v">' +
+                    (orderSide === 'sell' ? langText('USDT 판매', 'Sell USDT') : langText('USDT 구매', 'Buy USDT')) +
                     '</div></div>' +
-                    '<div class="offer-line"><div class="offer-k">금액</div><div class="offer-v">' +
+                    '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('금액', 'Amount')) + '</div><div class="offer-v">' +
                     Number(o.usdt || 0).toLocaleString() +
                     ' USDT</div></div>' +
-                    '<div class="offer-line"><div class="offer-k">합계</div><div class="offer-v">' +
+                    '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('합계', 'Total')) + '</div><div class="offer-v">' +
                     total +
                     '</div></div>' +
                     progressHtml +
                     extra +
                     (actions ? '<div class="offer-actions">' + actions + '</div>' : '') +
-                    (showHistory ? '<div class="offer-receipt-hint">탭하여 상세 · 영수증 보기</div>' : '') +
+                    (showHistory ? '<div class="offer-receipt-hint">' + escapeHtml(langText('탭하여 상세 · 영수증 보기', 'Tap to view details · receipt')) + '</div>' : '') +
                     '</div>'
                 );
             }).join('');
@@ -3774,44 +4041,44 @@
             if (side === 'sell') {
                 if (youAreBuyer && status === 'pending_buyer') {
                     return '' +
-                        '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">거절</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">승인</button>';
+                        '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">' + escapeHtml(langText('거절', 'Reject')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">' + escapeHtml(langText('승인', 'Approve')) + '</button>';
                 }
                 if (!youAreBuyer && status === 'pending_buyer') {
-                    return '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">신청 취소</button>';
+                    return '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">' + escapeHtml(langText('신청 취소', 'Cancel request')) + '</button>';
                 }
                 if (!youAreBuyer && status === 'buyer_approved_sell') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">' + escapeHtml(langText('거래 취소', 'Cancel trade')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
                 }
                 if (youAreBuyer && status === 'sell_coin_sent') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">확인요청</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">' + escapeHtml(langText('확인요청', 'Request check')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">' + escapeHtml(langText('입금 완료', 'Payment done')) + '</button>';
                 }
                 if (!youAreBuyer && status === 'sell_buyer_issue_coin') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">확인요청</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">' + escapeHtml(langText('확인요청', 'Request check')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
                 }
                 if (youAreBuyer && status === 'sell_buyer_pending_coin_ack') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">추가 확인요청</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'buyer_confirm_usdt_received\')">USDT 수령 확인</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">' + escapeHtml(langText('추가 확인요청', 'Request additional check')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'buyer_confirm_usdt_received\')">' + escapeHtml(langText('USDT 수령 확인', 'Confirm USDT received')) + '</button>';
                 }
                 if (!youAreBuyer && status === 'sell_buyer_pending_coin_ack') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">확인요청</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_seller_coin\')">' + escapeHtml(langText('확인요청', 'Request check')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
                 }
                 if (!youAreBuyer && status === 'sell_fiat_paid') {
                     return '' +
-                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_sell_fiat\')">확인요청</button>' +
-                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+                        '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue_sell_fiat\')">' + escapeHtml(langText('확인요청', 'Request check')) + '</button>' +
+                        '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">' + escapeHtml(langText('거래 완료', 'Complete trade')) + '</button>';
                 }
                 if (youAreBuyer && status === 'sell_seller_issue_fiat') {
-                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금완료(재확인)</button>';
+                    return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">' + escapeHtml(langText('입금완료(재확인)', 'Payment done (re-check)')) + '</button>';
                 }
                 // 입금 재확인 요청 후에는 구매자 응답 대기 — 판매자에게 거래 완료 버튼 표시하지 않음
                 if (!youAreBuyer && status === 'sell_seller_issue_fiat') {
@@ -3821,34 +4088,34 @@
             }
             if (!youAreBuyer && status === 'pending_seller') {
                 return '' +
-                    '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">거절</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">승인</button>';
+                    '<button class="offer-btn offer-btn--danger" type="button" onclick="handleOrderAction(\'' + id + '\', \'reject\')">' + escapeHtml(langText('거절', 'Reject')) + '</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'approve\')">' + escapeHtml(langText('승인', 'Approve')) + '</button>';
             }
             if (youAreBuyer && status === 'seller_approved') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료</button>';
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">' + escapeHtml(langText('거래 취소', 'Cancel trade')) + '</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">' + escapeHtml(langText('입금 완료', 'Payment done')) + '</button>';
             }
             if (!youAreBuyer && status === 'buyer_paid') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">확인요청</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'request_payment_check\')">' + escapeHtml(langText('확인요청', 'Request check')) + '</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
             }
             if (!youAreBuyer && status === 'seller_deposit_checked') {
-                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
             }
             if (youAreBuyer && status === 'seller_payment_check_requested') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">거래 취소</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">입금 완료(재확인)</button>';
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'cancel\')">' + escapeHtml(langText('거래 취소', 'Cancel trade')) + '</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'paid\')">' + escapeHtml(langText('입금 완료(재확인)', 'Payment done (re-check)')) + '</button>';
             }
             if (!youAreBuyer && status === 'buyer_issue') {
-                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">전송하기</button>';
+                return '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'sent\')">' + escapeHtml(langText('전송하기', 'Send')) + '</button>';
             }
             if (youAreBuyer && status === 'seller_sent') {
                 return '' +
-                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">확인 요청</button>' +
-                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">거래 완료</button>';
+                    '<button class="offer-btn offer-btn--ghost" type="button" onclick="handleOrderAction(\'' + id + '\', \'issue\')">' + escapeHtml(langText('확인 요청', 'Request check')) + '</button>' +
+                    '<button class="offer-btn offer-btn--primary" type="button" onclick="handleOrderAction(\'' + id + '\', \'confirm\')">' + escapeHtml(langText('거래 완료', 'Complete trade')) + '</button>';
             }
             return '';
         }
@@ -3857,7 +4124,7 @@
         async function refreshMyOffers(opts) {
             var silent = opts && opts.silent === true;
             var wrap = document.getElementById('myOffersList');
-            if (wrap && !silent) wrap.innerHTML = '<div class="offer-empty">주문을 불러오는 중...</div>';
+            if (wrap && !silent) wrap.innerHTML = '<div class="offer-empty">' + escapeHtml(langText('주문을 불러오는 중...', 'Loading orders...')) + '</div>';
             await pollOrdersRealtime();
             if (!Array.isArray(myOffersState.orders) || myOffersState.orders.length === 0) {
                 renderMyOffers();
@@ -3867,8 +4134,11 @@
         async function confirmManualTransferCompletion(sendErr) {
             // Tonkeeper 승인 후 텔레그램 복귀가 끊기는 환경에서, 실제 전송 완료를 사용자가 확인해 상태 반영
             var detail = String(sendErr && sendErr.message ? sendErr.message : sendErr || '').trim();
-            var ask = 'Tonkeeper에서 승인/전송을 이미 완료했나요?\n완료했다면 "확인"을 눌러 주문 상태를 전송 완료로 반영합니다.';
-            if (detail) ask += '\n\n오류 정보: ' + detail;
+            var ask = langText(
+                'Tonkeeper에서 승인/전송을 이미 완료했나요?\n완료했다면 "확인"을 눌러 주문 상태를 전송 완료로 반영합니다.',
+                'Did you already approve/send in Tonkeeper?\nIf completed, press "OK" to mark this order as sent.'
+            );
+            if (detail) ask += '\n\n' + langText('오류 정보: ', 'Error: ') + detail;
             try {
                 if (tg && typeof tg.showConfirm === 'function') {
                     return await new Promise(function (resolve) {
@@ -3957,7 +4227,7 @@
                     if (!youAreBuyer0 || String(r0.status) !== 'pending_buyer') return;
                     var rrSell = '';
                     try {
-                        rrSell = prompt('거절 사유를 입력해 주세요. (선택)', '') || '';
+                        rrSell = prompt(langText('거절 사유를 입력해 주세요. (선택)', 'Enter rejection reason (optional)'), '') || '';
                     } catch (eRjS) {}
                     // 영수증·상세 내역에 표시할 거절 사유
                     receiver.rejectReason = String(rrSell || '').trim() || '(사유 미입력)';
@@ -3966,7 +4236,7 @@
                     if (!youAreSeller0 || (String(r0.status) !== 'pending_buyer' && String(r0.status) !== 'buyer_approved_sell')) return;
                     var cnSell = '';
                     try {
-                        cnSell = prompt('취소 사유를 입력해 주세요. (선택)', '') || '';
+                        cnSell = prompt(langText('취소 사유를 입력해 주세요. (선택)', 'Enter cancellation reason (optional)'), '') || '';
                     } catch (eCnS) {}
                     receiver.cancelNote = String(cnSell || '').trim() || '(메모 없음)';
                     receiver.status = 'seller_cancelled_sell';
@@ -4029,12 +4299,12 @@
                     if (!youAreBuyer0) return;
                     var stIss = String(r0.status || '');
                     if (stIss === 'sell_coin_sent') {
-                        var noteSell = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
+                        var noteSell = prompt(langText('판매자에게 전달할 확인 요청 메시지를 입력해주세요.', 'Enter a verification message to seller.')) || '';
                         receiver.status = 'sell_buyer_issue_coin';
                         receiver.issueNote = String(noteSell || 'USDT 전송 확인 요청');
                         receiver.issueRaisedAt = now;
                     } else if (stIss === 'sell_buyer_pending_coin_ack') {
-                        var noteSellP = prompt('판매자에게 추가 확인 요청 메시지를 입력해 주세요.') || '';
+                        var noteSellP = prompt(langText('판매자에게 추가 확인 요청 메시지를 입력해 주세요.', 'Enter an additional verification message to seller.')) || '';
                         receiver.status = 'sell_buyer_issue_coin';
                         receiver.issueNote = String(noteSellP || 'USDT 전송 확인 요청');
                         receiver.issueRaisedAt = now;
@@ -4046,7 +4316,7 @@
                     if (!youAreSeller0) return;
                     var stSe = String(r0.status || '');
                     if (stSe !== 'sell_buyer_issue_coin' && stSe !== 'sell_buyer_pending_coin_ack') return;
-                    var noteSellerIssue = prompt('구매자에게 전달할 메시지를 입력해 주세요.') || '';
+                    var noteSellerIssue = prompt(langText('구매자에게 전달할 메시지를 입력해 주세요.', 'Enter a message to buyer.')) || '';
                     receiver.sellerCoinIssueReply = String(noteSellerIssue || '전송 상태를 확인해 주세요.');
                     receiver.sellerCoinIssueReplyAt = now;
                     receiver.status = 'sell_buyer_pending_coin_ack';
@@ -4109,7 +4379,7 @@
             } else if (action === 'reject') {
                 var rrBuy = '';
                 try {
-                    rrBuy = prompt('거절 사유를 입력해 주세요. (선택)', '') || '';
+                    rrBuy = prompt(langText('거절 사유를 입력해 주세요. (선택)', 'Enter rejection reason (optional)'), '') || '';
                 } catch (eRjB) {}
                 receiver.rejectReason = String(rrBuy || '').trim() || '(사유 미입력)';
                 receiver.status = 'seller_rejected';
@@ -4125,7 +4395,7 @@
             } else if (action === 'cancel') {
                 var cnBuy = '';
                 try {
-                    cnBuy = prompt('취소 사유를 입력해 주세요. (선택)', '') || '';
+                    cnBuy = prompt(langText('취소 사유를 입력해 주세요. (선택)', 'Enter cancellation reason (optional)'), '') || '';
                 } catch (eCnB) {}
                 receiver.cancelNote = String(cnBuy || '').trim() || '(메모 없음)';
                 receiver.status = 'buyer_cancelled';
@@ -4188,7 +4458,7 @@
                 receiver.status = 'buyer_confirmed';
                 receiver.buyerConfirmedAt = now;
             } else if (action === 'issue') {
-                var note = prompt('판매자에게 전달할 확인 요청 메시지를 입력해주세요.') || '';
+                var note = prompt(langText('판매자에게 전달할 확인 요청 메시지를 입력해주세요.', 'Enter a verification message to seller.')) || '';
                 receiver.status = 'buyer_issue';
                 receiver.issueNote = String(note || '입금/전송 상태 확인 요청');
                 receiver.issueRaisedAt = now;
@@ -4243,8 +4513,9 @@
             }
 
             if (!found) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('존재하지 않는 리스팅입니다.');
-                else alert('존재하지 않는 리스팅입니다.');
+                var listingNotFound3 = langText('존재하지 않는 리스팅입니다.', 'Listing not found.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(listingNotFound3);
+                else alert(listingNotFound3);
                 return;
             }
 
@@ -4369,7 +4640,7 @@
                 } catch (e) {}
 
                 try {
-                    var ok = window.confirm(String(message || '삭제할까요?'));
+                    var ok = window.confirm(String(message || langText('삭제할까요?', 'Delete this item?')));
                     resolve(!!ok);
                 } catch (e2) {
                     resolve(false);
@@ -4389,7 +4660,7 @@
                 } catch (e) {}
             }
             if (!listingId) {
-                var missMsg0 = '삭제할 리스팅 ID를 찾지 못했습니다.';
+                var missMsg0 = langText('삭제할 리스팅 ID를 찾지 못했습니다.', 'Could not find listing ID to delete.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg0);
                 else alert(missMsg0);
                 return;
@@ -4412,7 +4683,7 @@
             }
 
             if (!found) {
-                var missMsg = '삭제 대상 리스팅을 찾지 못했습니다.';
+                var missMsg = langText('삭제 대상 리스팅을 찾지 못했습니다.', 'Listing to delete was not found.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(missMsg);
                 else alert(missMsg);
                 return;
@@ -4422,14 +4693,15 @@
             var isOwnerById = String(found.ownerId) === String(currentUserId);
             var isOwnerByName = String(found.ownerName || '') === String(currentUserName || '');
             if (!isOwnerById && !isOwnerByName) {
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('본인의 리스팅만 삭제할 수 있습니다.');
-                else alert('본인의 리스팅만 삭제할 수 있습니다.');
+                var ownOnlyDelete = langText('본인의 리스팅만 삭제할 수 있습니다.', 'Only your own listing can be deleted.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(ownOnlyDelete);
+                else alert(ownOnlyDelete);
                 return;
             }
 
             // 텔레그램 웹뷰에서 confirm이 막히는 이슈가 있어 상세 모달 버튼은 즉시 삭제 모드로 실행
             if (!skipConfirm) {
-                var ok = await confirmDeleteAsync('이 리스팅을 삭제할까요?');
+                var ok = await confirmDeleteAsync(langText('이 리스팅을 삭제할까요?', 'Delete this listing?'));
                 if (!ok) return;
             }
 
@@ -4456,8 +4728,9 @@
                     }
                 closeListingDetail();
                 loadMarketplace();
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert('리스팅이 삭제되었습니다.');
-                else alert('리스팅이 삭제되었습니다.');
+                var listingDeleted = langText('리스팅이 삭제되었습니다.', 'Listing deleted.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(listingDeleted);
+                else alert(listingDeleted);
                 return;
             }
 
@@ -4467,14 +4740,16 @@
                 saveListings(listings);
                 closeListingDetail();
                 loadMarketplace();
-                var fbMsg = '서버 삭제 실패로 로컬에서만 삭제되었습니다.';
+                var fbMsg = langText('서버 삭제 실패로 로컬에서만 삭제되었습니다.', 'Server delete failed; removed locally only.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(fbMsg);
                 else alert(fbMsg);
                 return;
             }
 
             // 서버/로컬 모두 실패 시 사용자에게 이유를 명확히 표시
-            var failMsg = '삭제 실패: 서버 응답을 확인해 주세요.' + (serverDeleteErr ? (' (' + serverDeleteErr + ')') : '');
+            var failMsg = (uiLangMode === 'en'
+                ? 'Delete failed. Check server response.'
+                : '삭제 실패: 서버 응답을 확인해 주세요.') + (serverDeleteErr ? (' (' + serverDeleteErr + ')') : '');
             if (tg && typeof tg.showAlert === 'function') tg.showAlert(failMsg);
             else alert(failMsg);
         }
@@ -4552,7 +4827,7 @@
 
         function deleteTonWallet(address) {
             if (!address) return;
-            const ok = window.confirm('Delete this TON wallet?');
+            const ok = window.confirm(langText('이 TON 지갑을 삭제할까요?', 'Delete this TON wallet?'));
             if (!ok) return;
 
             const wallets = loadTonWallets();
@@ -4562,7 +4837,7 @@
                 localStorage.setItem(STORAGE.TON_WALLETS, JSON.stringify(next));
             } catch (e) {
                 // 저장 실패 시에도 UI는 일단 갱신하지 않음
-                alert('Failed to delete.');
+                alert(langText('삭제에 실패했습니다.', 'Failed to delete.'));
                 return;
             }
 
@@ -4588,7 +4863,7 @@
 
             if (!dom.tonWalletCards) return;
             if (!wallets.length) {
-                dom.tonWalletCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>No wallets saved.</div>";
+                dom.tonWalletCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>" + escapeHtml(langText('저장된 지갑이 없습니다.', 'No wallets saved.')) + "</div>";
                 return;
             }
 
@@ -4611,11 +4886,11 @@
                                     <button class="star-btn ${isDefault ? 'on' : ''}" onclick="event.stopPropagation(); setDefaultTonWalletAddress('${addrForJs}')">
                                         ${isDefault ? '★' : '☆'}
                                     </button>
-                                    <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteTonWallet('${addrForJs}')">Delete</button>
+                                    <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteTonWallet('${addrForJs}')">${escapeHtml(langText('삭제', 'Delete'))}</button>
                                 </div>
                                 <div class="saved-wallet-usdt-block" id="savedWalletUsdt_${idx}">
-                                    <div class="saved-wallet-usdt-label">보유 USDT</div>
-                                    <div class="saved-wallet-usdt-value">조회 중…</div>
+                                    <div class="saved-wallet-usdt-label">${escapeHtml(langText('보유 USDT', 'USDT Balance'))}</div>
+                                    <div class="saved-wallet-usdt-value">${escapeHtml(langText('조회 중…', 'Loading...'))}</div>
                                 </div>
                             </div>
                         </div>
@@ -4630,13 +4905,13 @@
                 fetchJettonUsdtBalance(w.address)
                     .then(function (n) {
                         if (n === null) {
-                            valEl.textContent = '조회 실패';
+                            valEl.textContent = langText('조회 실패', 'Failed to load');
                             return;
                         }
                         valEl.textContent = Number(n).toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' USDT';
                     })
                     .catch(function () {
-                        valEl.textContent = '조회 실패';
+                        valEl.textContent = langText('조회 실패', 'Failed to load');
                     });
             });
         }
@@ -4654,7 +4929,7 @@
 
         function deleteBankAccount(id) {
             if (!id) return;
-            const ok = window.confirm('Delete this bank account?');
+            const ok = window.confirm(langText('이 계좌를 삭제할까요?', 'Delete this bank account?'));
             if (!ok) return;
 
             const accounts = loadBankAccounts();
@@ -4663,7 +4938,7 @@
             try {
                 localStorage.setItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(next));
             } catch (e) {
-                alert('Failed to delete.');
+                alert(langText('삭제에 실패했습니다.', 'Failed to delete.'));
                 return;
             }
 
@@ -4688,7 +4963,7 @@
             if (!dom.bankAccountCards) return;
 
             if (!accounts.length) {
-                dom.bankAccountCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>No bank accounts saved.</div>";
+                dom.bankAccountCards.innerHTML = "<div style='color:#888; padding: 18px 0;'>" + escapeHtml(langText('저장된 계좌가 없습니다.', 'No bank accounts saved.')) + "</div>";
                 return;
             }
 
@@ -4706,14 +4981,14 @@
                             <div>
                                 <div class="saved-wallet-title">${escapeHtml(label)}</div>
                                 <div class="saved-network-badge">${escapeHtml(bank)}</div>
-                                <div class="saved-address">Account: ${escapeHtml(masked)}</div>
+                                <div class="saved-address">${escapeHtml(langText('계좌', 'Account'))}: ${escapeHtml(masked)}</div>
                                 <div class="saved-address" style="margin-top: 6px;">${escapeHtml(holder)}</div>
                             </div>
                             <div style="display:flex; gap:8px; align-items:center;">
                                 <button class="star-btn ${isDefault ? 'on' : ''}" onclick="event.stopPropagation(); setDefaultBankAccount('${idForJs}')">
                                     ${isDefault ? '★' : '☆'}
                                 </button>
-                                <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteBankAccount('${idForJs}')">Delete</button>
+                                <button class="delete-wallet-btn" onclick="event.stopPropagation(); deleteBankAccount('${idForJs}')">${escapeHtml(langText('삭제', 'Delete'))}</button>
                             </div>
                         </div>
                     </div>
@@ -4888,10 +5163,10 @@
             if (!el) return;
             var wallets = loadTonWallets();
             if (!wallets.length) {
-                el.textContent = '저장된 지갑 없음';
+                el.textContent = langText('저장된 지갑 없음', 'No saved wallets');
                 return;
             }
-            el.textContent = '조회 중…';
+            el.textContent = langText('조회 중…', 'Loading...');
             Promise.all(
                 wallets.map(function (w) {
                     return fetchJettonUsdtBalance(w.address)
@@ -4907,11 +5182,11 @@
                 var anyFail = parts.some(function (p) { return !p.ok; });
                 var total = parts.reduce(function (s, p) { return s + (Number.isFinite(p.n) ? p.n : 0); }, 0);
                 if (!anyOk) {
-                    el.textContent = '조회 실패';
+                    el.textContent = langText('조회 실패', 'Failed to load');
                     return;
                 }
                 var txt = Number(total).toLocaleString(undefined, { maximumFractionDigits: 6 }) + ' USDT';
-                if (anyFail) txt += ' (일부)';
+                if (anyFail) txt += langText(' (일부)', ' (partial)');
                 el.textContent = txt;
             });
         }
@@ -5969,7 +6244,7 @@
         function saveUsdtTestnetMasterAddress() {
             var raw = dom.usdtTestnetMasterInput ? String(dom.usdtTestnetMasterInput.value || '').trim() : '';
             if (!raw) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소를 입력해 주세요.';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('USDT 테스트넷 마스터 주소를 입력해 주세요.', 'Enter USDT testnet master address.');
                 return false;
             }
             var normalized = '';
@@ -5982,18 +6257,18 @@
             try {
                 localStorage.setItem(USDT_TESTNET_MASTER_STORAGE_KEY, normalized);
             } catch (e) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '저장에 실패했습니다.';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('저장에 실패했습니다.', 'Failed to save.');
                 return false;
             }
             if (dom.usdtTestnetMasterInput) dom.usdtTestnetMasterInput.value = normalized;
-            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소가 저장되었습니다.';
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('USDT 테스트넷 마스터 주소가 저장되었습니다.', 'USDT testnet master address saved.');
             return true;
         }
 
         function clearUsdtTestnetMasterAddress() {
             try { localStorage.removeItem(USDT_TESTNET_MASTER_STORAGE_KEY); } catch (e) {}
             if (dom.usdtTestnetMasterInput) dom.usdtTestnetMasterInput.value = '';
-            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'USDT 테스트넷 마스터 주소를 초기화했습니다.';
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('USDT 테스트넷 마스터 주소를 초기화했습니다.', 'USDT testnet master address cleared.');
         }
 
         function getUsdtTestnetMasterAddress() {
@@ -6172,7 +6447,7 @@
             try {
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(value);
-                    if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copied!';
+                    if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('복사되었습니다.', 'Copied!');
                     return;
                 }
             } catch (e) {
@@ -6189,9 +6464,9 @@
             tmp.select();
             try {
                 document.execCommand('copy');
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copied!';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('복사되었습니다.', 'Copied!');
             } catch (e) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Copy failed.';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('복사에 실패했습니다.', 'Copy failed.');
             } finally {
                 document.body.removeChild(tmp);
             }
@@ -6282,7 +6557,7 @@
 
         function disconnectTonWallet() {
             if (!tonConnectUIInstance) {
-                updateTonWalletStatusText('Not connected.');
+                updateTonWalletStatusText(langText('연결되지 않음', 'Not connected.'));
                 return;
             }
             tonConnectUIInstance.disconnect().catch(() => {
@@ -6298,7 +6573,7 @@
             const masterInput = dom.usdtTestnetMasterInput ? String(dom.usdtTestnetMasterInput.value || '').trim() : '';
 
             if (!address) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Please enter wallet address.';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('지갑 주소를 입력해 주세요.', 'Please enter wallet address.');
                 return;
             }
             let normalizedAddress = '';
@@ -6322,7 +6597,7 @@
             try {
                 localStorage.setItem(STORAGE.TON_WALLETS, JSON.stringify(wallets));
             } catch (e) {
-                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Failed to save. Please check browser settings.';
+                if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('저장에 실패했습니다. 브라우저 설정을 확인해 주세요.', 'Failed to save. Please check browser settings.');
                 return;
             }
             cloudSetItem(STORAGE.TON_WALLETS, JSON.stringify(wallets));
@@ -6332,7 +6607,7 @@
             else renderSavedWallets();
 
             if (masterInput) saveUsdtTestnetMasterAddress();
-            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = 'Saved!';
+            if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = langText('저장되었습니다.', 'Saved!');
             showMyPageSettingsMain();
             refreshMyPageUsdtBalance();
         }
@@ -6392,7 +6667,7 @@
             const setDefault = dom.setDefaultBankAccountSwitch ? dom.setDefaultBankAccountSwitch.checked : false;
 
             if (!bank || !accountNumber || !accountHolder) {
-                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Please fill bank / account number / account holder.';
+                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = langText('은행 / 계좌번호 / 예금주를 모두 입력해 주세요.', 'Please fill bank / account number / account holder.');
                 return;
             }
 
@@ -6417,7 +6692,7 @@
             try {
                 localStorage.setItem(STORAGE.BANK_ACCOUNTS, JSON.stringify(accounts));
             } catch (e) {
-                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Failed to save. Please check browser settings.';
+                if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = langText('저장에 실패했습니다. 브라우저 설정을 확인해 주세요.', 'Failed to save. Please check browser settings.');
                 return;
             }
 
@@ -6427,7 +6702,7 @@
             if (setDefault || !hasDefault) setDefaultBankAccount(payload.id);
             else renderSavedBankAccounts();
 
-            if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = 'Saved!';
+            if (dom.bankSaveMsg) dom.bankSaveMsg.innerText = langText('저장되었습니다.', 'Saved!');
             showMyPageSettingsMain();
         }
 
