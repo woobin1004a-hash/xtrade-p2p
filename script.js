@@ -14,6 +14,8 @@
         // tg:// 딥링크 형식: 톤키퍼가 서명 완료 후 텔레그램으로 직접 복귀할 때 사용
         // https://t.me/ 형식은 브라우저를 거쳐 Telegram이 열리지만, tg:// 형식은 Telegram 앱을 바로 엶
         const TON_RETURN_TG_DEEPLINK = 'tg://resolve?domain=P2PxxBOT';
+        /** TonConnect sendTransaction 대기(지갑 승인·브리지) — 90초는 체감 대기가 길어 45초로 제한 */
+        const TON_SEND_TX_APPROVE_TIMEOUT_MS = 45000;
 
         /**
          * 거래 신청 저장 후 상대에게 텔레그램 알림(Supabase Edge Function `notify-new-order`).
@@ -1910,6 +1912,10 @@
         let tonTelegramReturnCompleteTimer = null;
         /** sendTransaction 대기 중 TonConnect 브리지 복구 폴링(PC에서 서명 후 응답 지연 완화) */
         let tonSendBridgePollTimer = null;
+        /** Promise.race 90초 타이머·reject 참조 — 모바일 백그라운드에서 setTimeout이 밀릴 때 벽시간으로 강제 reject */
+        let tonSendTxApproveTimeoutTimer = null;
+        let tonSendTxApproveTimeoutReject = null;
+        let tonSendTxApproveStartedAt = 0;
 
         const UI_TEXTS = {
             ko: {
@@ -2997,6 +3003,7 @@
          */
         function forceDismissTonConnectSendUi() {
             clearTonRestoreWhileSendTimers();
+            clearTonSendTxApproveTimeout();
             tonSendTransactionInFlight = false;
             function kickOnce() {
                 try {
@@ -5183,6 +5190,8 @@
                         if (document.visibilityState === 'visible') {
                             // 전송 대기 중: 알림 닫기 등으로 visible이 와도 주문 완료 처리 금지 → 브리지 복구만
                             if (tonSendTransactionInFlight) {
+                                // 모바일 백그라운드에서 90초 타이머가 밀린 뒤 복귀하면 여기서 벽시계 타임아웃으로 이어짐
+                                maybeForceTonSendTxApproveWallClockTimeout();
                                 try {
                                     hideTonConnectWidgetRootHard();
                                 } catch (eVisInFlight) {}
@@ -5201,6 +5210,7 @@
                     });
                     window.addEventListener('focus', function () {
                         if (tonSendTransactionInFlight) {
+                            maybeForceTonSendTxApproveWallClockTimeout();
                             try {
                                 hideTonConnectWidgetRootHard();
                             } catch (eFocInFlight) {}
@@ -5217,6 +5227,7 @@
                     });
                     window.addEventListener('pageshow', function () {
                         if (tonSendTransactionInFlight) {
+                            maybeForceTonSendTxApproveWallClockTimeout();
                             try {
                                 hideTonConnectWidgetRootHard();
                             } catch (ePsInFlight) {}
@@ -5232,6 +5243,7 @@
                         try {
                             tg.onEvent('viewportChanged', function () {
                                 if (tonSendTransactionInFlight) {
+                                    maybeForceTonSendTxApproveWallClockTimeout();
                                     try {
                                         hideTonConnectWidgetRootHard();
                                     } catch (eVpInFlight) {}
@@ -5539,6 +5551,39 @@
                 } catch (eClr) {}
             });
             tonRestoreWhileSendTimers = [];
+        }
+
+        /** sendTransaction 90초 레이스 타이머·reject 정리 */
+        function clearTonSendTxApproveTimeout() {
+            if (tonSendTxApproveTimeoutTimer) {
+                try {
+                    clearTimeout(tonSendTxApproveTimeoutTimer);
+                } catch (eClr) {}
+                tonSendTxApproveTimeoutTimer = null;
+            }
+            tonSendTxApproveTimeoutReject = null;
+            tonSendTxApproveStartedAt = 0;
+        }
+
+        /**
+         * 모바일: 앱이 백그라운드일 때 90초 setTimeout이 실제로는 훨씬 늦게 실행될 수 있음.
+         * 텔레그램으로 복귀(포그라운드)한 시점에 벽시계 90초가 지났으면 즉시 reject → 기존 타임아웃 처리(가정 완료)로 이어짐.
+         */
+        function maybeForceTonSendTxApproveWallClockTimeout() {
+            if (!tonSendTransactionInFlight || !tonSendTxApproveTimeoutReject) return;
+            if (Date.now() - tonSendTxApproveStartedAt < TON_SEND_TX_APPROVE_TIMEOUT_MS) return;
+            try {
+                if (tonSendTxApproveTimeoutTimer) {
+                    clearTimeout(tonSendTxApproveTimeoutTimer);
+                    tonSendTxApproveTimeoutTimer = null;
+                }
+            } catch (eT) {}
+            var rj = tonSendTxApproveTimeoutReject;
+            tonSendTxApproveTimeoutReject = null;
+            tonSendTxApproveStartedAt = 0;
+            try {
+                rj(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
+            } catch (eRej) {}
         }
 
         /**
@@ -6010,19 +6055,30 @@
                 await maybeShowTonkeeperDesktopPreSendHintOnce();
             } catch (ePreSendHint) {}
             var result;
+            clearTonSendTxApproveTimeout();
             tonSendTransactionInFlight = true;
+            tonSendTxApproveStartedAt = Date.now();
             startTonSendBridgePollWhileInFlight();
             try {
                 result = await Promise.race([
                     tonConnectUIInstance.sendTransaction(tx, sendTxUiOpts),
                     new Promise(function (_, reject) {
-                        setTimeout(function () {
-                            reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
-                        }, 90000);
+                        tonSendTxApproveTimeoutReject = reject;
+                        tonSendTxApproveTimeoutTimer = setTimeout(function () {
+                            tonSendTxApproveTimeoutTimer = null;
+                            if (tonSendTxApproveTimeoutReject) {
+                                var r = tonSendTxApproveTimeoutReject;
+                                tonSendTxApproveTimeoutReject = null;
+                                try {
+                                    r(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
+                                } catch (eR) {}
+                            }
+                        }, TON_SEND_TX_APPROVE_TIMEOUT_MS);
                     })
                 ]);
             } finally {
                 stopTonSendBridgePollWhileInFlight();
+                clearTonSendTxApproveTimeout();
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
                     clearTonRestoreWhileSendTimers();
@@ -6036,6 +6092,10 @@
                         try {
                             hideTonConnectWidgetRootHard();
                         } catch (eHide) {}
+                        // 복귀 이벤트가 한 번만 오는 환경에서 전송 완료 보정이 빠지지 않도록(이미 pending이 비었으면 무시)
+                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                            scheduleTonOrderSendCompleteOnTelegramReturn();
+                        }
                     }, 120);
                 }, 450);
             }
