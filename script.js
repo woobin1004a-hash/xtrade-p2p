@@ -3812,7 +3812,10 @@
                 '수신 지갑 주소가 없습니다',
                 '수취 지갑',
                 '지갑 전송 기능을 사용할 수 없습니다',
-                'TON 지갑 연결 창을 열지 못했습니다'
+                'TON 지갑 연결 창을 열지 못했습니다',
+                'http provider parse response error',
+                'RPC 응답 처리에 실패',
+                'rpc 응답 처리에 실패'
             ];
             for (var i = 0; i < deny.length; i++) {
                 if (blob.indexOf(deny[i]) !== -1) return false;
@@ -5532,6 +5535,28 @@
             return tonWebTestnetInstance;
         }
 
+        /**
+         * 테스트넷 RPC 응답 파싱 실패(일시 네트워크/게이트웨이 이슈) 여부
+         * @param {any} err
+         * @returns {boolean}
+         */
+        function isTonRpcParseError(err) {
+            var blob = '';
+            try {
+                if (err && typeof err === 'object' && err.message) blob += String(err.message) + ' ';
+            } catch (e0) {}
+            try {
+                blob += String(err || '');
+            } catch (e1) {}
+            blob = blob.toLowerCase();
+            return (
+                blob.indexOf('http provider parse response error') !== -1 ||
+                blob.indexOf('unexpected token <') !== -1 ||
+                blob.indexOf('failed to fetch') !== -1 ||
+                blob.indexOf('networkerror') !== -1
+            );
+        }
+
         function toJettonNanoBn(usdtAmount) {
             var n = Number(usdtAmount || 0);
             if (!Number.isFinite(n) || n <= 0) throw new Error('전송 수량이 올바르지 않습니다.');
@@ -5624,14 +5649,31 @@
             restoreTonConnectWidgetRootVisible();
 
             var TonWebClass = window.TonWeb;
-            var tonweb = getTonWebTestnet();
             var masterAddress = normalizeTonAddressStrict(getUsdtTestnetMasterAddress());
             var ownerAddr = new TonWebClass.utils.Address(normalizeTonAddressStrict(sender));
             var toAddr = new TonWebClass.utils.Address(normalizeTonAddressStrict(to));
-            var minter = new TonWebClass.token.jetton.JettonMinter(tonweb.provider, {
-                address: new TonWebClass.utils.Address(masterAddress)
-            });
-            var fromJettonWallet = await minter.getJettonWalletAddress(ownerAddr);
+            var fromJettonWallet = null;
+            var rpcErr = null;
+            // 테스트넷 RPC가 순간적으로 HTML/빈 응답을 줄 때가 있어 JettonWallet 조회를 짧게 재시도
+            for (var rpcTry = 0; rpcTry < 3; rpcTry++) {
+                try {
+                    if (rpcTry > 0) tonWebTestnetInstance = null; // 다음 시도에서 provider를 새로 생성
+                    var tonweb = getTonWebTestnet();
+                    var minter = new TonWebClass.token.jetton.JettonMinter(tonweb.provider, {
+                        address: new TonWebClass.utils.Address(masterAddress)
+                    });
+                    fromJettonWallet = await minter.getJettonWalletAddress(ownerAddr);
+                    rpcErr = null;
+                    break;
+                } catch (eRpc) {
+                    rpcErr = eRpc;
+                    if (!isTonRpcParseError(eRpc)) break;
+                    await new Promise(function (r) { setTimeout(r, 450); });
+                }
+            }
+            if (rpcErr && isTonRpcParseError(rpcErr)) {
+                throw new Error('RPC 응답 처리에 실패했습니다. 잠시 후 전송하기를 다시 눌러 주세요.');
+            }
             if (!fromJettonWallet) throw new Error('보내는 지갑의 USDT Jetton Wallet 조회에 실패했습니다.');
 
             var payloadCell = new TonWebClass.boc.Cell();
