@@ -4708,6 +4708,14 @@
                 var c = tonConnectUIInstance.connector;
                 if (c && c.account) return c.account;
                 if (c && c.wallet && c.wallet.account) return c.wallet.account;
+                // connector.wallet에만 주소가 있는 경우(PC 브리지 일시 상태)
+                if (c && c.wallet && typeof c.wallet === 'object') {
+                    var cw = c.wallet;
+                    var ca = typeof cw.address === 'string' ? String(cw.address).trim() : '';
+                    if (ca) {
+                        return { address: ca, chain: typeof cw.chain === 'string' ? cw.chain : '' };
+                    }
+                }
             } catch (e1) {}
             return null;
         }
