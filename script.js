@@ -4976,6 +4976,12 @@
                         twaReturnUrl: runtimeTwaReturnUrl
                     }
                 });
+                // USDT 데모는 테스트넷(-3) 기준: 메인넷 지갑이 붙지 않도록 연결 네트워크 고정(@tonconnect/ui setConnectionNetwork)
+                if (typeof tonConnectUIInstance.setConnectionNetwork === 'function') {
+                    try {
+                        tonConnectUIInstance.setConnectionNetwork('-3');
+                    } catch (eCn) {}
+                }
                 // SDK는 en/ru만 공식 지원 → 위젯 DOM을 한글로 치환(아래 오버레이)
                 installTonConnectUiKoreanOverlay();
                 // iOS에서는 모달 2차 클릭이 막히는 케이스가 있어 Tonkeeper 연결 소스를 미리 캐시
