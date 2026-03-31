@@ -633,6 +633,79 @@
             });
         }
 
+        /**
+         * TonAPI /jettons 응답에서 Jetton Wallet 주소를 최대한 안전하게 추출
+         * @param {object} balanceItem
+         * @returns {string}
+         */
+        function extractJettonWalletAddressFromTonApiBalance(balanceItem) {
+            if (!balanceItem || typeof balanceItem !== 'object') return '';
+            var cands = [];
+            try { cands.push(balanceItem.wallet_address); } catch (e0) {}
+            try { cands.push(balanceItem.walletAddress); } catch (e1) {}
+            try { cands.push(balanceItem.wallet); } catch (e2) {}
+            for (var i = 0; i < cands.length; i++) {
+                var v = cands[i];
+                if (!v) continue;
+                if (typeof v === 'string') {
+                    var s = String(v).trim();
+                    if (s) return s;
+                    continue;
+                }
+                if (typeof v === 'object') {
+                    var a = String(v.address || v.account_address || '').trim();
+                    if (a) return a;
+                }
+            }
+            return '';
+        }
+
+        /**
+         * 테스트넷 TonAPI에서 owner의 USDT Jetton Wallet 주소 조회 (RPC 불안정 회피용)
+         * @param {string} ownerAddress
+         * @param {string} masterAddress
+         * @returns {Promise<string>}
+         */
+        function fetchUsdtJettonWalletAddressViaTonApi(ownerAddress, masterAddress) {
+            var owner = String(ownerAddress || '').trim();
+            var master = String(masterAddress || '').trim().toLowerCase();
+            if (!owner) return Promise.resolve('');
+            var url = TONAPI_ACCOUNT_JETTONS_TESTNET + encodeURIComponent(owner) + '/jettons';
+            return fetch(url, { cache: 'no-store', mode: 'cors' })
+                .then(function (res) {
+                    if (!res || !res.ok) return { balances: [] };
+                    return res.json();
+                })
+                .then(function (data) {
+                    var list = data && Array.isArray(data.balances) ? data.balances : [];
+                    // 1순위: 테스트넷 USDT 마스터 주소 일치
+                    if (master) {
+                        for (var i = 0; i < list.length; i++) {
+                            var bi = list[i] || {};
+                            var ji = bi.jetton || {};
+                            var m = String(ji.address || '').trim().toLowerCase();
+                            if (m && m === master) {
+                                var wa = extractJettonWalletAddressFromTonApiBalance(bi);
+                                if (wa) return wa;
+                            }
+                        }
+                    }
+                    // 2순위: 심볼/이름 기반 fallback
+                    for (var j = 0; j < list.length; j++) {
+                        var bj = list[j] || {};
+                        var jj = bj.jetton || {};
+                        if (isLikelyUsdtJetton(jj)) {
+                            var wb = extractJettonWalletAddressFromTonApiBalance(bj);
+                            if (wb) return wb;
+                        }
+                    }
+                    return '';
+                })
+                .catch(function () {
+                    return '';
+                });
+        }
+
         /** 마이페이지 배지: KYC 2차 완료 여부 */
         function updateMyPageKycUi() {
             var el = dom.mypageKycStatus || document.getElementById('mypageKycStatus');
@@ -5654,8 +5727,23 @@
             var toAddr = new TonWebClass.utils.Address(normalizeTonAddressStrict(to));
             var fromJettonWallet = null;
             var rpcErr = null;
+            // 1) TonAPI에서 Jetton Wallet 주소를 먼저 시도 (PC에서 toncenter 파싱 오류 우회)
+            var fromJettonWalletFromApi = '';
+            try {
+                fromJettonWalletFromApi = await fetchUsdtJettonWalletAddressViaTonApi(
+                    ownerAddr.toString(true, true, true, true),
+                    masterAddress
+                );
+            } catch (eApi) {}
+            if (fromJettonWalletFromApi) {
+                try {
+                    fromJettonWallet = new TonWebClass.utils.Address(normalizeTonAddressStrict(fromJettonWalletFromApi));
+                } catch (eApiAddr) {
+                    fromJettonWallet = null;
+                }
+            }
             // 테스트넷 RPC가 순간적으로 HTML/빈 응답을 줄 때가 있어 JettonWallet 조회를 짧게 재시도
-            for (var rpcTry = 0; rpcTry < 3; rpcTry++) {
+            for (var rpcTry = 0; !fromJettonWallet && rpcTry < 3; rpcTry++) {
                 try {
                     if (rpcTry > 0) tonWebTestnetInstance = null; // 다음 시도에서 provider를 새로 생성
                     var tonweb = getTonWebTestnet();
@@ -5672,7 +5760,7 @@
                 }
             }
             if (rpcErr && isTonRpcParseError(rpcErr)) {
-                throw new Error('RPC 응답 처리에 실패했습니다. 잠시 후 전송하기를 다시 눌러 주세요.');
+                throw new Error('네트워크 응답이 불안정합니다. 잠시 후 다시 시도해 주세요.');
             }
             if (!fromJettonWallet) throw new Error('보내는 지갑의 USDT Jetton Wallet 조회에 실패했습니다.');
 
