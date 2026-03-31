@@ -5437,12 +5437,30 @@
         }
 
         /**
+         * 현재 TonConnect 모달이 열려있는지 안전하게 확인
+         * @returns {boolean}
+         */
+        function isAnyTonConnectModalOpened() {
+            if (!tonConnectUIInstance) return false;
+            try {
+                var ms = tonConnectUIInstance.modalState;
+                if (ms && String(ms.status || '') === 'opened') return true;
+            } catch (eM) {}
+            try {
+                var sms = tonConnectUIInstance.singleWalletModalState;
+                if (sms && String(sms.status || '') === 'opened') return true;
+            } catch (eSM) {}
+            return false;
+        }
+
+        /**
          * openModal()은 모달이 뜨는 시점에 끝나므로, QR·지갑 승인 후 세션이 잡힐 때까지 대기 (PC 전송 실패 방지)
          * @param {number} maxMs 최대 대기(ms), 기본 3분
          */
         function waitForTonTestnetTransferReady(maxMs) {
             var max = typeof maxMs === 'number' && maxMs > 0 ? maxMs : 180000;
             var intervalMs = 300;
+            var quickFailMs = 20000;
             var start = Date.now();
             return new Promise(function (resolve, reject) {
                 function tick() {
@@ -5457,7 +5475,18 @@
                             return;
                         }
                     } catch (e) {}
+                    // QR DONE 이후에도 세션이 안 올라오면 무기한 무반응처럼 보이지 않게 빠르게 실패 처리
+                    if (Date.now() - start >= quickFailMs && !isAnyTonConnectModalOpened()) {
+                        try {
+                            closeTonConnectModalAggressive(true);
+                        } catch (eCloseQuick) {}
+                        reject(new Error('지갑 연결이 완료되지 않았습니다. QR 인증 후 텔레그램으로 돌아와 전송하기를 다시 눌러 주세요.'));
+                        return;
+                    }
                     if (Date.now() - start >= max) {
+                        try {
+                            closeTonConnectModalAggressive(true);
+                        } catch (eCloseMax) {}
                         reject(new Error('연결된 TON 지갑이 없습니다.'));
                         return;
                     }
