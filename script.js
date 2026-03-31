@@ -3089,14 +3089,19 @@
             if (tonSendTransactionInFlight) return;
             var p = tonOrderSendPending;
             if (!p || !p.orderId) return;
-            // 복귀 직후 로컬 목록이 비어 있거나 오래된 경우가 있어 서버에서 최신 주문을 먼저 가져옴
-            try {
-                var freshRows = await fetchOrdersFromSupabase();
-                if (Array.isArray(freshRows)) myOffersState.orders = freshRows;
-            } catch (eFetch) {}
+            // 로컬에서 먼저 찾고, 없을 때만 서버 전체 조회(느림) — 복귀 직후 다음 단계까지 수 초 지연 방지
             var target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
                 return String(o.id) === String(p.orderId);
             });
+            if (!target && !p.preSendReceiver) {
+                try {
+                    var freshRows = await fetchOrdersFromSupabase();
+                    if (Array.isArray(freshRows)) myOffersState.orders = freshRows;
+                    target = (Array.isArray(myOffersState.orders) ? myOffersState.orders : []).find(function (o) {
+                        return String(o.id) === String(p.orderId);
+                    });
+                } catch (eFetch) {}
+            }
             var receiver;
             if (target && target.receiver && typeof target.receiver === 'object') {
                 receiver = Object.assign({}, target.receiver);
@@ -3121,12 +3126,14 @@
                 tonOrderSendPending = null;
                 forceDismissTonConnectSendUi();
                 showTonTransferCompletedHintEn();
+                void pollOrdersRealtime();
                 return;
             }
             if (p.side === 'sell' && st === 'sell_coin_sent') {
                 tonOrderSendPending = null;
                 forceDismissTonConnectSendUi();
                 showTonTransferCompletedHintEn();
+                void pollOrdersRealtime();
                 return;
             }
             if (p.side === 'sell') {
@@ -3156,7 +3163,6 @@
             tonOrderSendResolvedByReturn = true;
             try {
                 await patchOrderReceiverToSupabase(p.orderId, receiver);
-                await refreshMyOffers();
             } catch (e) {
                 tonOrderSendResolvedByReturn = false;
                 var msg = '텔레그램 복귀 후 전송 완료 반영 실패: ' + String(e && e.message ? e.message : e);
@@ -3166,6 +3172,9 @@
             }
             tonOrderSendPending = null;
             forceDismissTonConnectSendUi();
+            showTonTransferCompletedHintEn();
+            // 목록 갱신은 로딩 문구 없이 백그라운드로(즉시 다음 단계 체감)
+            void pollOrdersRealtime();
         }
 
         /** Tonkeeper → 텔레그램 복귀·포커스 시: 모달 정리 + 전송 완료 처리(디바운스) */
@@ -3189,7 +3198,7 @@
             tonTelegramReturnCompleteTimer = setTimeout(function () {
                 tonTelegramReturnCompleteTimer = null;
                 void tryCompleteTonOrderSendOnTelegramReturn();
-            }, 200);
+            }, 50);
         }
 
         /** 주문 접수 완료 알림 닫기 후 내 주문(진행중)으로 이동 */
@@ -3834,9 +3843,11 @@
             return '';
         }
 
-        async function refreshMyOffers() {
+        /** opts.silent: true면 로딩 문구 없이 갱신(전송 직후 다음 단계가 늦게 보이는 현상 완화) */
+        async function refreshMyOffers(opts) {
+            var silent = opts && opts.silent === true;
             var wrap = document.getElementById('myOffersList');
-            if (wrap) wrap.innerHTML = '<div class="offer-empty">주문을 불러오는 중...</div>';
+            if (wrap && !silent) wrap.innerHTML = '<div class="offer-empty">주문을 불러오는 중...</div>';
             await pollOrdersRealtime();
             if (!Array.isArray(myOffersState.orders) || myOffersState.orders.length === 0) {
                 renderMyOffers();
@@ -4060,7 +4071,7 @@
                 receiver.updatedAt = now;
                 try {
                     await patchOrderReceiverToSupabase(orderId, receiver);
-                    await refreshMyOffers();
+                    await refreshMyOffers({ silent: true });
                 } catch (e) {
                     var msgS = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgS);
@@ -4177,7 +4188,7 @@
             receiver.updatedAt = now;
             try {
                 await patchOrderReceiverToSupabase(orderId, receiver);
-                await refreshMyOffers();
+                await refreshMyOffers({ silent: true });
             } catch (e) {
                 var msg = '상태 변경 실패: ' + String(e && e.message ? e.message : e);
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
@@ -5600,16 +5611,14 @@
             try {
                 if (tg && typeof tg.expand === 'function') tg.expand();
             } catch (eExp) {}
-            var delays = [350, 1200, 2800];
+            // 전송 대기 중에는 브리지 복구만 — refreshMyOffers는 Supabase를 여러 번 때리고 목록을 "불러오는 중"으로 덮어 10초+ 지연 유발
+            var delays = [120, 450, 1100];
             delays.forEach(function (ms) {
                 var tid = setTimeout(function () {
                     if (!tonSendTransactionInFlight) return;
                     try {
                         void restoreTonConnectionSafe();
                     } catch (e1) {}
-                    try {
-                        refreshMyOffers();
-                    } catch (e2) {}
                 }, ms);
                 tonRestoreWhileSendTimers.push(tid);
             });
@@ -6079,7 +6088,7 @@
             } finally {
                 stopTonSendBridgePollWhileInFlight();
                 clearTonSendTxApproveTimeout();
-                // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
+                // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 짧게만 지연 후 정리(모바일 다음 단계 체감 속도)
                 setTimeout(function () {
                     clearTonRestoreWhileSendTimers();
                     closeTonConnectModalAggressive(true);
@@ -6096,8 +6105,8 @@
                         if (tonOrderSendPending && tonOrderSendPending.orderId) {
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
-                    }, 120);
-                }, 450);
+                    }, 70);
+                }, 200);
             }
             var txId = '';
             if (result && typeof result === 'object') {
