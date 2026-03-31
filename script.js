@@ -3078,6 +3078,8 @@
          * Open Wallet 모달을 닫고, 주문을 전송 완료 상태로 저장합니다(sendTransaction 대기와 무관).
          */
         async function tryCompleteTonOrderSendOnTelegramReturn() {
+            // 전송(sendTransaction) 대기 중에는 알림 닫기·포커스만으로 "복귀=전송완료" 처리하면 안 됨
+            if (tonSendTransactionInFlight) return;
             var p = tonOrderSendPending;
             if (!p || !p.orderId) return;
             // 복귀 직후 로컬 목록이 비어 있거나 오래된 경우가 있어 서버에서 최신 주문을 먼저 가져옴
@@ -3161,6 +3163,7 @@
 
         /** Tonkeeper → 텔레그램 복귀·포커스 시: 모달 정리 + 전송 완료 처리(디바운스) */
         function scheduleTonOrderSendCompleteOnTelegramReturn() {
+            if (tonSendTransactionInFlight) return;
             if (!tonOrderSendPending || !tonOrderSendPending.orderId) {
                 try {
                     forceDismissTonConnectSendUi();
@@ -5172,17 +5175,17 @@
                             return;
                         }
                         if (document.visibilityState === 'visible') {
-                            // 톤키퍼 전송 후 텔레그램 복귀: Open Wallet 모달 닫기 + 주문 전송완료(대기 중이면)
-                            if (tonOrderSendPending && tonOrderSendPending.orderId) {
-                                scheduleTonOrderSendCompleteOnTelegramReturn();
-                            }
-                            // 전송 대기 중 복귀: SDK close*는 취소 알림을 유발할 수 있어 DOM만 숨김 + 브리지 복구
+                            // 전송 대기 중: 알림 닫기 등으로 visible이 와도 주문 완료 처리 금지 → 브리지 복구만
                             if (tonSendTransactionInFlight) {
                                 try {
                                     hideTonConnectWidgetRootHard();
                                 } catch (eVisInFlight) {}
                                 scheduleTonBridgeKickDuringSend();
                                 return;
+                            }
+                            // 톤키퍼 전송 후 텔레그램 복귀(sendTransaction 이미 종료된 경우만): 복귀 보정
+                            if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                                scheduleTonOrderSendCompleteOnTelegramReturn();
                             }
                             if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
                                 try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseVisible) {}
@@ -5191,9 +5194,6 @@
                         }
                     });
                     window.addEventListener('focus', function () {
-                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
-                            scheduleTonOrderSendCompleteOnTelegramReturn();
-                        }
                         if (tonSendTransactionInFlight) {
                             try {
                                 hideTonConnectWidgetRootHard();
@@ -5201,34 +5201,39 @@
                             scheduleTonBridgeKickDuringSend();
                             return;
                         }
+                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                            scheduleTonOrderSendCompleteOnTelegramReturn();
+                        }
                         if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
                             try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseFocus) {}
                         }
                         restoreTonConnectionSafe();
                     });
                     window.addEventListener('pageshow', function () {
-                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
-                            scheduleTonOrderSendCompleteOnTelegramReturn();
-                        }
                         if (tonSendTransactionInFlight) {
                             try {
                                 hideTonConnectWidgetRootHard();
                             } catch (ePsInFlight) {}
                             scheduleTonBridgeKickDuringSend();
+                            return;
+                        }
+                        if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                            scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
                     });
                     // 텔레그램 미니앱: 외부 앱 복귀 시 visibility가 안 오는 경우 보완
                     if (tg && typeof tg.onEvent === 'function') {
                         try {
                             tg.onEvent('viewportChanged', function () {
-                                if (tonOrderSendPending && tonOrderSendPending.orderId) {
-                                    scheduleTonOrderSendCompleteOnTelegramReturn();
-                                }
                                 if (tonSendTransactionInFlight) {
                                     try {
                                         hideTonConnectWidgetRootHard();
                                     } catch (eVpInFlight) {}
                                     scheduleTonBridgeKickDuringSend();
+                                    return;
+                                }
+                                if (tonOrderSendPending && tonOrderSendPending.orderId) {
+                                    scheduleTonOrderSendCompleteOnTelegramReturn();
                                 }
                             });
                         } catch (eVp) {}
