@@ -4696,6 +4696,53 @@
             return null;
         }
 
+        /** TonConnect 계정 체인 ID (테스트넷은 '-3') */
+        function getTonChainIdFromAccount(account) {
+            if (!account || typeof account !== 'object') return '';
+            return String(account.chain || '').trim();
+        }
+
+        /** 테스트넷(-3)이 아닌 체인으로 연결된 경우 자동 해제 — 텔레그램 Wallet 등 메인넷 고정 대응 */
+        var tonWrongChainDisconnectInFlight = false;
+        function enforceTonConnectTestnetOnlyIfNeeded() {
+            if (tonWrongChainDisconnectInFlight) return;
+            if (!tonConnectUIInstance) return;
+            var account = getTonConnectAccountSnapshot();
+            var address = getTonAddressFromAccount(account);
+            if (!address) return;
+            var ch = getTonChainIdFromAccount(account);
+            if (ch === '' || ch === '-3') return;
+            tonWrongChainDisconnectInFlight = true;
+            var msg =
+                '이 데모는 TON 테스트넷(체인 -3)만 사용합니다.\n\n' +
+                '지금 연결된 지갑은 테스트넷이 아닙니다.\n' +
+                '「텔레그램에서 지갑 연결」은 메인넷으로 붙는 경우가 많습니다.\n\n' +
+                '목록에서 MyTonWallet·Tonhub 등 테스트넷을 지원하는 지갑을 선택해 주세요.';
+            var finish = function () {
+                tonWrongChainDisconnectInFlight = false;
+            };
+            if (typeof tonConnectUIInstance.disconnect === 'function') {
+                tonConnectUIInstance.disconnect()
+                    .then(function () {
+                        finish();
+                        if (tg && typeof tg.showAlert === 'function') {
+                            try {
+                                tg.showAlert(msg);
+                            } catch (eA) {}
+                        } else {
+                            try {
+                                alert(msg);
+                            } catch (eB) {}
+                        }
+                    })
+                    .catch(function () {
+                        finish();
+                    });
+            } else {
+                finish();
+            }
+        }
+
         /** 마이페이지 요약: 등록된 모든 지갑의 USDT 잔액 합계 */
         function refreshMyPageUsdtBalance() {
             var el = dom.mypageUsdtBalance || document.getElementById('mypageUsdtBalance');
@@ -5095,8 +5142,18 @@
             tonConnectUIInstance.onStatusChange(() => {
                 const account = getTonConnectAccountSnapshot();
                 const address = getTonAddressFromAccount(account);
+                const chainId = getTonChainIdFromAccount(account);
 
-                if (address) {
+                // 메인넷 등 테스트넷이 아닌 체인이면 자동 입력 전에 끊기(잘못된 주소가 칸에 안 들어가게)
+                if (address && chainId !== '' && chainId !== '-3') {
+                    tonAddressAutofillArmed = false;
+                    enforceTonConnectTestnetOnlyIfNeeded();
+                }
+
+                const accountAfter = getTonConnectAccountSnapshot();
+                const addressAfter = getTonAddressFromAccount(accountAfter);
+
+                if (addressAfter) {
                     updateTonWalletStatusText('Connected');
                 } else {
                     updateTonWalletStatusText('Not connected');
@@ -5108,15 +5165,18 @@
                 var currentInput = dom.walletAddressInput && dom.walletAddressInput.value
                     ? String(dom.walletAddressInput.value).trim()
                     : '';
+                var chainAfter = getTonChainIdFromAccount(accountAfter);
+                var okTestnet = !addressAfter || chainAfter === '' || chainAfter === '-3';
                 if (
+                    okTestnet &&
                     tonAddressAutofillArmed &&
                     isWalletSettingsOpen &&
                     tonWalletEditAddress === null &&
                     dom.walletAddressInput &&
-                    address &&
+                    addressAfter &&
                     !currentInput
                 ) {
-                    dom.walletAddressInput.value = address;
+                    dom.walletAddressInput.value = addressAfter;
                     tonAddressAutofillArmed = false;
                 }
 
@@ -5232,6 +5292,12 @@
                     typeof tonConnectUIInstance.disconnect === 'function'
                 ) {
                     try { await tonConnectUIInstance.disconnect(); } catch (eDisc) {}
+                }
+                // 모달 열기 직전마다 테스트넷 고정(세션/내부 상태에 따라 초기화될 수 있음)
+                if (typeof tonConnectUIInstance.setConnectionNetwork === 'function') {
+                    try {
+                        tonConnectUIInstance.setConnectionNetwork('-3');
+                    } catch (eNet2) {}
                 }
                 // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
                 if (typeof tonConnectUIInstance.openModal === 'function') {
@@ -5571,6 +5637,19 @@
             }
 
             if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '&nbsp;';
+            var pcHint = document.getElementById('tonConnectPcHint');
+            if (pcHint) {
+                var plat = tg && tg.platform ? String(tg.platform).toLowerCase() : '';
+                var isPcTg = plat === 'tdesktop' || plat === 'macos' || plat === 'web' || plat === 'webk' || plat === 'weba';
+                if (isPcTg) {
+                    pcHint.style.display = 'block';
+                    pcHint.textContent =
+                        'PC 텔레그램: Tonkeeper는 「Tonkeeper에서 계속…」에서 멈출 수 있습니다. MyTonWallet·Tonhub를 시도해 보세요. 이 앱은 테스트넷(체인 -3)만 허용하며, 텔레그램 지갑이 메인넷으로 붙으면 자동으로 연결이 해제됩니다.';
+                } else {
+                    pcHint.style.display = 'none';
+                    pcHint.textContent = '';
+                }
+            }
         }
 
         // Edit existing TON wallet (label only; address is read-only)
