@@ -3868,7 +3868,13 @@
                 parts.push(String(err || ''));
             } catch (e2) {}
             var blob = parts.join(' ');
-            return blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1;
+            if (blob.indexOf('TON_TX_TIMEOUT_AFTER_APPROVAL') !== -1) return true;
+            // PC 텔레그램: 톤키퍼에서 승인 후 복귀해도 브리지가 BOC를 못 넘기면 SDK가 이 조합으로 끝남(모바일·웹은 정상 응답)
+            var low = blob.toLowerCase();
+            if (low.indexOf('ton_connect_sdk_error') !== -1 && low.indexOf('transaction was not sent') !== -1) {
+                return true;
+            }
+            return false;
         }
 
         /** 지갑 미연결·테스트넷·주소 등 '전송 시도 전' 실패 — 수동 완료 확인(톤키퍼에서 이미 보냈나요?)을 띄우면 안 됨 */
