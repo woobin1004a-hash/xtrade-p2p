@@ -5389,6 +5389,9 @@
             }
         }
 
+        /** 톤키퍼 공식 다운로드(데스크톱·모바일 안내 페이지) */
+        var TONKEEPER_OFFICIAL_URL = 'https://tonkeeper.com/';
+
         /** PC: 톤키퍼 데스크톱 설치 후 연결하면 폰 없이 동일 PC에서 연결·승인 가능 — 세션당 1회, 연결 UI 직전 */
         async function maybeShowTonkeeperDesktopInstallHintOnce() {
             if (!isTelegramDesktopLike()) return;
@@ -5401,20 +5404,48 @@
             var msg =
                 'PC에서는 톤키퍼 데스크톱을 설치하면, 폰 없이 같은 PC에서 연결·승인할 수 있습니다.\n\n' +
                 '곧 열리는 연결 화면에서 Tonkeeper를 선택하세요.\n' +
-                '(설치: https://tonkeeper.com/ )';
+                '「설치 페이지 열기」에서 공식 사이트로 이동할 수 있습니다.';
             await new Promise(function (resolve) {
+                var done = function () {
+                    try {
+                        resolve();
+                    } catch (eR) {}
+                };
+                if (tg && typeof tg.showPopup === 'function') {
+                    try {
+                        tg.showPopup(
+                            {
+                                title: 'PC · 톤키퍼',
+                                message: msg,
+                                buttons: [
+                                    { id: 'install', type: 'default', text: '설치 페이지 열기' },
+                                    { id: 'ok', type: 'ok', text: '확인' }
+                                ]
+                            },
+                            function (buttonId) {
+                                if (buttonId === 'install' && tg && typeof tg.openLink === 'function') {
+                                    try {
+                                        tg.openLink(TONKEEPER_OFFICIAL_URL, { try_instant_view: false });
+                                    } catch (eLink) {}
+                                }
+                                done();
+                            }
+                        );
+                        return;
+                    } catch (ePop) {}
+                }
                 if (tg && typeof tg.showAlert === 'function') {
                     try {
-                        tg.showAlert(msg, function () {
-                            resolve();
+                        tg.showAlert(msg + '\n\n' + TONKEEPER_OFFICIAL_URL, function () {
+                            done();
                         });
                         return;
                     } catch (eA) {}
                 }
                 try {
-                    alert(msg);
+                    alert(msg + '\n\n' + TONKEEPER_OFFICIAL_URL);
                 } catch (e2) {}
-                resolve();
+                done();
             });
         }
 
