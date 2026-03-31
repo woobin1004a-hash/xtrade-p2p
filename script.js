@@ -16,6 +16,8 @@
         const TON_RETURN_TG_DEEPLINK = 'tg://resolve?domain=P2PxxBOT';
         /** TonConnect sendTransaction 대기(지갑 승인·브리지) — 90초는 체감 대기가 길어 45초로 제한 */
         const TON_SEND_TX_APPROVE_TIMEOUT_MS = 45000;
+        /** 모바일: 텔레그램 복귀 후 SDK가 BOC를 넘기기까지 10~20초 걸릴 때, 그 전에 서버 반영(낙관적 완료) */
+        const TON_MOBILE_RETURN_ASSUME_COMPLETE_DELAY_MS = 750;
 
         /**
          * 거래 신청 저장 후 상대에게 텔레그램 알림(Supabase Edge Function `notify-new-order`).
@@ -1916,6 +1918,9 @@
         let tonSendTxApproveTimeoutTimer = null;
         let tonSendTxApproveTimeoutReject = null;
         let tonSendTxApproveStartedAt = 0;
+        /** 전송 중 한 번이라도 미니앱이 백그라운드(hidden)로 갔는지 — 톤키퍼 왕복 여부 판별 */
+        let tonSendSawHiddenWhileInFlight = false;
+        let tonMobileAssumeCompleteTimer = null;
 
         const UI_TEXTS = {
             ko: {
@@ -3004,6 +3009,8 @@
         function forceDismissTonConnectSendUi() {
             clearTonRestoreWhileSendTimers();
             clearTonSendTxApproveTimeout();
+            clearTonMobileAssumeCompleteTimer();
+            tonSendSawHiddenWhileInFlight = false;
             tonSendTransactionInFlight = false;
             function kickOnce() {
                 try {
@@ -3084,9 +3091,12 @@
          * Tonkeeper에서 전송 후 텔레그램으로 복귀했을 때:
          * Open Wallet 모달을 닫고, 주문을 전송 완료 상태로 저장합니다(sendTransaction 대기와 무관).
          */
-        async function tryCompleteTonOrderSendOnTelegramReturn() {
+        /**
+         * @param {boolean} [ignoreInFlight] 모바일 복귀 낙관 완료 전용 — SDK가 아직 inFlight여도 서버 반영 허용
+         */
+        async function tryCompleteTonOrderSendOnTelegramReturn(ignoreInFlight) {
             // 전송(sendTransaction) 대기 중에는 알림 닫기·포커스만으로 "복귀=전송완료" 처리하면 안 됨
-            if (tonSendTransactionInFlight) return;
+            if (!ignoreInFlight && tonSendTransactionInFlight) return;
             var p = tonOrderSendPending;
             if (!p || !p.orderId) return;
             // 로컬에서 먼저 찾고, 없을 때만 서버 전체 조회(느림) — 복귀 직후 다음 단계까지 수 초 지연 방지
@@ -3189,7 +3199,7 @@
             try {
                 forceDismissTonConnectSendUi();
             } catch (e0) {}
-            void tryCompleteTonOrderSendOnTelegramReturn();
+            void tryCompleteTonOrderSendOnTelegramReturn(false);
             if (tonTelegramReturnCompleteTimer) {
                 try {
                     clearTimeout(tonTelegramReturnCompleteTimer);
@@ -3197,7 +3207,7 @@
             }
             tonTelegramReturnCompleteTimer = setTimeout(function () {
                 tonTelegramReturnCompleteTimer = null;
-                void tryCompleteTonOrderSendOnTelegramReturn();
+                void tryCompleteTonOrderSendOnTelegramReturn(false);
             }, 50);
         }
 
@@ -5196,6 +5206,7 @@
                         // 전송 중 WebView가 hidden이 되면(톤키퍼로 전환) 절대 closeModal 등 SDK 닫기를 호출하지 말 것.
                         // 호출 시 TonConnect가 서명을 '취소'로 처리해 복귀 후 "Transaction canceled" 토스트가 뜸(거래는 성공했는데도).
                         if (document.visibilityState === 'hidden' && tonSendTransactionInFlight) {
+                            tonSendSawHiddenWhileInFlight = true;
                             return;
                         }
                         if (document.visibilityState === 'visible') {
@@ -5207,6 +5218,7 @@
                                     hideTonConnectWidgetRootHard();
                                 } catch (eVisInFlight) {}
                                 scheduleTonBridgeKickDuringSend();
+                                scheduleMobileTonSendAssumeCompleteIfEligible();
                                 return;
                             }
                             // 톤키퍼 전송 후 텔레그램 복귀(sendTransaction 이미 종료된 경우만): 복귀 보정
@@ -5226,6 +5238,7 @@
                                 hideTonConnectWidgetRootHard();
                             } catch (eFocInFlight) {}
                             scheduleTonBridgeKickDuringSend();
+                            scheduleMobileTonSendAssumeCompleteIfEligible();
                             return;
                         }
                         if (tonOrderSendPending && tonOrderSendPending.orderId) {
@@ -5243,6 +5256,7 @@
                                 hideTonConnectWidgetRootHard();
                             } catch (ePsInFlight) {}
                             scheduleTonBridgeKickDuringSend();
+                            scheduleMobileTonSendAssumeCompleteIfEligible();
                             return;
                         }
                         if (tonOrderSendPending && tonOrderSendPending.orderId) {
@@ -5259,6 +5273,7 @@
                                         hideTonConnectWidgetRootHard();
                                     } catch (eVpInFlight) {}
                                     scheduleTonBridgeKickDuringSend();
+                                    scheduleMobileTonSendAssumeCompleteIfEligible();
                                     return;
                                 }
                                 if (tonOrderSendPending && tonOrderSendPending.orderId) {
@@ -5383,20 +5398,23 @@
         function startTonSendBridgePollWhileInFlight() {
             stopTonSendBridgePollWhileInFlight();
             var n = 0;
+            // 모바일은 브리지 응답이 늦는 경우가 많아 복구 호출을 더 촘촘히(과도한 부하는 n 상한으로 제한)
+            var pollMs = isMobileUserAgentQuick() ? 500 : 1500;
+            var maxN = isMobileUserAgentQuick() ? 100 : 80;
             tonSendBridgePollTimer = setInterval(function () {
                 if (!tonSendTransactionInFlight) {
                     stopTonSendBridgePollWhileInFlight();
                     return;
                 }
                 n++;
-                if (n > 80) {
+                if (n > maxN) {
                     stopTonSendBridgePollWhileInFlight();
                     return;
                 }
                 try {
                     void restoreTonConnectionSafe();
                 } catch (ePoll) {}
-            }, 1500);
+            }, pollMs);
         }
 
         /** 모바일 UA — 모바일 웹 텔레그램은 platform이 web/weba로만 나와 PC로 오판되면 openSingleWalletModal이 깨짐 */
@@ -5595,6 +5613,32 @@
             try {
                 rj(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
             } catch (eRej) {}
+        }
+
+        /** 모바일 낙관 완료 타이머 정리 */
+        function clearTonMobileAssumeCompleteTimer() {
+            if (tonMobileAssumeCompleteTimer) {
+                try {
+                    clearTimeout(tonMobileAssumeCompleteTimer);
+                } catch (eClr) {}
+                tonMobileAssumeCompleteTimer = null;
+            }
+        }
+
+        /**
+         * 모바일: 톤키퍼 갔다가 텔레그램으로 돌아온 뒤에도 TonConnect가 BOC를 늦게 넘기면 await가 10~20초 걸림.
+         * hidden→visible이 확인되면 짧은 지연 후 서버에 전송 완료 반영(기존 tryComplete와 동일, 이후 SDK 완료 시 중복만 스킵).
+         */
+        function scheduleMobileTonSendAssumeCompleteIfEligible() {
+            if (!isMobileUserAgentQuick()) return;
+            if (!tonSendTransactionInFlight || !tonOrderSendPending || !tonOrderSendPending.orderId) return;
+            if (!tonSendSawHiddenWhileInFlight) return;
+            clearTonMobileAssumeCompleteTimer();
+            tonMobileAssumeCompleteTimer = setTimeout(function () {
+                tonMobileAssumeCompleteTimer = null;
+                if (!tonSendTransactionInFlight || !tonOrderSendPending) return;
+                void tryCompleteTonOrderSendOnTelegramReturn(true);
+            }, TON_MOBILE_RETURN_ASSUME_COMPLETE_DELAY_MS);
         }
 
         /**
@@ -6065,6 +6109,8 @@
             } catch (ePreSendHint) {}
             var result;
             clearTonSendTxApproveTimeout();
+            clearTonMobileAssumeCompleteTimer();
+            tonSendSawHiddenWhileInFlight = false;
             tonSendTransactionInFlight = true;
             tonSendTxApproveStartedAt = Date.now();
             startTonSendBridgePollWhileInFlight();
@@ -6088,6 +6134,7 @@
             } finally {
                 stopTonSendBridgePollWhileInFlight();
                 clearTonSendTxApproveTimeout();
+                clearTonMobileAssumeCompleteTimer();
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 짧게만 지연 후 정리(모바일 다음 단계 체감 속도)
                 setTimeout(function () {
                     clearTonRestoreWhileSendTimers();
