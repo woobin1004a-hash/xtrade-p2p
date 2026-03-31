@@ -24,12 +24,9 @@
         const ORDER_NOTIFY_SECRET = '';
 
         /**
-         * DM 필수(데모용 A): 미니앱에서 Telegram Bot API `sendMessage` 직접 호출.
-         * - BotFather HTTP API 토큰을 넣어야 동작합니다.
-         * - 토큰은 프론트에 노출되므로(데모) 운영 배포 시 서버 프록시 권장.
-         * - CORS/웹뷰에서 실패할 수 있으나 주문 저장과는 별개입니다.
+         * 미니앱에서 주문 후 상대에게 Telegram DM(sendMessage) 보낼 때 사용하는 BotFather HTTP API 토큰.
+         * CORS/웹뷰 환경에 따라 실패할 수 있으나, 성공 시 즉시 DM이 갑니다.
          */
-        // 데모 A: Telegram Bot API용 HTTP API 토큰(사용자 제공값)
         const TELEGRAM_BOT_TOKEN_CLIENT = '8650490181:AAHfUu-_iAFbEgh3Cuq9C-F_gWrHfgd3NQs';
 
         function supabaseHeaders(extra) {
@@ -1536,7 +1533,6 @@
         const COINGECKO_USDT_KRW = 'https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=krw';
         /** 모든 시세 API 실패 시 참고용 (대략적인 KRW/USDT 구간) */
         const FALLBACK_KRW_USDT = 1450;
-        const TRADER_NAMES = ['NAKNEXTCO', 'LUCAS', 'CryptoKing', 'WhaleHunter', 'TonyTrader'];
 
         /**
          * KRW 기준 USDT 참고가. Upbit → CoinGecko → 고정값 순으로 시도.
@@ -1577,46 +1573,6 @@
 
             console.warn('시세 API 모두 실패 — 참고 고정가 사용:', FALLBACK_KRW_USDT);
             return FALLBACK_KRW_USDT;
-        }
-
-        function createTraderCardHtml(rawName, index, basePrice) {
-            const displayName = escapeHtml(rawName);
-            const rank = index + 1;
-            const initial = escapeHtml(rawName.charAt(0));
-
-            const buyPrice = Math.floor(basePrice * (1 + (Math.random() * 5) / 100));
-            const sellPrice = Math.floor(basePrice * (1 - (Math.random() * 5) / 100));
-            const rankHtml = rank === 1 ? `<div class="rank">👑 #${rank}</div>` : '';
-
-            // onclick uses a JS string, so escape it separately
-            const nameForJs = escapeJsString(rawName);
-
-            return `
-                <div class="trader-card">
-                    ${rankHtml}
-                    <div class="profile-row">
-                        <div class="avatar">${initial}</div>
-                        <div class="trader-name">${displayName} <span class="verified">✔</span></div>
-                    </div>
-                    <div class="price-row">
-                        <div class="price-col">
-                            <div class="price-label">Buy USDT</div>
-                            <div class="price-value">₩${buyPrice.toLocaleString()} <span class="price-currency">KRW</span></div>
-                        </div>
-                        <div class="price-col">
-                            <div class="price-label">Sell USDT</div>
-                            <div class="price-value">₩${sellPrice.toLocaleString()} <span class="price-currency">KRW</span></div>
-                        </div>
-                    </div>
-                    <div class="limit-info">Order Limit: 10-1,000 USDT</div>
-                    <div class="network-info">
-                        <span class="dot red"></span> TRON &nbsp;&nbsp;
-                        <span class="dot yellow"></span> BNB &nbsp;&nbsp;
-                        <span class="dot purple"></span> SOL
-                    </div>
-                    <button class="make-offer-btn" onclick="alert('${nameForJs} is requesting a trade.')">Make Offer</button>
-                </div>
-            `;
         }
 
         async function loadMarketplace() {
@@ -3333,10 +3289,13 @@
             }
 
             if (posted) {
-                // 서버(Edge Function) 알림은 비워두면 스킵됨
-                void notifyNewOrderTelegram(newOrderId);
-                // DM 필수(데모용 A) - 토큰 값이 들어가면 브라우저에서 바로 DM 전송
-                void notifyNewOrderTelegramClient(newOrderId, orderFlowState.side, receiver, usdt, krw);
+                // ORDER_NOTIFY_SECRET이 있으면 Edge만, 없으면 클라이언트 DM만 (둘 다 호출 시 중복 발송 방지)
+                var orderNotifySecret = String(ORDER_NOTIFY_SECRET || '').trim();
+                if (orderNotifySecret) {
+                    void notifyNewOrderTelegram(newOrderId);
+                } else {
+                    void notifyNewOrderTelegramClient(newOrderId, orderFlowState.side, receiver, usdt, krw);
+                }
             }
 
             var msg = posted
