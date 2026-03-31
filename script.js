@@ -5375,7 +5375,7 @@
             try {
                 var pf = tg && tg.platform ? String(tg.platform).toLowerCase() : '';
                 if (pf === 'ios' || pf === 'android') return false;
-                return (
+                if (
                     pf === 'tdesktop' ||
                     pf === 'web' ||
                     pf === 'weba' ||
@@ -5383,7 +5383,17 @@
                     pf === 'macos' ||
                     pf === 'windows' ||
                     pf === 'unknown'
-                );
+                ) {
+                    return true;
+                }
+                // 일부 PC 텔레그램에서 platform이 비어 있음 — 모바일 UA가 아니면 PC로 간주
+                if (pf === '') {
+                    if (typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigator.userAgent || ''))) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
             } catch (e) {
                 return false;
             }
@@ -5449,19 +5459,64 @@
             });
         }
 
-        /** PC 등 데스크톱: 톤키퍼로 나갔다 오는 동선 안내(세션당 1회) */
-        function maybeShowTonkeeperDesktopSendHintOnce() {
+        /**
+         * 전송(sendTransaction) 직전 PC 안내 — 이미 지갑 연결된 경우 openTonConnectModal을 거치지 않아 설치 팝업이 안 뜨는 문제 보완
+         * TonConnect 모달이 뜨기 전에 await로 먼저 표시해야 가려지지 않음
+         */
+        async function maybeShowTonkeeperDesktopPreSendHintOnce() {
+            if (!isTelegramDesktopLike()) return;
             try {
-                if (sessionStorage.getItem('tonkeeperDesktopSendHintV1') === '1') return;
-                if (!isTelegramDesktopLike()) return;
-                sessionStorage.setItem('tonkeeperDesktopSendHintV1', '1');
-                if (tg && typeof tg.showAlert === 'function') {
-                    tg.showAlert(
-                        '톤키퍼에서 승인을 완료한 뒤 텔레그램(미니앱)으로 돌아오세요.\n' +
-                            'PC에서는 자동 복귀가 늦을 수 있어 텔레그램 창을 직접 다시 열어 주세요.'
-                    );
+                if (sessionStorage.getItem('tonkeeperDesktopPreSendHintV1') === '1') return;
+                sessionStorage.setItem('tonkeeperDesktopPreSendHintV1', '1');
+            } catch (eS) {
+                return;
+            }
+            var msg =
+                '곧 톤키퍼에서 이 전송을 승인하게 됩니다.\n\n' +
+                'PC에 톤키퍼 데스크톱이 설치되어 있으면 앱이 열릴 수 있습니다.\n' +
+                '아무 반응이 없으면 아래에서 설치 후 다시 시도해 주세요.';
+            await new Promise(function (resolve) {
+                var done = function () {
+                    try {
+                        resolve();
+                    } catch (eR) {}
+                };
+                if (tg && typeof tg.showPopup === 'function') {
+                    try {
+                        tg.showPopup(
+                            {
+                                title: '전송 승인 (PC)',
+                                message: msg,
+                                buttons: [
+                                    { id: 'install', type: 'default', text: '설치 페이지 열기' },
+                                    { id: 'ok', type: 'ok', text: '계속' }
+                                ]
+                            },
+                            function (buttonId) {
+                                if (buttonId === 'install' && tg && typeof tg.openLink === 'function') {
+                                    try {
+                                        tg.openLink(TONKEEPER_OFFICIAL_URL, { try_instant_view: false });
+                                    } catch (eLink) {}
+                                }
+                                done();
+                            }
+                        );
+                        return;
+                    } catch (ePop) {}
                 }
-            } catch (eHint) {}
+                if (tg && typeof tg.showAlert === 'function') {
+                    try {
+                        tg.showAlert(msg + '\n\n' + TONKEEPER_OFFICIAL_URL, function () {
+                            done();
+                        });
+                        return;
+                    } catch (eA) {}
+                }
+                try {
+                    alert(msg + '\n\n' + TONKEEPER_OFFICIAL_URL);
+                } catch (e2) {}
+                done();
+            });
         }
 
         /** 전송 대기 중 예약된 브리지 복구 타이머를 모두 취소 */
@@ -5935,14 +5990,12 @@
                 // 전역 actionsConfiguration과 동일하게 명시(병합 누락·PC 복귀 불안정 완화)
                 returnStrategy: TON_RETURN_TG_DEEPLINK,
                 modals: ['before'],
-                notifications: ['before'],
-                // 요청이 지갑으로 넘어간 직후 1회 안내 — 무한 로딩이 “멈춤”으로 보이는 것 완화
-                onRequestSent: function () {
-                    try {
-                        maybeShowTonkeeperDesktopSendHintOnce();
-                    } catch (eReq) {}
-                }
+                notifications: ['before']
             };
+            // PC: TonConnect 모달보다 먼저 안내(이미 연결된 경우 openTonConnectModal을 안 거쳐 설치 팝업이 안 뜨는 문제 보완)
+            try {
+                await maybeShowTonkeeperDesktopPreSendHintOnce();
+            } catch (ePreSendHint) {}
             var result;
             tonSendTransactionInFlight = true;
             startTonSendBridgePollWhileInFlight();
