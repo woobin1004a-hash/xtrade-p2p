@@ -5252,15 +5252,10 @@
                         return;
                     }
                     if (after) return;
-                    // iOS는 외부 앱 왕복 후 상태 복원이 지연될 수 있어 즉시 실패 알림을 띄우지 않음
-                    var isIos = !!(tg && String(tg.platform || '').toLowerCase() === 'ios');
-                    if (isIos) {
+                    // PC/데스크톱: tg.showAlert 닫기 시 포커스가 바뀌며 TonConnect 모달까지 같이 닫히는 경우가 있음 → 차단형 알림 사용 안 함
+                    try {
                         restoreTonConnectionSafe();
-                        return;
-                    }
-                    var hintMsg = '지갑 연결이 완료되지 않았습니다. Tonkeeper 등에서 연결 승인을 완료했는지 확인해 주세요.';
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(hintMsg);
-                    else alert(hintMsg);
+                    } catch (eRS) {}
                 }, 1200);
             } catch (e) {
                 tonAddressAutofillArmed = false;
