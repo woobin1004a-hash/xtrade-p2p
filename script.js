@@ -5437,30 +5437,13 @@
         }
 
         /**
-         * 현재 TonConnect 모달이 열려있는지 안전하게 확인
-         * @returns {boolean}
-         */
-        function isAnyTonConnectModalOpened() {
-            if (!tonConnectUIInstance) return false;
-            try {
-                var ms = tonConnectUIInstance.modalState;
-                if (ms && String(ms.status || '') === 'opened') return true;
-            } catch (eM) {}
-            try {
-                var sms = tonConnectUIInstance.singleWalletModalState;
-                if (sms && String(sms.status || '') === 'opened') return true;
-            } catch (eSM) {}
-            return false;
-        }
-
-        /**
          * openModal()은 모달이 뜨는 시점에 끝나므로, QR·지갑 승인 후 세션이 잡힐 때까지 대기 (PC 전송 실패 방지)
          * @param {number} maxMs 최대 대기(ms), 기본 3분
          */
         function waitForTonTestnetTransferReady(maxMs) {
             var max = typeof maxMs === 'number' && maxMs > 0 ? maxMs : 180000;
             var intervalMs = 300;
-            var quickFailMs = 20000;
+            var quickFailMs = 25000;
             var start = Date.now();
             return new Promise(function (resolve, reject) {
                 function tick() {
@@ -5475,8 +5458,8 @@
                             return;
                         }
                     } catch (e) {}
-                    // QR DONE 이후에도 세션이 안 올라오면 무기한 무반응처럼 보이지 않게 빠르게 실패 처리
-                    if (Date.now() - start >= quickFailMs && !isAnyTonConnectModalOpened()) {
+                    // QR DONE 이후에도 세션이 안 올라오면 모달 상태와 무관하게 빠르게 실패 처리
+                    if (Date.now() - start >= quickFailMs) {
                         try {
                             closeTonConnectModalAggressive(true);
                         } catch (eCloseQuick) {}
