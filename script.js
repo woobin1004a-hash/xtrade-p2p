@@ -1908,6 +1908,8 @@
         let tonOrderSendResolvedByReturn = false;
         /** 복귀 시 tryComplete 디바운스 */
         let tonTelegramReturnCompleteTimer = null;
+        /** sendTransaction 대기 중 TonConnect 브리지 복구 폴링(PC에서 서명 후 응답 지연 완화) */
+        let tonSendBridgePollTimer = null;
 
         const UI_TEXTS = {
             ko: {
@@ -5332,6 +5334,61 @@
             }
         }
 
+        function stopTonSendBridgePollWhileInFlight() {
+            if (tonSendBridgePollTimer) {
+                try {
+                    clearInterval(tonSendBridgePollTimer);
+                } catch (eClr) {}
+                tonSendBridgePollTimer = null;
+            }
+        }
+
+        /**
+         * 전송 서명 대기 중 주기적으로 브리지 복원 — PC 텔레그램에서 톤키퍼 복귀 후에도 Promise가 안 풀리는 경우 완화
+         */
+        function startTonSendBridgePollWhileInFlight() {
+            stopTonSendBridgePollWhileInFlight();
+            var n = 0;
+            tonSendBridgePollTimer = setInterval(function () {
+                if (!tonSendTransactionInFlight) {
+                    stopTonSendBridgePollWhileInFlight();
+                    return;
+                }
+                n++;
+                if (n > 80) {
+                    stopTonSendBridgePollWhileInFlight();
+                    return;
+                }
+                try {
+                    void restoreTonConnectionSafe();
+                } catch (ePoll) {}
+            }, 1500);
+        }
+
+        /** PC 등 데스크톱: 톤키퍼로 나갔다 오는 동선 안내(세션당 1회) */
+        function maybeShowTonkeeperDesktopSendHintOnce() {
+            try {
+                if (sessionStorage.getItem('tonkeeperDesktopSendHintV1') === '1') return;
+                var pf = tg && tg.platform ? String(tg.platform) : '';
+                var desktop =
+                    pf === 'tdesktop' ||
+                    pf === 'web' ||
+                    pf === 'weba' ||
+                    pf === 'webk' ||
+                    pf === 'macos' ||
+                    pf === 'windows' ||
+                    pf === 'unknown';
+                if (!desktop) return;
+                sessionStorage.setItem('tonkeeperDesktopSendHintV1', '1');
+                if (tg && typeof tg.showAlert === 'function') {
+                    tg.showAlert(
+                        '톤키퍼에서 승인을 완료한 뒤 텔레그램(미니앱)으로 돌아오세요.\n' +
+                            'PC에서는 자동 복귀가 늦을 수 있어 텔레그램 창을 직접 다시 열어 주세요.'
+                    );
+                }
+            } catch (eHint) {}
+        }
+
         /** 전송 대기 중 예약된 브리지 복구 타이머를 모두 취소 */
         function clearTonRestoreWhileSendTimers() {
             tonRestoreWhileSendTimers.forEach(function (tid) {
@@ -5796,21 +5853,31 @@
             var sendTxUiOpts = {
                 // twaReturnUrl은 TWA 지갑(Wallet on Telegram) 전용 — Tonkeeper 독립 앱은 returnStrategy 사용
                 twaReturnUrl: TON_TWA_RETURN_URL,
+                // 전역 actionsConfiguration과 동일하게 명시(병합 누락·PC 복귀 불안정 완화)
+                returnStrategy: TON_RETURN_TG_DEEPLINK,
                 modals: ['before'],
-                notifications: ['before']
+                notifications: ['before'],
+                // 요청이 지갑으로 넘어간 직후 1회 안내 — 무한 로딩이 “멈춤”으로 보이는 것 완화
+                onRequestSent: function () {
+                    try {
+                        maybeShowTonkeeperDesktopSendHintOnce();
+                    } catch (eReq) {}
+                }
             };
             var result;
             tonSendTransactionInFlight = true;
+            startTonSendBridgePollWhileInFlight();
             try {
                 result = await Promise.race([
                     tonConnectUIInstance.sendTransaction(tx, sendTxUiOpts),
                     new Promise(function (_, reject) {
                         setTimeout(function () {
                             reject(new Error('TON_TX_TIMEOUT_AFTER_APPROVAL'));
-                        }, 120000);
+                        }, 90000);
                     })
                 ]);
             } finally {
+                stopTonSendBridgePollWhileInFlight();
                 // 즉시 closeModal은 SDK가 지갑과 마무리하는 타이밍과 충돌할 수 있어 한 번만 지연 후 정리
                 setTimeout(function () {
                     clearTonRestoreWhileSendTimers();
