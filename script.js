@@ -5654,7 +5654,8 @@
                     } catch (eLa) {}
                 }
                 var openedSingle = false;
-                if (forTransfer && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                // openSingleWalletModal은 PC에서만 사용 — 모바일 TWA(ios/android)에서는 연결이 안 잡히는 사례가 있어 전체 목록(openModal) 유지
+                if (forTransfer && isTelegramDesktopLike() && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
                     var targetWallet = lastApp || 'tonkeeper';
                     try {
                         await tonConnectUIInstance.openSingleWalletModal(targetWallet);
