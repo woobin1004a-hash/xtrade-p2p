@@ -4668,7 +4668,9 @@
             // TonWeb가 없거나 파싱 실패하면 원본을 유지합니다.
             if (!window.TonWeb || !window.TonWeb.utils || !window.TonWeb.utils.Address) return raw;
             try {
-                var isTestnet = String(chain || '') === '-3';
+                // PC 등에서 chain이 비어 오는 경우가 많음 — 이 앱은 테스트넷 전용이므로 빈 값도 테스트넷으로 처리(모바일과 동일하게)
+                var chStr = String(chain || '').trim();
+                var isTestnet = chStr === '' || chStr === '-3';
                 // user-friendly + url-safe + non-bounceable + testnet 플래그 반영
                 return new window.TonWeb.utils.Address(raw).toString(true, true, false, isTestnet);
             } catch (e) {
@@ -4691,6 +4693,17 @@
                     return tonConnectUIInstance.wallet.account;
                 }
             } catch (eW) {}
+            // PC WebView: account 객체 대신 wallet에 주소만 잠깐 노출되는 경우
+            try {
+                var wOnly = tonConnectUIInstance.wallet;
+                if (wOnly && typeof wOnly === 'object') {
+                    var addrOnly = typeof wOnly.address === 'string' ? String(wOnly.address).trim() : '';
+                    if (addrOnly) {
+                        var chW = typeof wOnly.chain === 'string' ? wOnly.chain : '';
+                        return { address: addrOnly, chain: chW };
+                    }
+                }
+            } catch (eWaddr) {}
             try {
                 var c = tonConnectUIInstance.connector;
                 if (c && c.account) return c.account;
@@ -5186,9 +5199,9 @@
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
                 refreshMyPageUsdtBalance();
 
-                // 테스트넷 연결 시 마지막 사용 지갑 앱 키 저장 → 전송 시 openSingleWalletModal로 목록 대신 해당 지갑만 열기
+                // 테스트넷(또는 체인 미보고) 연결 시 마지막 사용 지갑 앱 키 저장 → 전송 시 단일 지갑 모달에 사용
                 try {
-                    if (addressAfter && chainAfter === '-3' && tonConnectUIInstance && tonConnectUIInstance.wallet) {
+                    if (addressAfter && (chainAfter === '' || chainAfter === '-3') && tonConnectUIInstance && tonConnectUIInstance.wallet) {
                         var wKey = normalizeWalletKeyForSingleModal(tonConnectUIInstance.wallet);
                         if (wKey) {
                             localStorage.setItem(STORAGE.LAST_TONCONNECT_WALLET_APP, wKey);
@@ -5352,7 +5365,7 @@
                         tonConnectUIInstance.setConnectionNetwork('-3');
                     } catch (eNet2) {}
                 }
-                // 전송: 마지막 사용 지갑이 있으면 단일 지갑 모달(실험 API)로 전체 목록 노출을 줄임
+                // 전송: 모바일과 같이 톤키퍼 한 종류로 붙이는 흐름 — 전체 지갑 그리드(openModal)는 최후 수단만
                 var lastApp = '';
                 if (forTransfer) {
                     try {
@@ -5360,16 +5373,17 @@
                     } catch (eLa) {}
                 }
                 var openedSingle = false;
-                if (forTransfer && lastApp && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                if (forTransfer && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                    var targetWallet = lastApp || 'tonkeeper';
                     try {
-                        await tonConnectUIInstance.openSingleWalletModal(lastApp);
+                        await tonConnectUIInstance.openSingleWalletModal(targetWallet);
                         openedSingle = true;
                     } catch (eSm) {
                         openedSingle = false;
                     }
                 }
                 if (!openedSingle) {
-                    // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
+                    // 지갑 설정 등 일반 연결은 기존처럼 전체 목록
                     if (typeof tonConnectUIInstance.openModal === 'function') {
                         await tonConnectUIInstance.openModal();
                     } else if (typeof tonConnectUIInstance.connectWallet === 'function') {
@@ -5409,7 +5423,9 @@
         function isTonTestnetConnected() {
             var account = getTonConnectAccountSnapshot();
             if (!account || typeof account !== 'object') return false;
-            return String(account.chain || '') === '-3';
+            var ch = String(account.chain || '').trim();
+            // 체인 미보고(빈 문자열)는 onStatusChange의 okTestnet과 동일하게 허용 — PC에서 모바일과 다르게 막히지 않게 함
+            return ch === '' || ch === '-3';
         }
 
         /**
@@ -5452,7 +5468,7 @@
             // PC 등에서 connectionRestored가 늦게 끝나면 즉시 주소가 비어 보이는 경우가 있어 먼저 대기
             await awaitTonConnectConnectionRestored(8000);
             var pulse = 0;
-            while (pulse < 15) {
+            while (pulse < 22) {
                 try {
                     await restoreTonConnectionSafe();
                 } catch (e0) {}
@@ -5464,6 +5480,16 @@
                 if (address && !isTonTestnetConnected()) {
                     throw new Error('테스트넷 지갑으로 연결해 주세요.');
                 }
+                // SDK는 connected인데 스냅샷만 아직 비는 경우 — 조금 더 기다리며 복원만 반복(연결 모달 없이 전송까지 가게)
+                try {
+                    if (tonConnectUIInstance.connected && !address) {
+                        await new Promise(function (r) {
+                            setTimeout(r, 450);
+                        });
+                        pulse++;
+                        continue;
+                    }
+                } catch (eConn) {}
                 await new Promise(function (r) {
                     setTimeout(r, 350);
                 });
