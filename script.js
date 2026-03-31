@@ -518,7 +518,9 @@
             /** 리스팅용 KYC(2차) 제출·완료 플래그 — 데모는 제출 시 true */
             KYC_TIER2_COMPLETE: 'kycTier2Complete',
             /** 등록된 리스팅(탑 트레이더/주문 카드) 목록 */
-            LISTINGS: 'listings'
+            LISTINGS: 'listings',
+            /** 마지막으로 연결한 TonConnect 지갑 앱 키(전송 시 단일 지갑 모달용, openSingleWalletModal 인자) */
+            LAST_TONCONNECT_WALLET_APP: 'lastTonconnectWalletAppV1'
         };
 
         /** TonAPI 공개 API: TON 지갑 주소의 USDT(제톤) 잔액 */
@@ -1739,7 +1741,8 @@
                 STORAGE.BANK_ACCOUNTS,
                 STORAGE.DEFAULT_BANK_ACCOUNT_ID,
                 STORAGE.KYC_TIER2_COMPLETE,
-                STORAGE.LISTINGS
+                STORAGE.LISTINGS,
+                STORAGE.LAST_TONCONNECT_WALLET_APP
             ];
 
             const values = await cloudGetItems(keys);
@@ -5182,6 +5185,19 @@
 
                 if (dom.tonConnectFallback) dom.tonConnectFallback.classList.add('hidden');
                 refreshMyPageUsdtBalance();
+
+                // 테스트넷 연결 시 마지막 사용 지갑 앱 키 저장 → 전송 시 openSingleWalletModal로 목록 대신 해당 지갑만 열기
+                try {
+                    if (addressAfter && chainAfter === '-3' && tonConnectUIInstance && tonConnectUIInstance.wallet) {
+                        var wKey = normalizeWalletKeyForSingleModal(tonConnectUIInstance.wallet);
+                        if (wKey) {
+                            localStorage.setItem(STORAGE.LAST_TONCONNECT_WALLET_APP, wKey);
+                            try {
+                                cloudSetItem(STORAGE.LAST_TONCONNECT_WALLET_APP, wKey);
+                            } catch (eCloudW) {}
+                        }
+                    }
+                } catch (eSaveLastW) {}
             });
         }
 
@@ -5259,12 +5275,49 @@
         }
 
         /**
+         * openSingleWalletModal(wallet: string)에 넘길 지갑 키 문자열로 정규화
+         * @param {object} walletObj tonConnectUIInstance.wallet
+         * @returns {string}
+         */
+        function normalizeWalletKeyForSingleModal(walletObj) {
+            if (!walletObj || typeof walletObj !== 'object') return '';
+            var w = walletObj;
+            var raw = String(w.name || w.appName || w.jsBridgeKey || w.app_name || '').toLowerCase().replace(/\s+/g, '');
+            if (!raw) return '';
+            if (raw.indexOf('tonkeeper') !== -1) return 'tonkeeper';
+            if (raw.indexOf('mytonwallet') !== -1) return 'mytonwallet';
+            if (raw.indexOf('tonhub') !== -1) return 'tonhub';
+            return raw;
+        }
+
+        /**
+         * SDK 초기화 직후 세션 복원(connectionRestored)이 끝날 때까지 대기해 PC에서 전송 직전 주소 미인식을 줄임
+         * @param {number} maxMs
+         */
+        async function awaitTonConnectConnectionRestored(maxMs) {
+            var max = typeof maxMs === 'number' && maxMs > 0 ? maxMs : 8000;
+            if (!tonConnectUIInstance || !tonConnectUIInstance.connectionRestored) return;
+            try {
+                await Promise.race([
+                    tonConnectUIInstance.connectionRestored,
+                    new Promise(function (_, rej) {
+                        setTimeout(function () {
+                            rej(new Error('timeout'));
+                        }, max);
+                    })
+                ]);
+            } catch (e) {}
+        }
+
+        /**
          * TonConnect 지갑 연결 모달 (보관본 흐름 + 전송 후 숨긴 위젯 루트 복구 필수).
          * opts.skipDisconnectForTransfer === true: 전송 경로에서만 disconnect 생략.
+         * opts.forTransfer === true: 전송용 — 마지막 지갑이 있으면 openSingleWalletModal 우선(전체 목록 모달 완화).
          */
         async function openTonConnectModal(opts) {
             var o = opts && typeof opts === 'object' ? opts : {};
             var skipDisconnectForTransfer = o.skipDisconnectForTransfer === true;
+            var forTransfer = o.forTransfer === true;
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
                 var noUiMsg = 'TON Connect 초기화에 실패했습니다.';
@@ -5276,8 +5329,8 @@
             try {
                 restoreTonConnectWidgetRootVisible();
             } catch (eRw) {}
-            // 사용자가 실제로 연결 버튼을 누른 경우에만 자동 입력 허용
-            tonAddressAutofillArmed = true;
+            // 전송 경로에서는 지갑 설정 화면 자동 입력을 건드리지 않음
+            tonAddressAutofillArmed = !forTransfer;
             var before = getTonAddressFromAccount(getTonConnectAccountSnapshot());
             try {
                 // 이전 시도에서 남은 모달 상태가 있으면 먼저 닫아 버튼 무반응 상태를 줄임
@@ -5299,15 +5352,31 @@
                         tonConnectUIInstance.setConnectionNetwork('-3');
                     } catch (eNet2) {}
                 }
-                // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
-                if (typeof tonConnectUIInstance.openModal === 'function') {
-                    await tonConnectUIInstance.openModal();
-                } else if (typeof tonConnectUIInstance.connectWallet === 'function') {
-                    await tonConnectUIInstance.connectWallet();
-                } else if (typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
-                    await tonConnectUIInstance.openSingleWalletModal();
-                } else {
-                    throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
+                // 전송: 마지막 사용 지갑이 있으면 단일 지갑 모달(실험 API)로 전체 목록 노출을 줄임
+                var lastApp = '';
+                if (forTransfer) {
+                    try {
+                        lastApp = String(localStorage.getItem(STORAGE.LAST_TONCONNECT_WALLET_APP) || '').trim().toLowerCase();
+                    } catch (eLa) {}
+                }
+                var openedSingle = false;
+                if (forTransfer && lastApp && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                    try {
+                        await tonConnectUIInstance.openSingleWalletModal(lastApp);
+                        openedSingle = true;
+                    } catch (eSm) {
+                        openedSingle = false;
+                    }
+                }
+                if (!openedSingle) {
+                    // 자동복귀 성공률을 위해 플랫폼 구분 없이 TonConnect 기본 모달 경로를 우선 사용
+                    if (typeof tonConnectUIInstance.openModal === 'function') {
+                        await tonConnectUIInstance.openModal();
+                    } else if (typeof tonConnectUIInstance.connectWallet === 'function') {
+                        await tonConnectUIInstance.connectWallet();
+                    } else {
+                        throw new Error('지원되는 연결 메서드를 찾지 못했습니다.');
+                    }
                 }
                 // 모달에서 실제로 지갑이 바뀐 경우에만 입력란에 반영
                 var connectedNow = getTonAddressFromAccount(getTonConnectAccountSnapshot());
@@ -5380,18 +5449,27 @@
             if (!tonConnectUIInstance) {
                 throw new Error('TON Connect를 불러오지 못했습니다.');
             }
-            try {
-                await restoreTonConnectionSafe();
-            } catch (e0) {}
-            var account = getTonConnectAccountSnapshot();
-            var address = getTonAddressFromAccount(account);
-            if (address && isTonTestnetConnected()) {
-                return address;
+            // PC 등에서 connectionRestored가 늦게 끝나면 즉시 주소가 비어 보이는 경우가 있어 먼저 대기
+            await awaitTonConnectConnectionRestored(8000);
+            var pulse = 0;
+            while (pulse < 15) {
+                try {
+                    await restoreTonConnectionSafe();
+                } catch (e0) {}
+                var account = getTonConnectAccountSnapshot();
+                var address = getTonAddressFromAccount(account);
+                if (address && isTonTestnetConnected()) {
+                    return address;
+                }
+                if (address && !isTonTestnetConnected()) {
+                    throw new Error('테스트넷 지갑으로 연결해 주세요.');
+                }
+                await new Promise(function (r) {
+                    setTimeout(r, 350);
+                });
+                pulse++;
             }
-            if (address && !isTonTestnetConnected()) {
-                throw new Error('테스트넷 지갑으로 연결해 주세요.');
-            }
-            await openTonConnectModal({ skipDisconnectForTransfer: true });
+            await openTonConnectModal({ skipDisconnectForTransfer: true, forTransfer: true });
             try {
                 return await waitForTonTestnetTransferReady(180000);
             } catch (eWait) {
