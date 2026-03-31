@@ -5376,9 +5376,20 @@
             }, 1500);
         }
 
-        /** 텔레그램 PC 클라이언트·웹(미니앱) — 모바일(ios/android) 제외 */
+        /** 모바일 UA — 모바일 웹 텔레그램은 platform이 web/weba로만 나와 PC로 오판되면 openSingleWalletModal이 깨짐 */
+        function isMobileUserAgentQuick() {
+            try {
+                var ua = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
+                return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /** 텔레그램 PC 클라이언트·데스크톱 웹 — 모바일 앱·모바일 웹 제외 */
         function isTelegramDesktopLike() {
             try {
+                if (isMobileUserAgentQuick()) return false;
                 var pf = tg && tg.platform ? String(tg.platform).toLowerCase() : '';
                 if (pf === 'ios' || pf === 'android') return false;
                 if (
@@ -5392,13 +5403,8 @@
                 ) {
                     return true;
                 }
-                // 일부 PC 텔레그램에서 platform이 비어 있음 — 모바일 UA가 아니면 PC로 간주
-                if (pf === '') {
-                    if (typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigator.userAgent || ''))) {
-                        return false;
-                    }
-                    return true;
-                }
+                // 일부 PC 텔레그램에서 platform이 비어 있음(위에서 모바일 UA는 이미 제외)
+                if (pf === '') return true;
                 return false;
             } catch (e) {
                 return false;
