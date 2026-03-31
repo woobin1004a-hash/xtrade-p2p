@@ -5370,20 +5370,59 @@
             }, 1500);
         }
 
-        /** PC 등 데스크톱: 톤키퍼로 나갔다 오는 동선 안내(세션당 1회) */
-        function maybeShowTonkeeperDesktopSendHintOnce() {
+        /** 텔레그램 PC 클라이언트·웹(미니앱) — 모바일(ios/android) 제외 */
+        function isTelegramDesktopLike() {
             try {
-                if (sessionStorage.getItem('tonkeeperDesktopSendHintV1') === '1') return;
-                var pf = tg && tg.platform ? String(tg.platform) : '';
-                var desktop =
+                var pf = tg && tg.platform ? String(tg.platform).toLowerCase() : '';
+                if (pf === 'ios' || pf === 'android') return false;
+                return (
                     pf === 'tdesktop' ||
                     pf === 'web' ||
                     pf === 'weba' ||
                     pf === 'webk' ||
                     pf === 'macos' ||
                     pf === 'windows' ||
-                    pf === 'unknown';
-                if (!desktop) return;
+                    pf === 'unknown'
+                );
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /** PC: 톤키퍼 데스크톱 설치 후 연결하면 폰 없이 동일 PC에서 연결·승인 가능 — 세션당 1회, 연결 UI 직전 */
+        async function maybeShowTonkeeperDesktopInstallHintOnce() {
+            if (!isTelegramDesktopLike()) return;
+            try {
+                if (sessionStorage.getItem('tonkeeperDesktopInstallHintV1') === '1') return;
+                sessionStorage.setItem('tonkeeperDesktopInstallHintV1', '1');
+            } catch (eS) {
+                return;
+            }
+            var msg =
+                'PC에서는 톤키퍼 데스크톱을 설치하면, 폰 없이 같은 PC에서 연결·승인할 수 있습니다.\n\n' +
+                '곧 열리는 연결 화면에서 Tonkeeper를 선택하세요.\n' +
+                '(설치: https://tonkeeper.com/ )';
+            await new Promise(function (resolve) {
+                if (tg && typeof tg.showAlert === 'function') {
+                    try {
+                        tg.showAlert(msg, function () {
+                            resolve();
+                        });
+                        return;
+                    } catch (eA) {}
+                }
+                try {
+                    alert(msg);
+                } catch (e2) {}
+                resolve();
+            });
+        }
+
+        /** PC 등 데스크톱: 톤키퍼로 나갔다 오는 동선 안내(세션당 1회) */
+        function maybeShowTonkeeperDesktopSendHintOnce() {
+            try {
+                if (sessionStorage.getItem('tonkeeperDesktopSendHintV1') === '1') return;
+                if (!isTelegramDesktopLike()) return;
                 sessionStorage.setItem('tonkeeperDesktopSendHintV1', '1');
                 if (tg && typeof tg.showAlert === 'function') {
                     tg.showAlert(
@@ -5484,6 +5523,10 @@
                 else alert(noUiMsg);
                 return;
             }
+            // PC: 톤키퍼 데스크톱으로 폰 없이 연결·승인 유도(세션 1회) — 연결 모달 직전
+            try {
+                await maybeShowTonkeeperDesktopInstallHintOnce();
+            } catch (eDeskHint) {}
             // sendTransaction 정리 시 hideTonConnectWidgetRootHard()로 루트가 숨겨지면 openModal이 보이지 않음 → 반드시 복구
             try {
                 restoreTonConnectWidgetRootVisible();
