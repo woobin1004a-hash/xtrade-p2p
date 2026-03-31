@@ -5343,24 +5343,61 @@
             return String(account.chain || '') === '-3';
         }
 
+        /**
+         * openModal()은 모달이 뜨는 시점에 끝나므로, QR·지갑 승인 후 세션이 잡힐 때까지 대기 (PC 전송 실패 방지)
+         * @param {number} maxMs 최대 대기(ms), 기본 3분
+         */
+        function waitForTonTestnetTransferReady(maxMs) {
+            var max = typeof maxMs === 'number' && maxMs > 0 ? maxMs : 180000;
+            var intervalMs = 300;
+            var start = Date.now();
+            return new Promise(function (resolve, reject) {
+                function tick() {
+                    try {
+                        void restoreTonConnectionSafe();
+                    } catch (eR) {}
+                    try {
+                        var acc = getTonConnectAccountSnapshot();
+                        var addr = getTonAddressFromAccount(acc);
+                        if (addr && isTonTestnetConnected()) {
+                            resolve(addr);
+                            return;
+                        }
+                    } catch (e) {}
+                    if (Date.now() - start >= max) {
+                        reject(new Error('연결된 TON 지갑이 없습니다.'));
+                        return;
+                    }
+                    setTimeout(tick, intervalMs);
+                }
+                tick();
+            });
+        }
+
         /** 보관본과 동일 + 전송 시에만 disconnect 생략(위 openTonConnectModal 옵션) */
         async function ensureTonWalletConnectedForTransfer() {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
                 throw new Error('TON Connect를 불러오지 못했습니다.');
             }
+            try {
+                await restoreTonConnectionSafe();
+            } catch (e0) {}
             var account = getTonConnectAccountSnapshot();
             var address = getTonAddressFromAccount(account);
-            if (!address) {
-                await openTonConnectModal({ skipDisconnectForTransfer: true });
-                account = getTonConnectAccountSnapshot();
-                address = getTonAddressFromAccount(account);
+            if (address && isTonTestnetConnected()) {
+                return address;
             }
-            if (!address) throw new Error('연결된 TON 지갑이 없습니다.');
-            if (!isTonTestnetConnected()) {
+            if (address && !isTonTestnetConnected()) {
                 throw new Error('테스트넷 지갑으로 연결해 주세요.');
             }
-            return address;
+            await openTonConnectModal({ skipDisconnectForTransfer: true });
+            try {
+                return await waitForTonTestnetTransferReady(180000);
+            } catch (eWait) {
+                if (eWait && eWait.message) throw eWait;
+                throw new Error('연결된 TON 지갑이 없습니다.');
+            }
         }
 
         function getTonWebTestnet() {
@@ -5637,19 +5674,6 @@
             }
 
             if (dom.walletSaveMsg) dom.walletSaveMsg.innerText = '&nbsp;';
-            var pcHint = document.getElementById('tonConnectPcHint');
-            if (pcHint) {
-                var plat = tg && tg.platform ? String(tg.platform).toLowerCase() : '';
-                var isPcTg = plat === 'tdesktop' || plat === 'macos' || plat === 'web' || plat === 'webk' || plat === 'weba';
-                if (isPcTg) {
-                    pcHint.style.display = 'block';
-                    pcHint.textContent =
-                        'PC 텔레그램: Tonkeeper는 「Tonkeeper에서 계속…」에서 멈출 수 있습니다. MyTonWallet·Tonhub를 시도해 보세요. 이 앱은 테스트넷(체인 -3)만 허용하며, 텔레그램 지갑이 메인넷으로 붙으면 자동으로 연결이 해제됩니다.';
-                } else {
-                    pcHint.style.display = 'none';
-                    pcHint.textContent = '';
-                }
-            }
         }
 
         // Edit existing TON wallet (label only; address is read-only)
