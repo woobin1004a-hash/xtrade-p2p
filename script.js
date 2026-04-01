@@ -3041,14 +3041,18 @@
                 var fileName = data.file_name || 'xtrade-receipt.png';
 
                 /**
-                 * 텔레그램: fetch→Blob 저장을 먼저 쓰면 웹뷰에서 무반응·이상 동작이 잦음 → 공식 downloadFile(HTTPS URL) 우선.
-                 * 일반 브라우저(텔레그램 밖): fetch→Blob→a.download (새 탭으로 PNG가 뜨는 것 방지).
+                 * 모바일 텔레그램(ios/android): downloadFile(Storage HTTPS URL)만 안정적.
+                 * PC·웹(tdesktop/web/macos 등): downloadFile이 브라우저로 URL을 열어 PNG가 탭에 뜸 →
+                 * 업로드에 쓴 것과 동일한 로컬 PNG(blob)로만 저장(URL 절대 열지 않음).
                  */
-                async function saveUrlAsDownloadInBrowserOnly(url, name) {
-                    var r = await fetch(url, { mode: 'cors', credentials: 'omit' });
-                    if (!r.ok) throw new Error('GET ' + r.status);
-                    var blob = await r.blob();
-                    var objUrl = URL.createObjectURL(blob);
+                function shouldUseTelegramDownloadFile() {
+                    if (!tg || typeof tg.downloadFile !== 'function') return false;
+                    var p = String(tg.platform || '').toLowerCase();
+                    return p === 'ios' || p === 'android';
+                }
+
+                function saveLocalPngBlob(pngBlob, name) {
+                    var objUrl = URL.createObjectURL(pngBlob);
                     try {
                         var a = document.createElement('a');
                         a.href = objUrl;
@@ -3067,10 +3071,7 @@
                     }
                 }
 
-                var inTelegramDl =
-                    tg && typeof tg.downloadFile === 'function' && Boolean(window.Telegram && window.Telegram.WebApp);
-
-                if (inTelegramDl) {
+                if (shouldUseTelegramDownloadFile()) {
                     try {
                         tg.downloadFile({ url: data.url, file_name: fileName }, function () {
                             restoreDlBtn();
@@ -3085,22 +3086,16 @@
                     }
                 } else {
                     try {
-                        await saveUrlAsDownloadInBrowserOnly(data.url, fileName);
+                        saveLocalPngBlob(blob, fileName);
                         restoreDlBtn();
-                    } catch (eSave) {
+                    } catch (ePc) {
                         restoreDlBtn();
-                        var originHint =
-                            typeof window !== 'undefined' && window.location && window.location.origin
-                                ? window.location.origin
-                                : '';
-                        var hint =
-                            langText(
-                                '브라우저에서 파일을 받지 못했습니다. 텔레그램 앱에서 미니앱을 열거나, Supabase Storage CORS에 아래 출처를 추가하세요. ',
-                                'Download failed in browser. Open in Telegram app, or add this origin to Storage CORS: '
-                            ) +
-                            (originHint ? originHint + ' — ' : '') +
-                            (eSave && eSave.message ? String(eSave.message) : '');
-                        if (typeof alert === 'function') alert(hint);
+                        if (tg && typeof tg.showAlert === 'function') {
+                            tg.showAlert(
+                                langText('PC에서 저장에 실패했습니다.', 'Save failed on PC.') +
+                                    (ePc && ePc.message ? ' ' + String(ePc.message) : '')
+                            );
+                        } else alert(ePc);
                     }
                 }
             } catch (e) {
