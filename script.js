@@ -3071,6 +3071,97 @@
                     }
                 }
 
+                /** PC 웹뷰: 숨김 a.click()은 막히는 경우가 많아, 보이는 링크를 직접 누르게 함 */
+                function showReceiptPngSaveOverlay(pngBlob, name) {
+                    var fname = name || 'xtrade-receipt.png';
+                    var objUrl = URL.createObjectURL(pngBlob);
+                    var overlay = document.createElement('div');
+                    overlay.setAttribute('data-receipt-png-overlay', '1');
+                    overlay.style.cssText =
+                        'position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+                    var box = document.createElement('div');
+                    box.style.cssText =
+                        'background:#1a1528;border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-sizing:border-box;';
+                    var t = document.createElement('div');
+                    t.textContent = langText(
+                        '아래 파란 버튼을 누르면 PNG가 저장됩니다. (PC 웹에서는 필수)',
+                        'Tap the blue button to save the PNG. (Required on PC web)'
+                    );
+                    t.style.cssText = 'color:#e8e0f8;margin-bottom:16px;font-size:15px;line-height:1.5;';
+                    var a = document.createElement('a');
+                    a.href = objUrl;
+                    a.download = fname;
+                    a.textContent = langText('PNG 저장하기', 'Save PNG');
+                    a.style.cssText =
+                        'display:inline-block;padding:14px 28px;background:#6c5ce7;color:#fff !important;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;';
+                    var closeBtn = document.createElement('button');
+                    closeBtn.type = 'button';
+                    closeBtn.textContent = langText('닫기', 'Close');
+                    closeBtn.style.cssText =
+                        'margin-top:14px;background:transparent;border:none;color:#aaa;cursor:pointer;font-size:14px;';
+                    function cleanup() {
+                        try {
+                            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                        } catch (e0) {}
+                        setTimeout(function () {
+                            try {
+                                URL.revokeObjectURL(objUrl);
+                            } catch (e1) {}
+                        }, 60000);
+                    }
+                    closeBtn.onclick = cleanup;
+                    overlay.onclick = function (ev) {
+                        if (ev.target === overlay) cleanup();
+                    };
+                    a.onclick = function () {
+                        setTimeout(cleanup, 800);
+                    };
+                    box.appendChild(t);
+                    box.appendChild(a);
+                    box.appendChild(document.createElement('br'));
+                    box.appendChild(closeBtn);
+                    overlay.appendChild(box);
+                    document.body.appendChild(overlay);
+                }
+
+                /** PC: File System Access API 우선, 실패 시 오버레이 링크 */
+                function runPcReceiptSave(pngBlob, fname) {
+                    var picker = window.showSaveFilePicker;
+                    if (typeof picker === 'function') {
+                        picker
+                            .call(window, {
+                                suggestedName: fname,
+                                types: [
+                                    {
+                                        description: 'PNG',
+                                        accept: { 'image/png': ['.png'] },
+                                    },
+                                ],
+                            })
+                            .then(function (handle) {
+                                return handle.createWritable();
+                            })
+                            .then(function (writable) {
+                                return writable.write(pngBlob).then(function () {
+                                    return writable.close();
+                                });
+                            })
+                            .catch(function (e) {
+                                if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) {
+                                    showReceiptPngSaveOverlay(pngBlob, fname);
+                                    return;
+                                }
+                                try {
+                                    saveLocalPngBlob(pngBlob, fname);
+                                } catch (e2) {
+                                    showReceiptPngSaveOverlay(pngBlob, fname);
+                                }
+                            });
+                    } else {
+                        showReceiptPngSaveOverlay(pngBlob, fname);
+                    }
+                }
+
                 if (shouldUseTelegramDownloadFile()) {
                     try {
                         tg.downloadFile({ url: data.url, file_name: fileName }, function () {
@@ -3085,57 +3176,9 @@
                         else alert(dlErr);
                     }
                 } else {
-                    // PC·데스크톱 웹뷰: html2canvas·fetch 업로드 후에는 "사용자 제스처"가 끊겨 a.click() 저장이 조용히 무시되는 경우가 많음
-                    // → 확인창/팝업에서 한 번 더 누른 뒤 저장(두 번째 제스처로 브라우저가 다운로드 허용)
+                    // PC·웹: 업로드 직후 곧바로 저장 시도(숨김 클릭)는 웹뷰에서 무시됨 → 저장 UI 표시
                     restoreDlBtn();
-                    var runSaveLocalPng = function () {
-                        try {
-                            saveLocalPngBlob(blob, fileName);
-                        } catch (ePc) {
-                            var m = String(ePc && ePc.message ? ePc.message : ePc);
-                            if (tg && typeof tg.showAlert === 'function') {
-                                tg.showAlert(langText('저장 실패: ', 'Save failed: ') + m);
-                            } else alert(m);
-                        }
-                    };
-                    if (tg && typeof tg.showConfirm === 'function') {
-                        tg.showConfirm(
-                            langText(
-                                'PNG 영수증을 이 기기에 저장할까요? (확인 후 다운로드됩니다)',
-                                'Save PNG receipt on this device? Confirm to download.'
-                            ),
-                            function (ok) {
-                                if (ok) runSaveLocalPng();
-                            }
-                        );
-                    } else if (tg && typeof tg.showPopup === 'function') {
-                        tg.showPopup(
-                            {
-                                title: langText('영수증 저장', 'Save receipt'),
-                                message: langText(
-                                    '「저장」을 누르면 PNG가 다운로드됩니다.',
-                                    'Tap Save to download the PNG.'
-                                ),
-                                buttons: [
-                                    { id: 'save', type: 'default', text: langText('저장', 'Save') },
-                                    { type: 'cancel' },
-                                ],
-                            },
-                            function (btnId) {
-                                if (btnId === 'save') runSaveLocalPng();
-                            }
-                        );
-                    } else if (typeof window.confirm === 'function') {
-                        if (
-                            window.confirm(
-                                langText('PNG 파일을 저장할까요?', 'Save the PNG file?')
-                            )
-                        ) {
-                            runSaveLocalPng();
-                        }
-                    } else {
-                        runSaveLocalPng();
-                    }
+                    runPcReceiptSave(blob, fileName);
                 }
             } catch (e) {
                 try {
