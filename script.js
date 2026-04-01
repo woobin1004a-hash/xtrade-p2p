@@ -2855,53 +2855,16 @@
         /** 거래 영수증 모달에서 다운로드할 주문 ID */
         var transactionReceiptCurrentOrderId = null;
 
-        /** PNG Blob을 로컬 파일로 저장(PC: 다운로드 폴더, 모바일: 브라우저/OS가 제공하는 저장 위치) */
-        function triggerReceiptPngBlobDownload(blob, filename) {
-            var url = URL.createObjectURL(blob);
-            try {
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = filename || 'xtrade-receipt.png';
-                a.rel = 'noopener';
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } catch (e) {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (e2) {}
-                throw e;
-            }
-            setTimeout(function () {
-                try {
-                    URL.revokeObjectURL(url);
-                } catch (eRev) {}
-            }, 4000);
-        }
-
-        /** 영수증 다운로드: PNG만 생성 후 즉시 저장(미리보기 없음) */
-        function downloadCurrentTransactionReceipt() {
+        /**
+         * 영수증 다운로드: Supabase Edge Function이 HTTPS 파일 URL을 발급 → 텔레그램은 WebApp.downloadFile로 저장
+         * (클라이언트 Blob + a.download 는 미니앱 웹뷰에서 자주 무시됨)
+         */
+        async function downloadCurrentTransactionReceipt() {
             var id = transactionReceiptCurrentOrderId;
             if (!id) {
                 var miss = langText('다운로드할 영수증이 없습니다.', 'No receipt to download.');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(miss);
                 else alert(miss);
-                return;
-            }
-            var h2c =
-                typeof html2canvas === 'function'
-                    ? html2canvas
-                    : typeof window !== 'undefined' && typeof window.html2canvas === 'function'
-                      ? window.html2canvas
-                      : null;
-            if (!h2c) {
-                var noLib = langText(
-                    '이미지 변환 모듈을 불러오지 못했습니다. 네트워크를 확인해 주세요.',
-                    'Image export module failed to load. Check your network.'
-                );
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(noLib);
-                else alert(noLib);
                 return;
             }
             var body = document.getElementById('transactionReceiptBody');
@@ -2912,10 +2875,24 @@
                 return;
             }
 
+            var telegramUserId = '';
+            if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id != null) {
+                telegramUserId = String(tg.initDataUnsafe.user.id);
+            }
+            if (!telegramUserId) {
+                var needTg = langText(
+                    '텔레그램에서 열었을 때만 영수증 파일을 받을 수 있습니다.',
+                    'Receipt file download requires opening the app in Telegram.'
+                );
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(needTg);
+                else alert(needTg);
+                return;
+            }
+
             var dlBtn = document.getElementById('transactionReceiptDownloadBtn');
             if (dlBtn) {
                 dlBtn.disabled = true;
-                dlBtn.textContent = langText('생성 중...', 'Generating...');
+                dlBtn.textContent = langText('준비 중...', 'Preparing...');
             }
 
             function restoreDlBtn() {
@@ -2925,88 +2902,79 @@
                 }
             }
 
-            var exportedLine =
-                langText('다운로드 시각', 'Exported at') +
-                ': ' +
-                new Date().toLocaleString(uiLangMode === 'en' ? 'en-US' : 'ko-KR', { dateStyle: 'medium', timeStyle: 'short' }) +
-                ' · XTrade P2P';
+            var baseUrl = String(SUPABASE_URL || '').replace(/\/$/, '');
+            if (!baseUrl) {
+                restoreDlBtn();
+                var noCfg = langText('서버 설정이 없습니다.', 'Server is not configured.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(noCfg);
+                else alert(noCfg);
+                return;
+            }
 
-            var footer = document.createElement('div');
-            footer.className = 'receipt-png-footer';
-            footer.textContent = exportedLine;
-            body.appendChild(footer);
-
-            var prevOverflow = body.style.overflow;
-            var prevMaxHeight = body.style.maxHeight;
-            var prevHeight = body.style.height;
-            body.style.overflow = 'visible';
-            body.style.maxHeight = 'none';
-            body.style.height = 'auto';
-
-            var bg = '#0f0b18';
+            var fnUrl = baseUrl + '/functions/v1/receipt-download';
             try {
-                var dlg = document.querySelector('.transaction-receipt-dialog');
-                if (dlg) {
-                    var cs = window.getComputedStyle(dlg);
-                    if (cs && cs.backgroundColor && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') {
-                        bg = cs.backgroundColor;
-                    }
+                var res = await fetch(fnUrl, {
+                    method: 'POST',
+                    headers: supabaseHeaders({ 'X-Telegram-User-Id': telegramUserId }),
+                    body: JSON.stringify({ order_id: String(id) }),
+                });
+                var data = null;
+                try {
+                    data = await res.json();
+                } catch (eJ) {
+                    data = null;
                 }
-            } catch (eBg) {}
+                if (!res.ok) {
+                    restoreDlBtn();
+                    var errMsg =
+                        data && data.error
+                            ? String(data.error)
+                            : langText('영수증 요청에 실패했습니다.', 'Receipt request failed.') + ' (HTTP ' + res.status + ')';
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(errMsg);
+                    else alert(errMsg);
+                    return;
+                }
+                if (!data || !data.url) {
+                    restoreDlBtn();
+                    var bad = langText('서버 응답이 올바르지 않습니다.', 'Invalid server response.');
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(bad);
+                    else alert(bad);
+                    return;
+                }
 
-            var fname = 'xtrade-receipt-' + String(id).replace(/[^a-zA-Z0-9._-]/g, '_') + '.png';
+                var fileName = data.file_name || 'xtrade-receipt.txt';
 
-            setTimeout(function () {
-                h2c(body, {
-                    backgroundColor: bg,
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    logging: false,
-                    foreignObjectRendering: false,
-                })
-                    .then(function (canvas) {
-                        body.style.overflow = prevOverflow;
-                        body.style.maxHeight = prevMaxHeight;
-                        body.style.height = prevHeight;
-                        try {
-                            if (footer.parentNode === body) body.removeChild(footer);
-                        } catch (eRm) {}
-
-                        canvas.toBlob(
-                            function (blob) {
-                                restoreDlBtn();
-                                if (!blob) {
-                                    var err = langText('PNG 생성에 실패했습니다.', 'Failed to create PNG.');
-                                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
-                                    else alert(err);
-                                    return;
-                                }
-                                try {
-                                    triggerReceiptPngBlobDownload(blob, fname);
-                                } catch (eSave) {
-                                    var errSave = langText('파일 저장에 실패했습니다.', 'Failed to save file.');
-                                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(errSave);
-                                    else alert(errSave);
-                                }
-                            },
-                            'image/png',
-                            1
-                        );
-                    })
-                    .catch(function () {
-                        body.style.overflow = prevOverflow;
-                        body.style.maxHeight = prevMaxHeight;
-                        body.style.height = prevHeight;
-                        try {
-                            if (footer.parentNode === body) body.removeChild(footer);
-                        } catch (eRm2) {}
+                // 텔레그램 미니앱: 공식 downloadFile (HTTPS URL 필수)
+                if (tg && typeof tg.downloadFile === 'function') {
+                    tg.downloadFile({ url: data.url, file_name: fileName }, function () {
                         restoreDlBtn();
-                        var err3 = langText('영수증 이미지를 만들지 못했습니다.', 'Could not render receipt image.');
-                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(err3);
-                        else alert(err3);
                     });
-            }, 40);
+                    return;
+                }
+
+                // 일반 브라우저 폴백
+                try {
+                    var a = document.createElement('a');
+                    a.href = data.url;
+                    a.download = fileName;
+                    a.rel = 'noopener';
+                    a.target = '_blank';
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } catch (eA) {
+                    try {
+                        window.open(data.url, '_blank');
+                    } catch (e2) {}
+                }
+                restoreDlBtn();
+            } catch (e) {
+                restoreDlBtn();
+                var net = langText('네트워크 오류로 받지 못했습니다.', 'Network error while fetching receipt.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(net);
+                else alert(net);
+            }
         }
 
         /** 영수증 모달 열릴 때 뒤 목록이 스크롤되지 않도록 body 고정(iOS 텔레그램 WebView 대응) */
