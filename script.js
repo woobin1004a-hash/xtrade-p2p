@@ -2916,7 +2916,8 @@
                 var res = await fetch(fnUrl, {
                     method: 'POST',
                     headers: supabaseHeaders({ 'X-Telegram-User-Id': telegramUserId }),
-                    body: JSON.stringify({ order_id: String(id) }),
+                    // 서버에서 모달과 동일 필드로 PNG 생성 (실패 시 서버가 TXT로 폴백)
+                    body: JSON.stringify({ order_id: String(id), format: 'png' }),
                 });
                 var data = null;
                 try {
