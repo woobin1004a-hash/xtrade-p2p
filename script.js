@@ -2947,9 +2947,18 @@
 
                 // 텔레그램 미니앱: 공식 downloadFile (HTTPS URL 필수)
                 if (tg && typeof tg.downloadFile === 'function') {
-                    tg.downloadFile({ url: data.url, file_name: fileName }, function () {
+                    try {
+                        tg.downloadFile({ url: data.url, file_name: fileName }, function () {
+                            restoreDlBtn();
+                        });
+                    } catch (eDl) {
                         restoreDlBtn();
-                    });
+                        var dlErr =
+                            langText('다운로드 시작 실패: ', 'Download failed: ') +
+                            (eDl && eDl.message ? String(eDl.message) : String(eDl));
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(dlErr);
+                        else alert(dlErr);
+                    }
                     return;
                 }
 
@@ -2972,7 +2981,11 @@
                 restoreDlBtn();
             } catch (e) {
                 restoreDlBtn();
-                var net = langText('네트워크 오류로 받지 못했습니다.', 'Network error while fetching receipt.');
+                var detail = e && e.message ? String(e.message) : String(e);
+                // CORS 실패·연결 끊김 등은 보통 "Failed to fetch" 로 표시됨
+                var net =
+                    langText('네트워크 오류로 받지 못했습니다.', 'Network error while fetching receipt.') +
+                    (detail ? ' (' + detail + ')' : '');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(net);
                 else alert(net);
             }
