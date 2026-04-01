@@ -2916,7 +2916,7 @@
                 var res = await fetch(fnUrl, {
                     method: 'POST',
                     headers: supabaseHeaders({ 'X-Telegram-User-Id': telegramUserId }),
-                    // 서버에서 모달과 동일 필드로 PNG 생성 (실패 시 서버가 TXT로 폴백)
+                    // 서버에서 시각 영수증(SVG, API는 format png 호환) — 실패 시 TXT 폴백
                     body: JSON.stringify({ order_id: String(id), format: 'png' }),
                 });
                 var data = null;
@@ -2943,7 +2943,7 @@
                     return;
                 }
 
-                var fileName = data.file_name || 'xtrade-receipt.txt';
+                var fileName = data.file_name || 'xtrade-receipt.svg';
 
                 // 텔레그램 미니앱: 공식 downloadFile (HTTPS URL 필수)
                 if (tg && typeof tg.downloadFile === 'function') {
