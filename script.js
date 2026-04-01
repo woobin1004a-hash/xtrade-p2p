@@ -999,7 +999,7 @@
                             opts.push('<option value="">' + escapeHtml(langText('계좌를 선택해 주세요', 'Select an account')) + '</option>');
                             accounts.forEach(function (a) {
                                 var id = a.id;
-                                var bank = a.bank || 'Bank';
+                                var bank = getBankDisplayName(a.bank || '');
                                 var masked = a.accountNumber ? maskAccountNumber(a.accountNumber) : '';
                                 var label = (a.label || bank) + (masked ? ' (' + masked + ')' : '');
                                 var selected = defaultId && String(defaultId) === String(id) ? ' selected' : '';
@@ -2010,6 +2010,60 @@
             return uiLangMode === 'en' ? en : ko;
         }
 
+        /** 은행 선택: value는 저장·전송용 영문 표준명, 라벨은 UI 언어에 따라 표시 */
+        const BANK_OPTIONS_LIST = [
+            { value: 'Kookmin Bank', ko: '국민', en: 'Kookmin Bank' },
+            { value: 'Shinhan Bank', ko: '신한', en: 'Shinhan Bank' },
+            { value: 'Hana Bank', ko: '하나', en: 'Hana Bank' },
+            { value: 'Woori Bank', ko: '우리', en: 'Woori Bank' },
+            { value: 'NongHyup Bank', ko: '농협', en: 'NongHyup Bank' },
+            { value: 'Kakao Bank', ko: '카카오뱅크', en: 'Kakao Bank' },
+            { value: 'Toss Bank', ko: '토스뱅크', en: 'Toss Bank' },
+        ];
+
+        /** 저장된 은행 코드(영문) → 현재 UI 언어에 맞는 표시명 */
+        function getBankDisplayName(storedBank) {
+            var v = String(storedBank || '').trim();
+            if (!v) return langText('은행', 'Bank');
+            for (var i = 0; i < BANK_OPTIONS_LIST.length; i++) {
+                if (BANK_OPTIONS_LIST[i].value === v) {
+                    return uiLangMode === 'en' ? BANK_OPTIONS_LIST[i].en : BANK_OPTIONS_LIST[i].ko;
+                }
+            }
+            return v;
+        }
+
+        /**
+         * 은행 드롭다운 옵션을 현재 언어로 채움. optPreserveValue: 유지할 value(편집 시).
+         */
+        function populateBankNameSelect(optPreserveValue) {
+            if (!dom.bankNameSelect) return;
+            var prev = optPreserveValue !== undefined && optPreserveValue !== null
+                ? String(optPreserveValue)
+                : String(dom.bankNameSelect.value || '');
+            dom.bankNameSelect.innerHTML = '';
+            BANK_OPTIONS_LIST.forEach(function (opt) {
+                var o = document.createElement('option');
+                o.value = opt.value;
+                o.textContent = uiLangMode === 'en' ? opt.en : opt.ko;
+                dom.bankNameSelect.appendChild(o);
+            });
+            var has = Array.from(dom.bankNameSelect.options).some(function (o) { return o.value === prev; });
+            if (prev && !has) {
+                var extra = document.createElement('option');
+                extra.value = prev;
+                extra.textContent = getBankDisplayName(prev);
+                dom.bankNameSelect.appendChild(extra);
+            }
+            if (has && prev) {
+                dom.bankNameSelect.value = prev;
+            } else if (prev && !has) {
+                dom.bankNameSelect.value = prev;
+            } else {
+                dom.bankNameSelect.selectedIndex = 0;
+            }
+        }
+
         function applyThemeMode() {
             var isLight = uiThemeMode === 'light';
             document.body.classList.toggle('theme-light', isLight);
@@ -2224,6 +2278,12 @@
             if (bankSaveBtn) bankSaveBtn.textContent = langText('저장', 'Save');
             var bankDeleteBtn = document.getElementById('bankAccountDeleteBtn');
             if (bankDeleteBtn) bankDeleteBtn.textContent = langText('삭제', 'Delete');
+            try {
+                if (dom.bankNameSelect) {
+                    populateBankNameSelect(dom.bankNameSelect.value);
+                }
+            } catch (eBankPop) {}
+            try { renderSavedBankAccounts(); } catch (eBankRend) {}
             var orderOkBtn = document.querySelector('.order-submitted-modal-ok');
             if (orderOkBtn) orderOkBtn.textContent = langText('확인', 'OK');
             var finalTitle = document.querySelector('.final-complete-confirm-title');
@@ -4969,7 +5029,7 @@
 
             dom.bankAccountCards.innerHTML = accounts.map(a => {
                 const label = a.label || 'Bank Account';
-                const bank = a.bank || 'Bank';
+                const bank = getBankDisplayName(a.bank || '');
                 const masked = maskAccountNumber(a.accountNumber);
                 const holder = a.accountHolder || '';
                 const isDefault = String(a.id) === String(defaultId);
@@ -6625,6 +6685,7 @@
             if (dom.bankAccountLabelInput) dom.bankAccountLabelInput.value = '';
             if (dom.setDefaultBankAccountSwitch) dom.setDefaultBankAccountSwitch.checked = false;
             showBankAccountDeleteButton(false);
+            populateBankNameSelect('');
         }
 
         // Edit existing bank account
@@ -6638,15 +6699,7 @@
             if (!found) return;
 
             if (dom.bankNameSelect) {
-                const bankValue = found.bank || '';
-                const hasOption = Array.from(dom.bankNameSelect.options).some(o => o.value === bankValue);
-                if (!hasOption && bankValue) {
-                    const opt = document.createElement('option');
-                    opt.value = bankValue;
-                    opt.textContent = bankValue;
-                    dom.bankNameSelect.appendChild(opt);
-                }
-                dom.bankNameSelect.value = bankValue;
+                populateBankNameSelect(found.bank || '');
             }
             if (dom.bankAccountNumberInput) dom.bankAccountNumberInput.value = found.accountNumber || '';
             if (dom.bankAccountHolderInput) dom.bankAccountHolderInput.value = found.accountHolder || '';
