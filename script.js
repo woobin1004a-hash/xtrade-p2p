@@ -2856,8 +2856,8 @@
         var transactionReceiptCurrentOrderId = null;
 
         /**
-         * 영수증 다운로드: Supabase Edge Function이 HTTPS 파일 URL을 발급 → 텔레그램은 WebApp.downloadFile로 저장
-         * (클라이언트 Blob + a.download 는 미니앱 웹뷰에서 자주 무시됨)
+         * 영수증 PNG: 모달 DOM을 html2canvas로 캡처 → Edge `receipt-png-upload`가 Storage에 올리고 서명 URL 반환
+         * → Telegram.WebApp.downloadFile (Blob 직접 저장은 웹뷰에서 불안정)
          */
         async function downloadCurrentTransactionReceipt() {
             var id = transactionReceiptCurrentOrderId;
@@ -2889,10 +2889,26 @@
                 return;
             }
 
+            var h2c =
+                typeof html2canvas === 'function'
+                    ? html2canvas
+                    : typeof window !== 'undefined' && typeof window.html2canvas === 'function'
+                      ? window.html2canvas
+                      : null;
+            if (!h2c) {
+                var noLib = langText(
+                    '이미지 변환 모듈을 불러오지 못했습니다. 네트워크를 확인해 주세요.',
+                    'Image export module failed to load. Check your network.'
+                );
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(noLib);
+                else alert(noLib);
+                return;
+            }
+
             var dlBtn = document.getElementById('transactionReceiptDownloadBtn');
             if (dlBtn) {
                 dlBtn.disabled = true;
-                dlBtn.textContent = langText('준비 중...', 'Preparing...');
+                dlBtn.textContent = langText('생성 중...', 'Generating...');
             }
 
             function restoreDlBtn() {
@@ -2911,26 +2927,105 @@
                 return;
             }
 
-            var fnUrl = baseUrl + '/functions/v1/receipt-download';
+            var exportedLine =
+                langText('다운로드 시각', 'Exported at') +
+                ': ' +
+                new Date().toLocaleString(uiLangMode === 'en' ? 'en-US' : 'ko-KR', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                }) +
+                ' · XTrade P2P';
+
+            var footer = document.createElement('div');
+            footer.className = 'receipt-png-footer';
+            footer.textContent = exportedLine;
+            body.appendChild(footer);
+
+            var prevOverflow = body.style.overflow;
+            var prevMaxHeight = body.style.maxHeight;
+            var prevHeight = body.style.height;
+            body.style.overflow = 'visible';
+            body.style.maxHeight = 'none';
+            body.style.height = 'auto';
+
+            var bg = '#0f0b18';
             try {
-                var res = await fetch(fnUrl, {
-                    method: 'POST',
-                    headers: supabaseHeaders({ 'X-Telegram-User-Id': telegramUserId }),
-                    // 서버에서 시각 영수증(SVG, API는 format png 호환) — 실패 시 TXT 폴백
-                    body: JSON.stringify({ order_id: String(id), format: 'png' }),
+                var dlg = document.querySelector('.transaction-receipt-dialog');
+                if (dlg) {
+                    var cs = window.getComputedStyle(dlg);
+                    if (
+                        cs &&
+                        cs.backgroundColor &&
+                        cs.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+                        cs.backgroundColor !== 'transparent'
+                    ) {
+                        bg = cs.backgroundColor;
+                    }
+                }
+            } catch (eBg) {}
+
+            try {
+                await new Promise(function (resolve) {
+                    setTimeout(resolve, 40);
                 });
+
+                var canvas = await h2c(body, {
+                    backgroundColor: bg,
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    foreignObjectRendering: false,
+                });
+
+                body.style.overflow = prevOverflow;
+                body.style.maxHeight = prevMaxHeight;
+                body.style.height = prevHeight;
+                try {
+                    if (footer.parentNode === body) body.removeChild(footer);
+                } catch (eRm) {}
+
+                var blob = await new Promise(function (resolve, reject) {
+                    canvas.toBlob(
+                        function (b) {
+                            if (b) resolve(b);
+                            else reject(new Error('PNG blob empty'));
+                        },
+                        'image/png',
+                        1
+                    );
+                });
+
+                if (dlBtn) dlBtn.textContent = langText('업로드 중...', 'Uploading...');
+
+                var fd = new FormData();
+                fd.append('order_id', String(id));
+                fd.append('file', blob, 'receipt.png');
+
+                var hdr = supabaseHeaders({ 'X-Telegram-User-Id': telegramUserId });
+                delete hdr['Content-Type'];
+                delete hdr['content-type'];
+
+                var uploadUrl = baseUrl + '/functions/v1/receipt-png-upload';
+                var res = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: hdr,
+                    body: fd,
+                });
+
                 var data = null;
                 try {
                     data = await res.json();
                 } catch (eJ) {
                     data = null;
                 }
+
                 if (!res.ok) {
                     restoreDlBtn();
                     var errMsg =
                         data && data.error
                             ? String(data.error)
-                            : langText('영수증 요청에 실패했습니다.', 'Receipt request failed.') + ' (HTTP ' + res.status + ')';
+                            : langText('서버 업로드에 실패했습니다.', 'Upload failed.') + ' (HTTP ' + res.status + ')';
                     if (tg && typeof tg.showAlert === 'function') tg.showAlert(errMsg);
                     else alert(errMsg);
                     return;
@@ -2943,9 +3038,8 @@
                     return;
                 }
 
-                var fileName = data.file_name || 'xtrade-receipt.svg';
+                var fileName = data.file_name || 'xtrade-receipt.png';
 
-                // 텔레그램 미니앱: 공식 downloadFile (HTTPS URL 필수)
                 if (tg && typeof tg.downloadFile === 'function') {
                     try {
                         tg.downloadFile({ url: data.url, file_name: fileName }, function () {
@@ -2962,7 +3056,6 @@
                     return;
                 }
 
-                // 일반 브라우저 폴백
                 try {
                     var a = document.createElement('a');
                     a.href = data.url;
@@ -2980,11 +3073,16 @@
                 }
                 restoreDlBtn();
             } catch (e) {
+                try {
+                    body.style.overflow = prevOverflow;
+                    body.style.maxHeight = prevMaxHeight;
+                    body.style.height = prevHeight;
+                    if (footer.parentNode === body) body.removeChild(footer);
+                } catch (e2) {}
                 restoreDlBtn();
                 var detail = e && e.message ? String(e.message) : String(e);
-                // CORS 실패·연결 끊김 등은 보통 "Failed to fetch" 로 표시됨
                 var net =
-                    langText('네트워크 오류로 받지 못했습니다.', 'Network error while fetching receipt.') +
+                    langText('PNG를 만들거나 올리지 못했습니다.', 'Could not create or upload PNG.') +
                     (detail ? ' (' + detail + ')' : '');
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(net);
                 else alert(net);
