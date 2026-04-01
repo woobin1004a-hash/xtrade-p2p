@@ -1697,18 +1697,22 @@
                 if (!dom.traderList) return;
 
                 var listings = [];
+                var serverLoaded = false;
 
                 // Supabase 우선: 모든 사용자가 같은 리스팅 목록을 보도록 처리
                 try {
                     var serverListings = await fetchListingsFromSupabase();
-                    if (Array.isArray(serverListings)) listings = serverListings.slice();
+                    if (Array.isArray(serverListings)) {
+                        listings = serverListings.slice();
+                        serverLoaded = true;
+                    }
                 } catch (e) {
                     // Supabase 호출 실패 시 로컬 fallback 사용
                     listings = [];
                 }
 
-                // 서버 데이터가 비어 있거나 실패하면 기존 로컬 저장소를 fallback으로 사용
-                if (!Array.isArray(listings) || !listings.length) {
+                // 서버 호출 실패일 때만 로컬 fallback 사용 (서버의 빈 배열은 "정상 상태"로 간주)
+                if (!serverLoaded) {
                     listings = loadListings();
                     listings = Array.isArray(listings) ? listings.slice() : [];
                 }
@@ -1718,6 +1722,11 @@
                     var oid = String(l && l.ownerId || '');
                     return oid !== 'virtual_gdragon' && oid !== 'virtual_superman';
                 });
+
+                // 서버 응답 기준으로 로컬 캐시를 동기화해 삭제 후 잔상 재등장을 방지
+                if (serverLoaded) {
+                    try { saveListings(listings); } catch (eSync) {}
+                }
 
                 // 부스트 높은 순 → 최신 순
                 listings.sort(function (a, b) {
@@ -1951,6 +1960,8 @@
         let orderSubmittedOverlayAction = 'myOffers';
         /** TonConnect sendTransaction 대기 중 — 이 때 closeModal·포커스 정리하면 전송이 취소될 수 있음 */
         let tonSendTransactionInFlight = false;
+        /** 전송용 지갑 연결(모달/QR) 진행 중 포커스 이벤트가 모달을 닫지 않도록 보호 */
+        let tonTransferConnectFlowActive = false;
         /** 전송하기 클릭 후 Tonkeeper로 나갔다 텔레그램 복귀 시 주문 완료 처리용 */
         let tonOrderSendPending = null;
         /** 텔레그램 복귀 경로에서 이미 patchOrder 했으면 await 이후 중복 저장 방지 */
@@ -3052,8 +3063,8 @@
                 }
 
                 /**
-                 * PC 웹뷰: <a download>+blob: 는 무시되는 경우가 많음 → 버튼 클릭에서 저장 API·대체 경로 순차 시도.
-                 * publicHttpsUrl: 업로드된 Storage 공개 URL (downloadFile / 새 탭 열기용).
+                 * PC 텔레그램: tg.downloadFile(HTTPS)·새 탭 열기는 기본 브라우저로 PNG가 떠서 사용자 불만 → 사용 안 함.
+                 * 저장 대화상자 → 이미지 클립보드 → 숨김 a[download] → URL 텍스트만 복사(브라우저 자동 실행 없음).
                  */
                 function showReceiptPngSaveOverlay(pngBlob, name, publicHttpsUrl) {
                     var fname = name || 'xtrade-receipt.png';
@@ -3068,8 +3079,8 @@
                         'background:#1a1528;border-radius:12px;padding:20px;max-width:360px;width:100%;text-align:center;box-sizing:border-box;';
                     var t = document.createElement('div');
                     t.textContent = langText(
-                        'PNG 저장하기를 누르면 저장 창이 뜨거나, 다른 방법으로 파일을 받을 수 있습니다.',
-                        'Tap Save PNG to open the save dialog, or use another method below.'
+                        '저장 창이 안 뜨면 "이미지 복사"로 그림판에 붙여넣어 저장하세요. 브라우저는 자동으로 열지 않습니다.',
+                        'If the save dialog does not appear, use "Copy image". We do not open a browser automatically.'
                     );
                     t.style.cssText = 'color:#e8e0f8;margin-bottom:16px;font-size:15px;line-height:1.5;';
                     var saveBtn = document.createElement('button');
@@ -3097,7 +3108,7 @@
                         if (ev.target === overlay) cleanup();
                     };
 
-                    // 클릭 한 번에: 저장 대화상자 → 공유 → 텔레그램 downloadFile(HTTPS) → blob 새 탭
+                    // 저장 대화상자 → 공유 → 클립보드/숨김 다운로드/URL 복사 (브라우저 탭 열기 없음)
                     saveBtn.onclick = function (ev) {
                         if (ev) {
                             ev.preventDefault();
@@ -3161,54 +3172,87 @@
                     }
 
                     function afterShareFail() {
-                        if (httpsUrl && tg && typeof tg.downloadFile === 'function') {
+                        if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
                             try {
-                                tg.downloadFile({ url: httpsUrl, file_name: fname }, function () {
-                                    cleanup();
-                                });
+                                var ci = new ClipboardItem({ 'image/png': pngBlob });
+                                navigator.clipboard
+                                    .write([ci])
+                                    .then(function () {
+                                        var msgCb = langText(
+                                            '이미지가 클립보드에 복사되었습니다. 그림판을 연 뒤 붙여넣기(Ctrl+V)로 저장하세요.',
+                                            'Image copied. Open Paint, paste (Ctrl+V), then save.'
+                                        );
+                                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgCb);
+                                        else alert(msgCb);
+                                        cleanup();
+                                    })
+                                    .catch(function () {
+                                        tryHiddenDownloadThenUrlCopy();
+                                    });
                                 return;
-                            } catch (eDl) {}
-                        }
-                        var w = null;
-                        try {
-                            w = window.open(objUrl, '_blank', 'noopener,noreferrer');
-                        } catch (eW) {}
-                        if (w) {
-                            var hintOpen = langText(
-                                '새 탭에 이미지가 열렸습니다. 이미지를 우클릭한 뒤 "이미지 저장"을 선택하세요.',
-                                'Image opened in a new tab. Right-click the image and choose Save image as.'
-                            );
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(hintOpen);
-                            else alert(hintOpen);
-                            setTimeout(cleanup, 500);
+                            } catch (eClip) {
+                                tryHiddenDownloadThenUrlCopy();
+                            }
                             return;
                         }
-                        if (httpsUrl) {
-                            var msg = langText(
-                                '자동 저장이 차단되었습니다. 아래 «HTTPS로 열기»를 눌러 브라우저에서 저장하세요.',
-                                'Auto-save was blocked. Use «Open via HTTPS» below and save from the browser.'
+                        tryHiddenDownloadThenUrlCopy();
+                    }
+
+                    function tryHiddenDownloadThenUrlCopy() {
+                        try {
+                            var a = document.createElement('a');
+                            a.href = objUrl;
+                            a.download = fname;
+                            a.rel = 'noopener';
+                            a.style.display = 'none';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                        } catch (eA) {}
+                        if (httpsUrl && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                            navigator.clipboard.writeText(httpsUrl).then(
+                                function () {
+                                    var msgUrl = langText(
+                                        '파일 주소를 클립보드에 복사했습니다. 필요할 때만 주소창에 붙여넣으세요. (자동으로 브라우저를 열지 않습니다)',
+                                        'File URL copied to clipboard. Paste in the address bar only if you need to. (Browser is not opened automatically.)'
+                                    );
+                                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgUrl);
+                                    else alert(msgUrl);
+                                },
+                                function () {
+                                    showFinalFailHint();
+                                }
                             );
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-                            else alert(msg);
                         } else {
-                            var msg2 = langText('이 환경에서는 PNG를 저장할 수 없습니다.', 'Cannot save PNG in this environment.');
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
-                            else alert(msg2);
+                            showFinalFailHint();
                         }
                     }
 
+                    function showFinalFailHint() {
+                        var msg = langText(
+                            '이 PC 환경에서는 자동 저장이 어렵습니다. 휴대폰 텔레그램 앱에서 같은 메뉴로 받아 보세요.',
+                            'Saving is limited on this PC. Try the same action in the Telegram mobile app.'
+                        );
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                        else alert(msg);
+                    }
+
+                    var copyImgBtn = document.createElement('button');
+                    copyImgBtn.type = 'button';
+                    copyImgBtn.textContent = langText('이미지 복사 (그림판에 붙여넣기)', 'Copy image (paste in Paint)');
+                    copyImgBtn.style.cssText =
+                        'display:block;width:100%;margin-top:12px;padding:10px 16px;background:#2d2640;color:#e8e0f8;border:1px solid #4a3f6b;border-radius:8px;cursor:pointer;font-size:14px;';
+                    copyImgBtn.onclick = function (ev) {
+                        if (ev) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                        }
+                        afterShareFail();
+                    };
+
                     box.appendChild(t);
                     box.appendChild(saveBtn);
-                    if (httpsUrl) {
-                        var linkOpen = document.createElement('a');
-                        linkOpen.href = httpsUrl;
-                        linkOpen.target = '_blank';
-                        linkOpen.rel = 'noopener noreferrer';
-                        linkOpen.textContent = langText('HTTPS로 열기 (새 탭)', 'Open via HTTPS (new tab)');
-                        linkOpen.style.cssText =
-                            'display:block;margin-top:14px;color:#a29bfe;font-size:14px;text-decoration:underline;';
-                        box.appendChild(linkOpen);
-                    }
+                    box.appendChild(copyImgBtn);
                     box.appendChild(document.createElement('br'));
                     box.appendChild(closeBtn);
                     overlay.appendChild(box);
@@ -5280,11 +5324,11 @@
 
             // 2) 서버 삭제 성공이면 목록만 갱신
             if (serverDeleted) {
-                    // 로컬 캐시도 함께 제거해 화면 잔상 방지
-                    if (idx >= 0) {
-                        listings.splice(idx, 1);
-                        saveListings(listings);
-                    }
+                    // 로컬 캐시도 항상 동일 ID 제거(인덱스 계산 실패/중복 데이터 잔상 방지)
+                    var nextListings = (Array.isArray(listings) ? listings : []).filter(function (l) {
+                        return String(l && l.id) !== String(listingId);
+                    });
+                    saveListings(nextListings);
                 closeListingDetail();
                 loadMarketplace();
                 var listingDeleted = langText('리스팅이 삭제되었습니다.', 'Listing deleted.');
@@ -6059,7 +6103,11 @@
                             if (tonOrderSendPending && tonOrderSendPending.orderId) {
                                 scheduleTonOrderSendCompleteOnTelegramReturn();
                             }
-                            if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
+                            if (
+                                !tonTransferConnectFlowActive &&
+                                tonConnectUIInstance &&
+                                typeof tonConnectUIInstance.closeModal === 'function'
+                            ) {
                                 try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseVisible) {}
                             }
                             restoreTonConnectionSafe();
@@ -6078,7 +6126,11 @@
                         if (tonOrderSendPending && tonOrderSendPending.orderId) {
                             scheduleTonOrderSendCompleteOnTelegramReturn();
                         }
-                        if (tonConnectUIInstance && typeof tonConnectUIInstance.closeModal === 'function') {
+                        if (
+                            !tonTransferConnectFlowActive &&
+                            tonConnectUIInstance &&
+                            typeof tonConnectUIInstance.closeModal === 'function'
+                        ) {
                             try { tonConnectUIInstance.closeModal('wallet-selected'); } catch (eCloseFocus) {}
                         }
                         restoreTonConnectionSafe();
@@ -6546,6 +6598,7 @@
             var o = opts && typeof opts === 'object' ? opts : {};
             var skipDisconnectForTransfer = o.skipDisconnectForTransfer === true;
             var forTransfer = o.forTransfer === true;
+            var preferSingleWallet = o.preferSingleWallet !== false;
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
                 var noUiMsg = 'TON Connect 초기화에 실패했습니다.';
@@ -6593,7 +6646,12 @@
                 }
                 var openedSingle = false;
                 // openSingleWalletModal은 PC에서만 사용 — 모바일 TWA(ios/android)에서는 연결이 안 잡히는 사례가 있어 전체 목록(openModal) 유지
-                if (forTransfer && isTelegramDesktopLike() && typeof tonConnectUIInstance.openSingleWalletModal === 'function') {
+                if (
+                    forTransfer &&
+                    preferSingleWallet &&
+                    isTelegramDesktopLike() &&
+                    typeof tonConnectUIInstance.openSingleWalletModal === 'function'
+                ) {
                     var targetWallet = lastApp || 'tonkeeper';
                     try {
                         await tonConnectUIInstance.openSingleWalletModal(targetWallet);
@@ -6655,7 +6713,8 @@
         function waitForTonTestnetTransferReady(maxMs) {
             var max = typeof maxMs === 'number' && maxMs > 0 ? maxMs : 180000;
             var intervalMs = 300;
-            var quickFailMs = 25000;
+            // PC 텔레그램 + Tonkeeper 데스크톱 승인 복귀는 25초를 넘기는 경우가 있어 여유를 둠
+            var quickFailMs = isTelegramDesktopLike() ? 90000 : 25000;
             var start = Date.now();
             return new Promise(function (resolve, reject) {
                 function tick() {
@@ -6693,6 +6752,8 @@
 
         /** 보관본과 동일 + 전송 시에만 disconnect 생략(위 openTonConnectModal 옵션) */
         async function ensureTonWalletConnectedForTransfer() {
+            tonTransferConnectFlowActive = true;
+            try {
             initTonConnectUIIfNeeded();
             if (!tonConnectUIInstance) {
                 throw new Error('TON Connect를 불러오지 못했습니다.');
@@ -6727,12 +6788,24 @@
                 });
                 pulse++;
             }
-            await openTonConnectModal({ skipDisconnectForTransfer: true, forTransfer: true });
+            await openTonConnectModal({ skipDisconnectForTransfer: true, forTransfer: true, preferSingleWallet: true });
             try {
                 return await waitForTonTestnetTransferReady(180000);
             } catch (eWait) {
+                // PC에서 single-wallet 모달 경로가 간헐적으로 붙지 않는 케이스: 전체 목록 모달로 1회 재시도
+                if (isTelegramDesktopLike()) {
+                    await openTonConnectModal({
+                        skipDisconnectForTransfer: true,
+                        forTransfer: true,
+                        preferSingleWallet: false
+                    });
+                    return await waitForTonTestnetTransferReady(180000);
+                }
                 if (eWait && eWait.message) throw eWait;
                 throw new Error('연결된 TON 지갑이 없습니다.');
+            }
+            } finally {
+                tonTransferConnectFlowActive = false;
             }
         }
 
