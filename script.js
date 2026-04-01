@@ -3051,26 +3051,6 @@
                     return p === 'ios' || p === 'android';
                 }
 
-                function saveLocalPngBlob(pngBlob, name) {
-                    var objUrl = URL.createObjectURL(pngBlob);
-                    try {
-                        var a = document.createElement('a');
-                        a.href = objUrl;
-                        a.download = name || 'xtrade-receipt.png';
-                        a.rel = 'noopener';
-                        a.style.display = 'none';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                    } finally {
-                        setTimeout(function () {
-                            try {
-                                URL.revokeObjectURL(objUrl);
-                            } catch (eRev) {}
-                        }, 2500);
-                    }
-                }
-
                 /** PC 웹뷰: 숨김 a.click()은 막히는 경우가 많아, 보이는 링크를 직접 누르게 함 */
                 function showReceiptPngSaveOverlay(pngBlob, name) {
                     var fname = name || 'xtrade-receipt.png';
@@ -3116,50 +3096,67 @@
                     a.onclick = function () {
                         setTimeout(cleanup, 800);
                     };
+
+                    // File System Access API: 텔레그램 웹뷰에서 자동 호출 시 SecurityError·무응답이 나와
+                    // 숨김 a.click()도 예외 없이 실패 → 오버레이가 안 뜨는 버그가 있었음.
+                    // 사용자 제스처(버튼 클릭)로만 시도하고, 실패해도 위 파란 링크는 그대로 둠.
+                    var pickerFn = window.showSaveFilePicker;
+                    var pickerBtnEl = null;
+                    if (typeof pickerFn === 'function') {
+                        pickerBtnEl = document.createElement('button');
+                        pickerBtnEl.type = 'button';
+                        pickerBtnEl.textContent = langText(
+                            '저장 위치 선택 (브라우저)',
+                            'Choose save location (browser)'
+                        );
+                        pickerBtnEl.style.cssText =
+                            'display:block;width:100%;margin-top:12px;padding:10px 16px;background:#2d2640;color:#e8e0f8;border:1px solid #4a3f6b;border-radius:8px;cursor:pointer;font-size:14px;';
+                        pickerBtnEl.onclick = function () {
+                            pickerFn
+                                .call(window, {
+                                    suggestedName: fname,
+                                    types: [
+                                        {
+                                            description: 'PNG',
+                                            accept: { 'image/png': ['.png'] },
+                                        },
+                                    ],
+                                })
+                                .then(function (handle) {
+                                    return handle.createWritable();
+                                })
+                                .then(function (writable) {
+                                    return writable.write(pngBlob).then(function () {
+                                        return writable.close();
+                                    });
+                                })
+                                .then(function () {
+                                    cleanup();
+                                })
+                                .catch(function (e) {
+                                    var msg = langText(
+                                        '이 환경에서는 저장 대화상자를 열 수 없습니다. 위의 파란 버튼으로 저장해 주세요.',
+                                        'Cannot open the save dialog here. Please use the blue button above.'
+                                    );
+                                    if (e && e.name === 'AbortError') return;
+                                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                                    else alert(msg);
+                                });
+                        };
+                    }
+
                     box.appendChild(t);
                     box.appendChild(a);
+                    if (pickerBtnEl) box.appendChild(pickerBtnEl);
                     box.appendChild(document.createElement('br'));
                     box.appendChild(closeBtn);
                     overlay.appendChild(box);
                     document.body.appendChild(overlay);
                 }
 
-                /** PC: File System Access API 우선, 실패 시 오버레이 링크 */
+                /** PC·웹: 항상 오버레이를 먼저 띄움(자동 showSaveFilePicker/숨김 링크는 웹뷰에서 무반응·무오버레이 버그 방지) */
                 function runPcReceiptSave(pngBlob, fname) {
-                    var picker = window.showSaveFilePicker;
-                    if (typeof picker === 'function') {
-                        picker
-                            .call(window, {
-                                suggestedName: fname,
-                                types: [
-                                    {
-                                        description: 'PNG',
-                                        accept: { 'image/png': ['.png'] },
-                                    },
-                                ],
-                            })
-                            .then(function (handle) {
-                                return handle.createWritable();
-                            })
-                            .then(function (writable) {
-                                return writable.write(pngBlob).then(function () {
-                                    return writable.close();
-                                });
-                            })
-                            .catch(function (e) {
-                                if (e && (e.name === 'AbortError' || e.name === 'NotAllowedError')) {
-                                    showReceiptPngSaveOverlay(pngBlob, fname);
-                                    return;
-                                }
-                                try {
-                                    saveLocalPngBlob(pngBlob, fname);
-                                } catch (e2) {
-                                    showReceiptPngSaveOverlay(pngBlob, fname);
-                                }
-                            });
-                    } else {
-                        showReceiptPngSaveOverlay(pngBlob, fname);
-                    }
+                    showReceiptPngSaveOverlay(pngBlob, fname);
                 }
 
                 if (shouldUseTelegramDownloadFile()) {
