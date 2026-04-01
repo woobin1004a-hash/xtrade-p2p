@@ -222,6 +222,11 @@
             border-top-color: rgba(15, 23, 42, 0.1);
             background: linear-gradient(180deg, #faf5ff 0%, #f5f3ff 100%);
         }
+        .theme-light .transaction-receipt-download {
+            background: #e8ecf4;
+            border-color: rgba(15, 23, 42, 0.12);
+            color: #0f172a;
+        }
         .theme-light .receipt-section--accent {
             background: rgba(139, 92, 246, 0.12);
             border-color: rgba(124, 58, 237, 0.35);
@@ -713,6 +718,29 @@
             padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             background: linear-gradient(180deg, rgba(15, 11, 24, 0.96) 0%, #0f0b18 100%);
+        }
+        .transaction-receipt-footer-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .transaction-receipt-download {
+            display: block;
+            width: 100%;
+            min-height: 48px;
+            padding: 14px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            font-weight: 800;
+            font-size: 16px;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(255, 255, 255, 0.12);
+        }
+        .transaction-receipt-download:active {
+            filter: brightness(1.08);
         }
         .transaction-receipt-ok {
             display: block;

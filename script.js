@@ -1942,6 +1942,9 @@
         const UI_LANG_STORAGE_KEY = 'uiLangMode';
         let finalCompleteConfirmResolver = null;
         let finalCompleteConfirmTimer = null;
+        /** 리스팅 삭제 확인 모달: 삭제 버튼 3초 지연 */
+        let listingDeleteConfirmTimer = null;
+        let listingDeletePendingId = null;
         let uiThemeMode = 'dark';
         let uiLangMode = 'ko';
         /** orderSubmittedOverlay 확인 버튼: 'myOffers' 내 주문 이동 */
@@ -2286,14 +2289,35 @@
             try { renderSavedBankAccounts(); } catch (eBankRend) {}
             var orderOkBtn = document.querySelector('.order-submitted-modal-ok');
             if (orderOkBtn) orderOkBtn.textContent = langText('확인', 'OK');
+            var receiptTitle = document.getElementById('transactionReceiptModalTitle');
+            if (receiptTitle) receiptTitle.textContent = langText('거래 상세 · 영수증', 'Trade details · Receipt');
+            var receiptDlBtn = document.getElementById('transactionReceiptDownloadBtn');
+            if (receiptDlBtn) receiptDlBtn.textContent = langText('다운로드', 'Download');
+            var receiptCloseBtn = document.getElementById('transactionReceiptCloseBtn');
+            if (receiptCloseBtn) receiptCloseBtn.textContent = langText('닫기', 'Close');
             var finalTitle = document.querySelector('.final-complete-confirm-title');
             if (finalTitle) finalTitle.textContent = langText('최종 확인', 'Final Confirmation');
             var finalDesc = document.querySelector('.final-complete-confirm-desc');
             if (finalDesc) finalDesc.textContent = langText('거래 완료 처리시 분쟁조정을 신청 할 수 없습니다.', 'After completing trade, dispute arbitration is not available.');
-            var finalBtns = document.querySelectorAll('.final-complete-confirm-actions .final-complete-confirm-btn');
+            var finalBtns = document.querySelectorAll('#finalCompleteConfirmOverlay .final-complete-confirm-actions .final-complete-confirm-btn');
             if (finalBtns && finalBtns.length >= 2) {
                 finalBtns[0].textContent = langText('취소', 'Cancel');
                 if (!finalBtns[1].disabled) finalBtns[1].textContent = langText('거래 완료', 'Complete Trade');
+            }
+            var listingDelTitle = document.getElementById('listingDeleteConfirmTitle');
+            if (listingDelTitle) listingDelTitle.textContent = langText('리스팅 삭제', 'Delete listing');
+            var listingDelDesc = document.getElementById('listingDeleteConfirmDesc');
+            if (listingDelDesc) {
+                listingDelDesc.textContent = langText(
+                    '이 리스팅을 삭제할까요? 삭제 후에는 복구할 수 없습니다.',
+                    'Delete this listing? This cannot be undone.'
+                );
+            }
+            var listingDelCancel = document.getElementById('listingDeleteConfirmCancelBtn');
+            if (listingDelCancel) listingDelCancel.textContent = langText('취소', 'Cancel');
+            var listingDelBtn = document.getElementById('listingDeleteConfirmBtn');
+            if (listingDelBtn && !listingDelBtn.disabled) {
+                listingDelBtn.textContent = langText('삭제', 'Delete');
             }
             try { updateListingRegisterBtnState(); } catch (eListingBtnLang) {}
             try { localStorage.setItem(UI_LANG_STORAGE_KEY, uiLangMode); } catch (e) {}
@@ -2828,6 +2852,96 @@
             return html;
         }
 
+        /** 거래 영수증 모달에서 다운로드할 주문 ID */
+        var transactionReceiptCurrentOrderId = null;
+
+        /** 독립 HTML 파일에 넣을 영수증 스타일(모달과 유사한 보기) */
+        function getTransactionReceiptDownloadStyles() {
+            return (
+                'body{margin:0;padding:24px 16px 32px;background:#0f0b18;color:#f1f5f9;' +
+                'font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased;}' +
+                '.receipt-export-wrap{max-width:440px;margin:0 auto;}' +
+                '.receipt-export-meta{text-align:center;color:#64748b;font-size:12px;margin-top:20px;line-height:1.5;}' +
+                '.receipt-section--accent{text-align:center;padding:12px 8px 14px;margin-bottom:4px;border-radius:12px;' +
+                'background:rgba(139,92,246,0.15);border:1px solid rgba(168,85,247,0.35);}' +
+                '.receipt-title{font-size:20px;font-weight:900;color:#e9d5ff;}' +
+                '.receipt-sub{margin-top:6px;font-size:13px;color:#c4b5fd;font-weight:700;}' +
+                '.receipt-sep{height:1px;background:rgba(255,255,255,0.1);margin:12px 0;}' +
+                '.receipt-section-title{font-size:11px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:6px;}' +
+                '.receipt-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 0;' +
+                'border-bottom:1px solid rgba(255,255,255,0.05);}' +
+                '.receipt-row:last-child{border-bottom:none;}' +
+                '.receipt-k{flex-shrink:0;max-width:38%;font-size:13px;color:#94a3b8;font-weight:700;}' +
+                '.receipt-v{flex:1;text-align:right;font-size:14px;font-weight:800;color:#f1f5f9;line-height:1.45;overflow-wrap:anywhere;word-break:break-word;}' +
+                '.receipt-v--break{word-break:break-all;}'
+            );
+        }
+
+        /** 거래 내역 영수증을 HTML 파일로 저장(브라우저 다운로드) */
+        function downloadCurrentTransactionReceipt() {
+            var id = transactionReceiptCurrentOrderId;
+            if (!id) {
+                var miss = langText('다운로드할 영수증이 없습니다.', 'No receipt to download.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(miss);
+                else alert(miss);
+                return;
+            }
+            var orders = Array.isArray(myOffersState.orders) ? myOffersState.orders : [];
+            var o = orders.find(function (x) {
+                return String(x && x.id) === String(id);
+            });
+            if (!o) {
+                var miss2 = langText('주문을 찾을 수 없습니다.', 'Order not found.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(miss2);
+                else alert(miss2);
+                return;
+            }
+            var inner = buildTransactionReceiptInnerHtml(o);
+            var docTitle = langText('XTrade 거래 영수증', 'XTrade Transaction Receipt');
+            var exportedLine =
+                langText('다운로드 시각', 'Exported at') +
+                ': ' +
+                new Date().toLocaleString(uiLangMode === 'en' ? 'en-US' : 'ko-KR', { dateStyle: 'medium', timeStyle: 'short' });
+            var html =
+                '<!DOCTYPE html>\n' +
+                '<html lang="' +
+                (uiLangMode === 'en' ? 'en' : 'ko') +
+                '">\n<head>\n<meta charset="UTF-8">\n' +
+                '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+                '<title>' +
+                escapeHtml(docTitle) +
+                '</title>\n<style>\n' +
+                getTransactionReceiptDownloadStyles() +
+                '\n</style>\n</head>\n<body>\n' +
+                '<div class="receipt-export-wrap">\n' +
+                inner +
+                '\n</div>\n' +
+                '<p class="receipt-export-meta">' +
+                escapeHtml(exportedLine) +
+                ' · XTrade P2P</p>\n' +
+                '</body>\n</html>';
+            try {
+                var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'xtrade-receipt-' + String(id).replace(/[^a-zA-Z0-9._-]/g, '_') + '.html';
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch (eRev) {}
+                }, 2500);
+            } catch (eDl) {
+                var err = langText('다운로드에 실패했습니다.', 'Download failed.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
+                else alert(err);
+            }
+        }
+
         /** 영수증 모달 열릴 때 뒤 목록이 스크롤되지 않도록 body 고정(iOS 텔레그램 WebView 대응) */
         var _receiptBodyScrollY = 0;
 
@@ -2860,6 +2974,7 @@
         }
 
         function closeTransactionReceiptDetail() {
+            transactionReceiptCurrentOrderId = null;
             var el = document.getElementById('transactionReceiptOverlay');
             if (el) el.classList.add('hidden');
             unlockScrollForTransactionReceipt();
@@ -2872,6 +2987,7 @@
                 return String(x && x.id) === id;
             });
             if (!o) return;
+            transactionReceiptCurrentOrderId = id;
             var body = document.getElementById('transactionReceiptBody');
             var overlay = document.getElementById('transactionReceiptOverlay');
             if (!body || !overlay) return;
@@ -4662,17 +4778,36 @@
             openListingEdit(listingId);
         }
 
-        function deleteListingFromDetail() {
-            var listingId = listingDetailState && listingDetailState.listingId ? listingDetailState.listingId : null;
-            var deleteBtnEl = document.getElementById('detailDeleteBtn');
-            if (!listingId && deleteBtnEl && deleteBtnEl.dataset) listingId = deleteBtnEl.dataset.listingId || null;
-            if (!listingId) {
-                var detailEl = document.getElementById('listingDetailView');
-                listingId = detailEl && detailEl.dataset ? detailEl.dataset.listingId : null;
+        function clearListingDeleteConfirmTimer() {
+            if (listingDeleteConfirmTimer) {
+                clearInterval(listingDeleteConfirmTimer);
+                listingDeleteConfirmTimer = null;
             }
-            // deleteListing은 async이므로 실패 시에도 사용자에게 표시
+        }
+
+        function closeListingDeleteConfirmByOverlay(event) {
+            if (!event || event.target !== event.currentTarget) return;
+            closeListingDeleteConfirm(false);
+        }
+
+        /**
+         * 리스팅 삭제 확인 모달 닫기
+         * @param {boolean} confirmed true면 삭제 실행(deleteListing)
+         */
+        function closeListingDeleteConfirm(confirmed) {
+            clearListingDeleteConfirmTimer();
+            var overlay = document.getElementById('listingDeleteConfirmOverlay');
+            if (overlay) overlay.classList.add('hidden');
+            var btn = document.getElementById('listingDeleteConfirmBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = langText('삭제', 'Delete') + ' (3)';
+            }
+            var pending = listingDeletePendingId;
+            listingDeletePendingId = null;
+            if (!confirmed || !pending) return;
             try {
-                var p = deleteListing(listingId, true);
+                var p = deleteListing(pending, true);
                 if (p && typeof p.catch === 'function') {
                     p.catch(function (e) {
                         var msg = '삭제 오류: ' + (e && e.message ? e.message : String(e));
@@ -4685,6 +4820,57 @@
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
                 else alert(msg2);
             }
+        }
+
+        /** 상세에서 삭제 클릭 시 확인 모달(삭제 버튼 3초 후 활성) */
+        function openListingDeleteConfirmModal(listingId) {
+            if (!listingId) {
+                var miss = langText('삭제할 리스팅 ID를 찾지 못했습니다.', 'Could not find listing ID to delete.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(miss);
+                else alert(miss);
+                return;
+            }
+            listingDeletePendingId = String(listingId);
+            var overlay = document.getElementById('listingDeleteConfirmOverlay');
+            var btn = document.getElementById('listingDeleteConfirmBtn');
+            var titleEl = document.getElementById('listingDeleteConfirmTitle');
+            var descEl = document.getElementById('listingDeleteConfirmDesc');
+            var cancelEl = document.getElementById('listingDeleteConfirmCancelBtn');
+            if (titleEl) titleEl.textContent = langText('리스팅 삭제', 'Delete listing');
+            if (descEl) {
+                descEl.textContent = langText(
+                    '이 리스팅을 삭제할까요? 삭제 후에는 복구할 수 없습니다.',
+                    'Delete this listing? This cannot be undone.'
+                );
+            }
+            if (cancelEl) cancelEl.textContent = langText('취소', 'Cancel');
+            if (!overlay || !btn) return;
+            var left = 3;
+            btn.disabled = true;
+            btn.textContent = langText('삭제', 'Delete') + ' (' + String(left) + ')';
+            overlay.classList.remove('hidden');
+            clearListingDeleteConfirmTimer();
+            listingDeleteConfirmTimer = setInterval(function () {
+                left -= 1;
+                if (left > 0) {
+                    btn.textContent = langText('삭제', 'Delete') + ' (' + String(left) + ')';
+                    return;
+                }
+                clearListingDeleteConfirmTimer();
+                btn.disabled = false;
+                btn.textContent = langText('삭제', 'Delete');
+            }, 1000);
+        }
+
+        function deleteListingFromDetail() {
+            var listingId = listingDetailState && listingDetailState.listingId ? listingDetailState.listingId : null;
+            var deleteBtnEl = document.getElementById('detailDeleteBtn');
+            if (!listingId && deleteBtnEl && deleteBtnEl.dataset) listingId = deleteBtnEl.dataset.listingId || null;
+            if (!listingId) {
+                var detailEl = document.getElementById('listingDetailView');
+                listingId = detailEl && detailEl.dataset ? detailEl.dataset.listingId : null;
+            }
+            openListingDeleteConfirmModal(listingId);
         }
 
         function confirmDeleteAsync(message) {

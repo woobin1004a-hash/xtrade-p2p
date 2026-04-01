@@ -8,10 +8,10 @@
     <script src="https://unpkg.com/@tonconnect/ui@2.4.2/dist/tonconnect-ui.min.js"></script>
     <script src="https://unpkg.com/tonweb@0.0.66/dist/tonweb.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260401-order-unit-bank-i18n-v109">
+<link rel="stylesheet" href="style.css?v=260401-receipt-download-v111">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260401-order-unit-bank-i18n-v109</div>
+    <div class="build-tag" id="buildTag">build: 260401-receipt-download-v111</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -470,6 +470,18 @@
         </div>
     </div>
 
+    <!-- 리스팅 삭제 확인 (삭제 버튼은 3초 후 활성화) -->
+    <div id="listingDeleteConfirmOverlay" class="modal-overlay hidden" onclick="closeListingDeleteConfirmByOverlay(event)">
+        <div class="final-complete-confirm-dialog" onclick="event.stopPropagation()">
+            <h3 class="final-complete-confirm-title" id="listingDeleteConfirmTitle">리스팅 삭제</h3>
+            <p class="final-complete-confirm-desc" id="listingDeleteConfirmDesc">이 리스팅을 삭제할까요? 삭제 후에는 복구할 수 없습니다.</p>
+            <div class="final-complete-confirm-actions">
+                <button type="button" id="listingDeleteConfirmCancelBtn" class="final-complete-confirm-btn final-complete-confirm-btn--cancel" onclick="closeListingDeleteConfirm(false)">취소</button>
+                <button type="button" id="listingDeleteConfirmBtn" class="final-complete-confirm-btn final-complete-confirm-btn--confirm" disabled onclick="closeListingDeleteConfirm(true)">삭제 (3)</button>
+            </div>
+        </div>
+    </div>
+
     <div id="myPageView" class="hidden">
         <div class="top-header">
             <div class="logo">👤 My Page</div>
@@ -696,12 +708,15 @@
     <div id="transactionReceiptOverlay" class="transaction-receipt-overlay modal-overlay hidden" onclick="if (event.target === this) closeTransactionReceiptDetail()">
         <div class="transaction-receipt-dialog" onclick="event.stopPropagation()">
             <div class="transaction-receipt-header">
-                <span class="transaction-receipt-title">거래 상세 · 영수증</span>
+                <span id="transactionReceiptModalTitle" class="transaction-receipt-title">거래 상세 · 영수증</span>
                 <button type="button" class="transaction-receipt-close" onclick="closeTransactionReceiptDetail()" aria-label="닫기">×</button>
             </div>
             <div id="transactionReceiptBody" class="transaction-receipt-body"></div>
             <div class="transaction-receipt-footer">
-                <button type="button" class="transaction-receipt-ok" onclick="closeTransactionReceiptDetail()">닫기</button>
+                <div class="transaction-receipt-footer-actions">
+                    <button type="button" id="transactionReceiptDownloadBtn" class="transaction-receipt-download" onclick="downloadCurrentTransactionReceipt()">다운로드</button>
+                    <button type="button" id="transactionReceiptCloseBtn" class="transaction-receipt-ok" onclick="closeTransactionReceiptDetail()">닫기</button>
+                </div>
             </div>
         </div>
     </div>
@@ -731,6 +746,6 @@
     </div>
 
     
-<script src="script.js?v=260401-order-unit-bank-i18n-v109"></script>
+<script src="script.js?v=260401-receipt-download-v111"></script>
 </body>
 </html>
