@@ -843,7 +843,8 @@
             background: transparent; border: none; outline: none; color: #e5e7eb;
             font-size: 20px; font-weight: 700;
         }
-        .order-input-unit { color: #d1d5db; font-size: 30px; font-weight: 900; }
+        /* USDT / KRW 단위 텍스트·아이콘 동일 스케일(이전엔 USDT만 30px로 컸음) */
+        .order-input-unit { color: #d1d5db; font-size: 24px; font-weight: 900; }
         .order-input-unit--krw { font-size: 24px; }
         .order-unit-wrap {
             display: inline-flex;
@@ -857,6 +858,14 @@
             width: 24px; height: 24px; border-radius: 50%;
             display: inline-flex; align-items: center; justify-content: center;
             color: #fff; font-size: 12px; font-weight: 900;
+            flex-shrink: 0;
+        }
+        .order-unit-icon--usdt,
+        .order-unit-icon--krw {
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            line-height: 1;
         }
         .order-unit-icon--usdt { background: #2fbf8f; }
         .order-unit-icon--krw { background: #2b7fff; }
@@ -1291,7 +1300,9 @@
             .order-static-input { font-size: 16px; }
             .order-unit-wrap { gap: 6px; max-width: 50%; }
             .order-unit-icon { width: 20px; height: 20px; font-size: 11px; }
-            .order-input-unit { font-size: 24px; }
+            .order-unit-icon--usdt,
+            .order-unit-icon--krw { width: 20px; height: 20px; font-size: 11px; }
+            .order-input-unit { font-size: 20px; }
             .order-input-unit--krw { font-size: 20px; }
             .order-prefix-icon { width: 20px; height: 20px; font-size: 11px; }
         }
