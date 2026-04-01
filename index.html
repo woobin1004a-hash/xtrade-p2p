@@ -10,10 +10,10 @@
     <!-- 거래 영수증 PNG 저장(html2canvas) -->
     <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     
-<link rel="stylesheet" href="style.css?v=260401-receipt-save-v114">
+<link rel="stylesheet" href="style.css?v=260401-receipt-png-only-v115">
 </head>
 <body>
-    <div class="build-tag" id="buildTag">build: 260401-receipt-save-v114</div>
+    <div class="build-tag" id="buildTag">build: 260401-receipt-png-only-v115</div>
 
     <div id="marketplaceView">
         <div class="top-header">
@@ -723,24 +723,6 @@
         </div>
     </div>
 
-    <!-- 영수증 PNG 미리보기 (iOS·인앱브라우저는 a[download] 제한 → 파일로 저장 시 새 창 안내) -->
-    <div id="receiptPngExportOverlay" class="receipt-png-export-overlay modal-overlay hidden" onclick="if (event.target === this) closeReceiptPngExportModal()">
-        <div class="receipt-png-export-dialog" onclick="event.stopPropagation()">
-            <div class="receipt-png-export-header">
-                <span id="receiptPngExportTitle" class="receipt-png-export-title">영수증 이미지</span>
-                <button type="button" class="receipt-png-export-close" onclick="closeReceiptPngExportModal()" aria-label="닫기">×</button>
-            </div>
-            <p id="receiptPngExportHint" class="receipt-png-export-hint"></p>
-            <div class="receipt-png-export-img-wrap">
-                <img id="receiptPngExportImg" class="receipt-png-export-img" alt="" />
-            </div>
-            <div class="receipt-png-export-actions">
-                <button type="button" id="receiptPngSaveFileBtn" class="receipt-png-export-btn receipt-png-export-btn--primary" onclick="saveReceiptPngFileFromModal()">파일로 저장</button>
-                <button type="button" id="receiptPngExportCloseBtn" class="receipt-png-export-btn receipt-png-export-btn--ghost" onclick="closeReceiptPngExportModal()">닫기</button>
-            </div>
-        </div>
-    </div>
-
     <!-- 개인정보 처리방침 (iframe: privacy-policy.html) -->
     <div id="privacyPolicyOverlay" class="modal-overlay privacy-policy-overlay hidden" onclick="closePrivacyPolicyIfOverlay(event)">
         <div class="modal-dialog legal-modal-dialog" onclick="event.stopPropagation()">
@@ -766,6 +748,6 @@
     </div>
 
     
-<script src="script.js?v=260401-receipt-save-v114"></script>
+<script src="script.js?v=260401-receipt-png-only-v115"></script>
 </body>
 </html>
