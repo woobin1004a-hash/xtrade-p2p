@@ -3040,38 +3040,63 @@
 
                 var fileName = data.file_name || 'xtrade-receipt.png';
 
-                if (tg && typeof tg.downloadFile === 'function') {
+                /**
+                 * Supabase 공개 URL을 그대로 열면(특히 target=_blank) 브라우저가 PNG를 페이지에 띄움.
+                 * fetch→Blob→로컬 URL로 저장하면 미니앱 화면이 바뀌지 않음.
+                 */
+                async function saveUrlAsDownloadFile(url, name) {
+                    var r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+                    if (!r.ok) throw new Error('GET ' + r.status);
+                    var blob = await r.blob();
+                    var objUrl = URL.createObjectURL(blob);
                     try {
-                        tg.downloadFile({ url: data.url, file_name: fileName }, function () {
-                            restoreDlBtn();
-                        });
-                    } catch (eDl) {
-                        restoreDlBtn();
-                        var dlErr =
-                            langText('다운로드 시작 실패: ', 'Download failed: ') +
-                            (eDl && eDl.message ? String(eDl.message) : String(eDl));
-                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(dlErr);
-                        else alert(dlErr);
+                        var a = document.createElement('a');
+                        a.href = objUrl;
+                        a.download = name || 'xtrade-receipt.png';
+                        a.rel = 'noopener';
+                        a.style.display = 'none';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    } finally {
+                        setTimeout(function () {
+                            try {
+                                URL.revokeObjectURL(objUrl);
+                            } catch (eRev) {}
+                        }, 2500);
                     }
-                    return;
                 }
 
                 try {
-                    var a = document.createElement('a');
-                    a.href = data.url;
-                    a.download = fileName;
-                    a.rel = 'noopener';
-                    a.target = '_blank';
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } catch (eA) {
-                    try {
-                        window.open(data.url, '_blank');
-                    } catch (e2) {}
+                    await saveUrlAsDownloadFile(data.url, fileName);
+                    restoreDlBtn();
+                } catch (eSave) {
+                    // CORS 등으로 fetch 실패 시 텔레그램 공식 downloadFile(HTTPS URL)
+                    if (tg && typeof tg.downloadFile === 'function') {
+                        try {
+                            tg.downloadFile({ url: data.url, file_name: fileName }, function () {
+                                restoreDlBtn();
+                            });
+                            return;
+                        } catch (eDl) {
+                            restoreDlBtn();
+                            var dlErr =
+                                langText('다운로드에 실패했습니다. ', 'Download failed. ') +
+                                (eDl && eDl.message ? String(eDl.message) : String(eDl));
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(dlErr);
+                            else alert(dlErr);
+                            return;
+                        }
+                    }
+                    restoreDlBtn();
+                    var hint =
+                        langText(
+                            '파일을 저장하지 못했습니다. Storage CORS에 GitHub Pages 도메인을 추가했는지 확인해 주세요. ',
+                            'Could not save file. Check Storage CORS for your site origin. '
+                        ) + (eSave && eSave.message ? String(eSave.message) : '');
+                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(hint);
+                    else alert(hint);
                 }
-                restoreDlBtn();
             } catch (e) {
                 try {
                     body.style.overflow = prevOverflow;
