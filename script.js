@@ -2857,7 +2857,7 @@
 
         /** 거래 영수증 모달에서 다운로드할 주문 ID */
         var transactionReceiptCurrentOrderId = null;
-        /** PNG 미리보기 모달용 (공유·저장) */
+        /** PNG 미리보기 모달용 (파일 저장) */
         var receiptPngExportLastBlob = null;
         var receiptPngExportLastFilename = '';
         var receiptPngExportObjectUrl = null;
@@ -2868,12 +2868,10 @@
             var h = document.getElementById('receiptPngExportHint');
             if (h) {
                 h.textContent = langText(
-                    '이미지를 길게 눌러 사진에 저장하거나, 공유하기로 파일로 저장할 수 있습니다.',
-                    'Long-press the image to save to Photos, or use Share / Save as file.'
+                    '「파일로 저장」으로 다운로드하거나, 이미지를 길게 눌러 사진에 저장할 수 있습니다.',
+                    'Tap Save as file to download, or long-press the image to save to Photos.'
                 );
             }
-            var sb = document.getElementById('receiptPngShareBtn');
-            if (sb) sb.textContent = langText('공유하기', 'Share');
             var fb = document.getElementById('receiptPngSaveFileBtn');
             if (fb) fb.textContent = langText('파일로 저장', 'Save as file');
             var cb = document.getElementById('receiptPngExportCloseBtn');
@@ -2916,52 +2914,96 @@
             if (ov) ov.classList.remove('hidden');
         }
 
-        /** 공유 시트(iOS·안드로이드) — 버튼 탭으로 사용자 제스처 유지 */
-        function shareReceiptPngFromModal() {
-            if (!receiptPngExportLastBlob) return;
-            var name = receiptPngExportLastFilename || 'xtrade-receipt.png';
-            var file = new File([receiptPngExportLastBlob], name, { type: 'image/png' });
-            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator
-                    .share({
-                        files: [file],
-                        title: langText('XTrade 영수증', 'XTrade receipt'),
-                        text: langText('거래 영수증', 'Transaction receipt'),
-                    })
-                    .catch(function () {});
-            } else {
-                var msg = langText(
-                    '이 환경에서는 시스템 공유를 쓸 수 없습니다. 이미지를 길게 눌러 저장하거나 「파일로 저장」을 눌러 보세요.',
-                    'System share is not available. Long-press the image or tap Save as file.'
-                );
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-                else alert(msg);
-            }
-        }
-
-        /** 데스크톱 위주. 모바일은 사용자 탭이 있어도 무시되는 경우 있음 */
+        /**
+         * 파일로 저장
+         * - 데스크톱·일반 Android Chrome: <a download> + Blob URL (동작)
+         * - iOS Safari / 텔레그램·인앱 WebView: WebKit이 blob에 대한 download 속성을 무시하는 경우가 많아
+         *   사용자 탭 직후 window.open으로 이미지 전용 HTML을 띄움 → 길게 눌러 저장 또는 시스템 메뉴
+         */
         function saveReceiptPngFileFromModal() {
             if (!receiptPngExportLastBlob) return;
             var name = receiptPngExportLastFilename || 'xtrade-receipt.png';
-            try {
-                var url = URL.createObjectURL(receiptPngExportLastBlob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = name;
-                a.rel = 'noopener';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(function () {
-                    try {
-                        URL.revokeObjectURL(url);
-                    } catch (e) {}
-                }, 2000);
-            } catch (e) {
-                var msg = langText('저장에 실패했습니다. 공유하기 또는 이미지 길게 누르기를 이용해 주세요.', 'Save failed. Try Share or long-press the image.');
-                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-                else alert(msg);
+            var url = receiptPngExportObjectUrl;
+            if (!url) {
+                url = URL.createObjectURL(receiptPngExportLastBlob);
             }
+
+            var isIOS =
+                /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            var isTG = !!(window.Telegram && window.Telegram.WebApp);
+
+            function tryAnchorDownload() {
+                try {
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = name;
+                    a.rel = 'noopener';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            if (!isIOS && !isTG) {
+                tryAnchorDownload();
+                return;
+            }
+
+            var hint = escapeHtml(
+                langText('이미지를 길게 눌러 사진에 저장하세요.', 'Long-press the image to save to Photos.')
+            );
+            var w = null;
+            try {
+                w = window.open('', '_blank');
+            } catch (eOpen) {}
+            if (w) {
+                try {
+                    var doc = w.document;
+                    doc.open();
+                    doc.write(
+                        '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+                            '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+                            '<title>' +
+                            escapeHtml(name) +
+                            '</title></head>' +
+                            '<body style="margin:0;background:#0f0b18;color:#cbd5e1;font-family:system-ui,-apple-system,sans-serif">' +
+                            '<p style="padding:14px 16px;font-size:13px;line-height:1.5;text-align:center">' +
+                            hint +
+                            '</p>' +
+                            '<div style="padding:0 12px 28px;text-align:center">' +
+                            '<img src="' +
+                            url +
+                            '" alt="" style="max-width:100%;height:auto;border-radius:10px;border:1px solid rgba(255,255,255,.12)"/>' +
+                            '</div></body></html>'
+                    );
+                    doc.close();
+                } catch (eDoc) {
+                    try {
+                        w.close();
+                    } catch (eC) {}
+                    if (!tryAnchorDownload()) {
+                        var msg1 = langText(
+                            '저장 창을 열지 못했습니다. 위 미리보기에서 이미지를 길게 눌러 저장해 주세요.',
+                            'Could not open save view. Long-press the image in the preview to save.'
+                        );
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg1);
+                        else alert(msg1);
+                    }
+                }
+                return;
+            }
+
+            if (tryAnchorDownload()) return;
+            var msg2 = langText(
+                '팝업이 차단되었거나 저장을 지원하지 않습니다. 이미지를 길게 눌러 사진에 저장해 주세요.',
+                'Popup blocked or save not supported. Long-press the image to save.'
+            );
+            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg2);
+            else alert(msg2);
         }
 
         /** 거래 내역 영수증 → PNG (html2canvas). iOS·텔레그램은 비동기 후 a[download]가 막히므로 미리보기 모달로 안내 */
