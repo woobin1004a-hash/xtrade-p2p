@@ -819,6 +819,21 @@
             word-break: break-word;
         }
         .receipt-v--break { word-break: break-all; }
+        /* PNG 캡처 시에만 잠시 붙는 하단 안내(스크립트에서 제거) */
+        .receipt-png-footer {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: #64748b;
+            line-height: 1.45;
+        }
+        .theme-light .receipt-png-footer {
+            border-top-color: rgba(15, 23, 42, 0.1);
+            color: #64748b;
+        }
         .order-flow-view { min-height: 100vh; background: #07060d; padding-bottom: 92px; }
         .order-flow-header {
             height: 56px; display: flex; align-items: center; justify-content: center;
