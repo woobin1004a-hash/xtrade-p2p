@@ -3085,17 +3085,56 @@
                         else alert(dlErr);
                     }
                 } else {
-                    try {
-                        saveLocalPngBlob(blob, fileName);
-                        restoreDlBtn();
-                    } catch (ePc) {
-                        restoreDlBtn();
-                        if (tg && typeof tg.showAlert === 'function') {
-                            tg.showAlert(
-                                langText('PC에서 저장에 실패했습니다.', 'Save failed on PC.') +
-                                    (ePc && ePc.message ? ' ' + String(ePc.message) : '')
-                            );
-                        } else alert(ePc);
+                    // PC·데스크톱 웹뷰: html2canvas·fetch 업로드 후에는 "사용자 제스처"가 끊겨 a.click() 저장이 조용히 무시되는 경우가 많음
+                    // → 확인창/팝업에서 한 번 더 누른 뒤 저장(두 번째 제스처로 브라우저가 다운로드 허용)
+                    restoreDlBtn();
+                    var runSaveLocalPng = function () {
+                        try {
+                            saveLocalPngBlob(blob, fileName);
+                        } catch (ePc) {
+                            var m = String(ePc && ePc.message ? ePc.message : ePc);
+                            if (tg && typeof tg.showAlert === 'function') {
+                                tg.showAlert(langText('저장 실패: ', 'Save failed: ') + m);
+                            } else alert(m);
+                        }
+                    };
+                    if (tg && typeof tg.showConfirm === 'function') {
+                        tg.showConfirm(
+                            langText(
+                                'PNG 영수증을 이 기기에 저장할까요? (확인 후 다운로드됩니다)',
+                                'Save PNG receipt on this device? Confirm to download.'
+                            ),
+                            function (ok) {
+                                if (ok) runSaveLocalPng();
+                            }
+                        );
+                    } else if (tg && typeof tg.showPopup === 'function') {
+                        tg.showPopup(
+                            {
+                                title: langText('영수증 저장', 'Save receipt'),
+                                message: langText(
+                                    '「저장」을 누르면 PNG가 다운로드됩니다.',
+                                    'Tap Save to download the PNG.'
+                                ),
+                                buttons: [
+                                    { id: 'save', type: 'default', text: langText('저장', 'Save') },
+                                    { type: 'cancel' },
+                                ],
+                            },
+                            function (btnId) {
+                                if (btnId === 'save') runSaveLocalPng();
+                            }
+                        );
+                    } else if (typeof window.confirm === 'function') {
+                        if (
+                            window.confirm(
+                                langText('PNG 파일을 저장할까요?', 'Save the PNG file?')
+                            )
+                        ) {
+                            runSaveLocalPng();
+                        }
+                    } else {
+                        runSaveLocalPng();
                     }
                 }
             } catch (e) {
