@@ -227,6 +227,122 @@
             border-color: rgba(15, 23, 42, 0.12);
             color: #0f172a;
         }
+        /* 영수증 PNG 내보내기 미리보기 (모바일·텔레그램 대응) */
+        .receipt-png-export-overlay {
+            z-index: 100020;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.72);
+        }
+        .receipt-png-export-dialog {
+            width: 100%;
+            max-width: 420px;
+            max-height: min(92vh, 100dvh);
+            background: linear-gradient(180deg, #1a1428 0%, #0f0b18 100%);
+            border: 1px solid #32294a;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+        }
+        .receipt-png-export-header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .receipt-png-export-title {
+            font-size: 16px;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+        .receipt-png-export-close {
+            min-width: 40px;
+            min-height: 40px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .receipt-png-export-hint {
+            flex-shrink: 0;
+            margin: 0;
+            padding: 10px 14px 0;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .receipt-png-export-img-wrap {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            padding: 10px 14px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .receipt-png-export-img {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #0f0b18;
+        }
+        .receipt-png-export-actions {
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 14px 16px;
+            padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .receipt-png-export-btn {
+            width: 100%;
+            min-height: 48px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 15px;
+            cursor: pointer;
+            border: none;
+        }
+        .receipt-png-export-btn--primary {
+            background: #9d4edd;
+            color: #fff;
+        }
+        .receipt-png-export-btn--secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+        .receipt-png-export-btn--ghost {
+            background: transparent;
+            color: #94a3b8;
+            font-size: 14px;
+            min-height: 40px;
+        }
+        .theme-light .receipt-png-export-dialog {
+            background: linear-gradient(180deg, #faf5ff 0%, #f5f3ff 100%);
+            border-color: #d6ccff;
+        }
+        .theme-light .receipt-png-export-title { color: #0f172a; }
+        .theme-light .receipt-png-export-hint { color: #64748b; }
+        .theme-light .receipt-png-export-close {
+            background: #e8ecf4;
+            color: #0f172a;
+        }
+        .theme-light .receipt-png-export-btn--secondary {
+            background: #e8ecf4;
+            border-color: rgba(15, 23, 42, 0.12);
+            color: #0f172a;
+        }
         .theme-light .receipt-section--accent {
             background: rgba(139, 92, 246, 0.12);
             border-color: rgba(124, 58, 237, 0.35);
@@ -741,6 +857,11 @@
         }
         .transaction-receipt-download:active {
             filter: brightness(1.08);
+        }
+        .transaction-receipt-download:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            pointer-events: none;
         }
         .transaction-receipt-ok {
             display: block;

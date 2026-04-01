@@ -2295,6 +2295,9 @@
             if (receiptDlBtn) receiptDlBtn.textContent = langText('다운로드', 'Download');
             var receiptCloseBtn = document.getElementById('transactionReceiptCloseBtn');
             if (receiptCloseBtn) receiptCloseBtn.textContent = langText('닫기', 'Close');
+            try {
+                refreshReceiptPngExportModalTexts();
+            } catch (ePngLang) {}
             var finalTitle = document.querySelector('.final-complete-confirm-title');
             if (finalTitle) finalTitle.textContent = langText('최종 확인', 'Final Confirmation');
             var finalDesc = document.querySelector('.final-complete-confirm-desc');
@@ -2854,8 +2857,114 @@
 
         /** 거래 영수증 모달에서 다운로드할 주문 ID */
         var transactionReceiptCurrentOrderId = null;
+        /** PNG 미리보기 모달용 (공유·저장) */
+        var receiptPngExportLastBlob = null;
+        var receiptPngExportLastFilename = '';
+        var receiptPngExportObjectUrl = null;
 
-        /** 거래 내역 영수증을 PNG로 저장(html2canvas로 모달 본문 캡처) */
+        function refreshReceiptPngExportModalTexts() {
+            var t = document.getElementById('receiptPngExportTitle');
+            if (t) t.textContent = langText('영수증 이미지', 'Receipt image');
+            var h = document.getElementById('receiptPngExportHint');
+            if (h) {
+                h.textContent = langText(
+                    '이미지를 길게 눌러 사진에 저장하거나, 공유하기로 파일로 저장할 수 있습니다.',
+                    'Long-press the image to save to Photos, or use Share / Save as file.'
+                );
+            }
+            var sb = document.getElementById('receiptPngShareBtn');
+            if (sb) sb.textContent = langText('공유하기', 'Share');
+            var fb = document.getElementById('receiptPngSaveFileBtn');
+            if (fb) fb.textContent = langText('파일로 저장', 'Save as file');
+            var cb = document.getElementById('receiptPngExportCloseBtn');
+            if (cb) cb.textContent = langText('닫기', 'Close');
+        }
+
+        function closeReceiptPngExportModal() {
+            var img = document.getElementById('receiptPngExportImg');
+            if (img) {
+                try {
+                    img.removeAttribute('src');
+                } catch (eImg) {}
+            }
+            if (receiptPngExportObjectUrl) {
+                try {
+                    URL.revokeObjectURL(receiptPngExportObjectUrl);
+                } catch (eRev) {}
+                receiptPngExportObjectUrl = null;
+            }
+            receiptPngExportLastBlob = null;
+            receiptPngExportLastFilename = '';
+            var ov = document.getElementById('receiptPngExportOverlay');
+            if (ov) ov.classList.add('hidden');
+        }
+
+        function openReceiptPngExportModal(blob, filename) {
+            receiptPngExportLastBlob = blob;
+            receiptPngExportLastFilename = filename || 'xtrade-receipt.png';
+            var url = URL.createObjectURL(blob);
+            if (receiptPngExportObjectUrl) {
+                try {
+                    URL.revokeObjectURL(receiptPngExportObjectUrl);
+                } catch (eOld) {}
+            }
+            receiptPngExportObjectUrl = url;
+            var img = document.getElementById('receiptPngExportImg');
+            var ov = document.getElementById('receiptPngExportOverlay');
+            if (img) img.src = url;
+            refreshReceiptPngExportModalTexts();
+            if (ov) ov.classList.remove('hidden');
+        }
+
+        /** 공유 시트(iOS·안드로이드) — 버튼 탭으로 사용자 제스처 유지 */
+        function shareReceiptPngFromModal() {
+            if (!receiptPngExportLastBlob) return;
+            var name = receiptPngExportLastFilename || 'xtrade-receipt.png';
+            var file = new File([receiptPngExportLastBlob], name, { type: 'image/png' });
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator
+                    .share({
+                        files: [file],
+                        title: langText('XTrade 영수증', 'XTrade receipt'),
+                        text: langText('거래 영수증', 'Transaction receipt'),
+                    })
+                    .catch(function () {});
+            } else {
+                var msg = langText(
+                    '이 환경에서는 시스템 공유를 쓸 수 없습니다. 이미지를 길게 눌러 저장하거나 「파일로 저장」을 눌러 보세요.',
+                    'System share is not available. Long-press the image or tap Save as file.'
+                );
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+            }
+        }
+
+        /** 데스크톱 위주. 모바일은 사용자 탭이 있어도 무시되는 경우 있음 */
+        function saveReceiptPngFileFromModal() {
+            if (!receiptPngExportLastBlob) return;
+            var name = receiptPngExportLastFilename || 'xtrade-receipt.png';
+            try {
+                var url = URL.createObjectURL(receiptPngExportLastBlob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = name;
+                a.rel = 'noopener';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(function () {
+                    try {
+                        URL.revokeObjectURL(url);
+                    } catch (e) {}
+                }, 2000);
+            } catch (e) {
+                var msg = langText('저장에 실패했습니다. 공유하기 또는 이미지 길게 누르기를 이용해 주세요.', 'Save failed. Try Share or long-press the image.');
+                if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
+                else alert(msg);
+            }
+        }
+
+        /** 거래 내역 영수증 → PNG (html2canvas). iOS·텔레그램은 비동기 후 a[download]가 막히므로 미리보기 모달로 안내 */
         function downloadCurrentTransactionReceipt() {
             var id = transactionReceiptCurrentOrderId;
             if (!id) {
@@ -2864,7 +2973,13 @@
                 else alert(miss);
                 return;
             }
-            if (typeof html2canvas !== 'function') {
+            var h2c =
+                typeof html2canvas === 'function'
+                    ? html2canvas
+                    : typeof window !== 'undefined' && typeof window.html2canvas === 'function'
+                      ? window.html2canvas
+                      : null;
+            if (!h2c) {
                 var noLib = langText(
                     '이미지 변환 모듈을 불러오지 못했습니다. 네트워크를 확인해 주세요.',
                     'Image export module failed to load. Check your network.'
@@ -2879,6 +2994,19 @@
                 if (tg && typeof tg.showAlert === 'function') tg.showAlert(missB);
                 else alert(missB);
                 return;
+            }
+
+            var dlBtn = document.getElementById('transactionReceiptDownloadBtn');
+            if (dlBtn) {
+                dlBtn.disabled = true;
+                dlBtn.textContent = langText('생성 중...', 'Generating...');
+            }
+
+            function restoreDlBtn() {
+                if (dlBtn) {
+                    dlBtn.disabled = false;
+                    dlBtn.textContent = langText('다운로드', 'Download');
+                }
             }
 
             var exportedLine =
@@ -2910,64 +3038,53 @@
                 }
             } catch (eBg) {}
 
-            html2canvas(body, {
-                backgroundColor: bg,
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                logging: false,
-            })
-                .then(function (canvas) {
-                    body.style.overflow = prevOverflow;
-                    body.style.maxHeight = prevMaxHeight;
-                    body.style.height = prevHeight;
-                    try {
-                        if (footer.parentNode === body) body.removeChild(footer);
-                    } catch (eRm) {}
+            var fname = 'xtrade-receipt-' + String(id).replace(/[^a-zA-Z0-9._-]/g, '_') + '.png';
 
-                    canvas.toBlob(
-                        function (blob) {
-                            if (!blob) {
-                                var err = langText('PNG 생성에 실패했습니다.', 'Failed to create PNG.');
-                                if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
-                                else alert(err);
-                                return;
-                            }
-                            try {
-                                var url = URL.createObjectURL(blob);
-                                var a = document.createElement('a');
-                                a.href = url;
-                                a.download = 'xtrade-receipt-' + String(id).replace(/[^a-zA-Z0-9._-]/g, '_') + '.png';
-                                a.rel = 'noopener';
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                setTimeout(function () {
-                                    try {
-                                        URL.revokeObjectURL(url);
-                                    } catch (eRev) {}
-                                }, 2500);
-                            } catch (eDl) {
-                                var err2 = langText('다운로드에 실패했습니다.', 'Download failed.');
-                                if (tg && typeof tg.showAlert === 'function') tg.showAlert(err2);
-                                else alert(err2);
-                            }
-                        },
-                        'image/png',
-                        1
-                    );
+            setTimeout(function () {
+                h2c(body, {
+                    backgroundColor: bg,
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    foreignObjectRendering: false,
                 })
-                .catch(function () {
-                    body.style.overflow = prevOverflow;
-                    body.style.maxHeight = prevMaxHeight;
-                    body.style.height = prevHeight;
-                    try {
-                        if (footer.parentNode === body) body.removeChild(footer);
-                    } catch (eRm2) {}
-                    var err3 = langText('영수증 이미지를 만들지 못했습니다.', 'Could not render receipt image.');
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(err3);
-                    else alert(err3);
-                });
+                    .then(function (canvas) {
+                        body.style.overflow = prevOverflow;
+                        body.style.maxHeight = prevMaxHeight;
+                        body.style.height = prevHeight;
+                        try {
+                            if (footer.parentNode === body) body.removeChild(footer);
+                        } catch (eRm) {}
+
+                        canvas.toBlob(
+                            function (blob) {
+                                restoreDlBtn();
+                                if (!blob) {
+                                    var err = langText('PNG 생성에 실패했습니다.', 'Failed to create PNG.');
+                                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(err);
+                                    else alert(err);
+                                    return;
+                                }
+                                openReceiptPngExportModal(blob, fname);
+                            },
+                            'image/png',
+                            1
+                        );
+                    })
+                    .catch(function () {
+                        body.style.overflow = prevOverflow;
+                        body.style.maxHeight = prevMaxHeight;
+                        body.style.height = prevHeight;
+                        try {
+                            if (footer.parentNode === body) body.removeChild(footer);
+                        } catch (eRm2) {}
+                        restoreDlBtn();
+                        var err3 = langText('영수증 이미지를 만들지 못했습니다.', 'Could not render receipt image.');
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(err3);
+                        else alert(err3);
+                    });
+            }, 40);
         }
 
         /** 영수증 모달 열릴 때 뒤 목록이 스크롤되지 않도록 body 고정(iOS 텔레그램 WebView 대응) */
@@ -3002,6 +3119,9 @@
         }
 
         function closeTransactionReceiptDetail() {
+            try {
+                closeReceiptPngExportModal();
+            } catch (ePngClose) {}
             transactionReceiptCurrentOrderId = null;
             var el = document.getElementById('transactionReceiptOverlay');
             if (el) el.classList.add('hidden');
