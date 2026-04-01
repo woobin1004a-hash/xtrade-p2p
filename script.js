@@ -3041,10 +3041,10 @@
                 var fileName = data.file_name || 'xtrade-receipt.png';
 
                 /**
-                 * Supabase 공개 URL을 그대로 열면(특히 target=_blank) 브라우저가 PNG를 페이지에 띄움.
-                 * fetch→Blob→로컬 URL로 저장하면 미니앱 화면이 바뀌지 않음.
+                 * 텔레그램: fetch→Blob 저장을 먼저 쓰면 웹뷰에서 무반응·이상 동작이 잦음 → 공식 downloadFile(HTTPS URL) 우선.
+                 * 일반 브라우저(텔레그램 밖): fetch→Blob→a.download (새 탭으로 PNG가 뜨는 것 방지).
                  */
-                async function saveUrlAsDownloadFile(url, name) {
+                async function saveUrlAsDownloadInBrowserOnly(url, name) {
                     var r = await fetch(url, { mode: 'cors', credentials: 'omit' });
                     if (!r.ok) throw new Error('GET ' + r.status);
                     var blob = await r.blob();
@@ -3067,35 +3067,41 @@
                     }
                 }
 
-                try {
-                    await saveUrlAsDownloadFile(data.url, fileName);
-                    restoreDlBtn();
-                } catch (eSave) {
-                    // CORS 등으로 fetch 실패 시 텔레그램 공식 downloadFile(HTTPS URL)
-                    if (tg && typeof tg.downloadFile === 'function') {
-                        try {
-                            tg.downloadFile({ url: data.url, file_name: fileName }, function () {
-                                restoreDlBtn();
-                            });
-                            return;
-                        } catch (eDl) {
+                var inTelegramDl =
+                    tg && typeof tg.downloadFile === 'function' && Boolean(window.Telegram && window.Telegram.WebApp);
+
+                if (inTelegramDl) {
+                    try {
+                        tg.downloadFile({ url: data.url, file_name: fileName }, function () {
                             restoreDlBtn();
-                            var dlErr =
-                                langText('다운로드에 실패했습니다. ', 'Download failed. ') +
-                                (eDl && eDl.message ? String(eDl.message) : String(eDl));
-                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(dlErr);
-                            else alert(dlErr);
-                            return;
-                        }
+                        });
+                    } catch (eDl) {
+                        restoreDlBtn();
+                        var dlErr =
+                            langText('다운로드 시작 실패: ', 'Download failed: ') +
+                            (eDl && eDl.message ? String(eDl.message) : String(eDl));
+                        if (tg && typeof tg.showAlert === 'function') tg.showAlert(dlErr);
+                        else alert(dlErr);
                     }
-                    restoreDlBtn();
-                    var hint =
-                        langText(
-                            '파일을 저장하지 못했습니다. Storage CORS에 GitHub Pages 도메인을 추가했는지 확인해 주세요. ',
-                            'Could not save file. Check Storage CORS for your site origin. '
-                        ) + (eSave && eSave.message ? String(eSave.message) : '');
-                    if (tg && typeof tg.showAlert === 'function') tg.showAlert(hint);
-                    else alert(hint);
+                } else {
+                    try {
+                        await saveUrlAsDownloadInBrowserOnly(data.url, fileName);
+                        restoreDlBtn();
+                    } catch (eSave) {
+                        restoreDlBtn();
+                        var originHint =
+                            typeof window !== 'undefined' && window.location && window.location.origin
+                                ? window.location.origin
+                                : '';
+                        var hint =
+                            langText(
+                                '브라우저에서 파일을 받지 못했습니다. 텔레그램 앱에서 미니앱을 열거나, Supabase Storage CORS에 아래 출처를 추가하세요. ',
+                                'Download failed in browser. Open in Telegram app, or add this origin to Storage CORS: '
+                            ) +
+                            (originHint ? originHint + ' — ' : '') +
+                            (eSave && eSave.message ? String(eSave.message) : '');
+                        if (typeof alert === 'function') alert(hint);
+                    }
                 }
             } catch (e) {
                 try {
