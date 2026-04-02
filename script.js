@@ -3057,15 +3057,16 @@
                  * 업로드에 쓴 것과 동일한 로컬 PNG(blob)로만 저장(URL 절대 열지 않음).
                  */
                 function shouldUseTelegramDownloadFile() {
-                    // Bot API 8.0+에서 tg.downloadFile은 모든 플랫폼(iOS·Android·PC Desktop·PC Web)에서
-                    // Telegram 자체 다운로드 팝업을 띄워 파일을 저장합니다.
-                    // iOS/Android로 제한하지 않고, tg.downloadFile이 존재하면 항상 사용합니다.
+                    // tg.downloadFile이 존재하면 모든 플랫폼에서 사용합니다.
+                    // Edge Function에서 반환하는 URL에 ?download=파일명 파라미터가 포함되어 있어
+                    // Supabase가 Content-Disposition: attachment 헤더를 내려줍니다.
+                    // 따라서 Telegram Web에서도 새 탭에 이미지가 뜨지 않고 파일로 다운로드됩니다.
                     return !!(tg && typeof tg.downloadFile === 'function');
                 }
 
                 /**
-                 * PC 텔레그램: tg.downloadFile이 없을 경우 fallback.
-                 * 1순위: 숨김 <a download> 직접 다운로드 (PC 웹 브라우저 환경)
+                 * tg.downloadFile이 없는 환경(매우 구버전 텔레그램)의 fallback.
+                 * 1순위: 숨김 <a download> 직접 다운로드
                  * 2순위: 이미지 클립보드 복사
                  * 3순위: URL 텍스트 복사 (최후 수단)
                  */
