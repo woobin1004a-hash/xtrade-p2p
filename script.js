@@ -2947,18 +2947,6 @@
                 }) +
                 ' · XTrade P2P';
 
-            var footer = document.createElement('div');
-            footer.className = 'receipt-png-footer';
-            footer.textContent = exportedLine;
-            body.appendChild(footer);
-
-            var prevOverflow = body.style.overflow;
-            var prevMaxHeight = body.style.maxHeight;
-            var prevHeight = body.style.height;
-            body.style.overflow = 'visible';
-            body.style.maxHeight = 'none';
-            body.style.height = 'auto';
-
             var bg = '#0f0b18';
             try {
                 var dlg = document.querySelector('.transaction-receipt-dialog');
@@ -2975,25 +2963,51 @@
                 }
             } catch (eBg) {}
 
+            // 모달의 overflow·max-height·flex 제약에서 완전히 벗어나기 위해
+            // 화면 밖 임시 컨테이너에 innerHTML을 복사한 뒤 전체 높이로 캡처합니다.
+            var captureWrap = document.createElement('div');
+            captureWrap.style.cssText =
+                'position:fixed;left:-9999px;top:0;' +
+                'width:390px;' +
+                'background:' + bg + ';' +
+                'padding:16px;' +
+                'box-sizing:border-box;' +
+                'overflow:visible;';
+            captureWrap.innerHTML = body.innerHTML;
+
+            // 하단 푸터(다운로드 시각) 추가
+            var footer = document.createElement('div');
+            footer.className = 'receipt-png-footer';
+            footer.textContent = exportedLine;
+            captureWrap.appendChild(footer);
+
+            document.body.appendChild(captureWrap);
+
             try {
+                // 레이아웃이 완전히 계산될 때까지 대기
                 await new Promise(function (resolve) {
-                    setTimeout(resolve, 40);
+                    setTimeout(resolve, 80);
                 });
 
-                var canvas = await h2c(body, {
+                var canvas = await h2c(captureWrap, {
                     backgroundColor: bg,
                     scale: 2,
                     useCORS: true,
                     allowTaint: true,
                     logging: false,
                     foreignObjectRendering: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    x: 0,
+                    y: 0,
+                    // 전체 콘텐츠 높이를 명시해서 스크롤 잘림 없이 전부 캡처
+                    width: captureWrap.offsetWidth,
+                    height: captureWrap.scrollHeight,
                 });
 
-                body.style.overflow = prevOverflow;
-                body.style.maxHeight = prevMaxHeight;
-                body.style.height = prevHeight;
+                // 캡처 완료 후 임시 요소 제거
                 try {
-                    if (footer.parentNode === body) body.removeChild(footer);
+                    document.body.removeChild(captureWrap);
                 } catch (eRm) {}
 
                 var blob = await new Promise(function (resolve, reject) {
@@ -3317,11 +3331,11 @@
                     runPcReceiptSave(blob, fileName, data.url);
                 }
             } catch (e) {
+                // 오류 발생 시 임시 캡처 컨테이너가 남아있으면 제거
                 try {
-                    body.style.overflow = prevOverflow;
-                    body.style.maxHeight = prevMaxHeight;
-                    body.style.height = prevHeight;
-                    if (footer.parentNode === body) body.removeChild(footer);
+                    if (captureWrap && captureWrap.parentNode) {
+                        captureWrap.parentNode.removeChild(captureWrap);
+                    }
                 } catch (e2) {}
                 restoreDlBtn();
                 var detail = e && e.message ? String(e.message) : String(e);
