@@ -2706,10 +2706,158 @@
             return '';
         }
 
-        /** 텔레그램 미니앱: 인앱 브라우저로 링크 열기 — PC/모바일 공통 */
+        /**
+         * PC(데스크톱 텔레그램·웹): 결제 URL을 브라우저로 열면 카카오페이 등이 불안정 → QR 표시
+         * 모바일(iOS/Android 앱 또는 모바일 웹): 기존처럼 링크 열기
+         */
+        function shouldShowPaymentQrOnPc() {
+            if (tg && tg.platform) {
+                var p = String(tg.platform).toLowerCase();
+                if (p === 'ios' || p === 'android') return false;
+                if (p === 'tdesktop' || p === 'macos') return true;
+                if (p === 'web' || p === 'weba' || p === 'webk' || p === 'webz' || p === 'unigram') {
+                    return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+                }
+                return true;
+            }
+            return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+        }
+
+        /**
+         * PC용: 결제 URL을 스캔 가능한 QR 이미지로 표시 (휴대폰 카메라로 촬영)
+         */
+        function showPaymentUrlQrModal(url) {
+            var u = String(url || '').trim();
+            if (!u) return;
+
+            var overlay = document.createElement('div');
+            overlay.setAttribute('data-payment-qr-overlay', '1');
+            overlay.style.cssText =
+                'position:fixed;inset:0;z-index:1000010;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;';
+
+            var box = document.createElement('div');
+            box.style.cssText =
+                'background:#1a1528;border:1px solid #32294a;border-radius:14px;padding:20px;max-width:360px;width:100%;text-align:center;box-sizing:border-box;';
+
+            var title = document.createElement('div');
+            title.textContent = langText('휴대폰으로 QR 스캔', 'Scan QR with your phone');
+            title.style.cssText = 'color:#f8fafc;font-weight:900;font-size:17px;margin-bottom:8px;';
+
+            var sub = document.createElement('div');
+            sub.textContent = langText(
+                'PC에서는 결제 앱 연결이 제한될 수 있어요. 휴대폰 카메라 또는 카카오페이로 QR을 스캔하세요.',
+                'On PC, payment apps may not open in the browser. Scan this QR with your phone.'
+            );
+            sub.style.cssText = 'color:#94a3b8;font-size:13px;line-height:1.5;margin-bottom:14px;';
+
+            var qrHost = document.createElement('div');
+            qrHost.style.cssText =
+                'display:flex;justify-content:center;align-items:center;min-height:200px;margin:8px 0;padding:12px;background:#fff;border-radius:12px;';
+
+            var linkRow = document.createElement('div');
+            linkRow.style.cssText =
+                'font-size:11px;color:#64748b;word-break:break-all;text-align:left;margin-top:10px;max-height:64px;overflow-y:auto;line-height:1.4;';
+            linkRow.textContent = u;
+
+            function cleanup() {
+                try {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                } catch (eCl) {}
+            }
+
+            var copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.textContent = langText('링크 복사', 'Copy link');
+            copyBtn.style.cssText =
+                'display:block;width:100%;margin-top:10px;padding:10px 14px;background:#2d2640;color:#e8e0f8;border:1px solid #4a3f6b;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;';
+            copyBtn.onclick = function () {
+                copyOfferValue(u, langText('결제 링크', 'Payment link'));
+            };
+
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.textContent = langText('닫기', 'Close');
+            closeBtn.style.cssText =
+                'display:block;width:100%;margin-top:10px;padding:14px 20px;background:#6c5ce7;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:16px;';
+            closeBtn.onclick = cleanup;
+
+            overlay.onclick = function (ev) {
+                if (ev.target === overlay) cleanup();
+            };
+
+            box.appendChild(title);
+            box.appendChild(sub);
+            box.appendChild(qrHost);
+            box.appendChild(linkRow);
+            box.appendChild(copyBtn);
+            box.appendChild(closeBtn);
+            overlay.appendChild(box);
+            document.body.appendChild(overlay);
+
+            function setQrImg(src) {
+                var img = document.createElement('img');
+                img.src = src;
+                img.alt = 'QR';
+                img.style.cssText = 'width:220px;height:220px;max-width:100%;display:block;';
+                qrHost.innerHTML = '';
+                qrHost.appendChild(img);
+            }
+
+            function setQrError() {
+                qrHost.innerHTML = '';
+                qrHost.textContent = langText('QR를 불러오지 못했습니다. 아래 링크를 복사해 주세요.', 'Could not load QR. Copy the link below.');
+                qrHost.style.color = '#64748b';
+                qrHost.style.fontSize = '13px';
+                qrHost.style.textAlign = 'center';
+                qrHost.style.padding = '20px';
+            }
+
+            try {
+                if (typeof QRCode !== 'undefined' && typeof QRCode.toDataURL === 'function') {
+                    QRCode.toDataURL(
+                        u,
+                        {
+                            width: 220,
+                            margin: 2,
+                            color: { dark: '#000000', light: '#ffffff' },
+                        },
+                        function (err, dataUrl) {
+                            if (!err && dataUrl) {
+                                setQrImg(dataUrl);
+                            } else {
+                                setQrImg(
+                                    'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=' +
+                                        encodeURIComponent(u)
+                                );
+                            }
+                        }
+                    );
+                } else {
+                    setQrImg(
+                        'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=' +
+                            encodeURIComponent(u)
+                    );
+                }
+            } catch (eQr) {
+                try {
+                    setQrImg(
+                        'https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=' +
+                            encodeURIComponent(u)
+                    );
+                } catch (e2) {
+                    setQrError();
+                }
+            }
+        }
+
+        /** 텔레그램 미니앱: 모바일은 링크 열기, PC는 QR 모달 */
         function openOfferExternalLink(url) {
             var u = String(url || '').trim();
             if (!u) return;
+            if (shouldShowPaymentQrOnPc()) {
+                showPaymentUrlQrModal(u);
+                return;
+            }
             try {
                 if (tg && typeof tg.openLink === 'function') {
                     tg.openLink(u, { try_instant_view: false });
