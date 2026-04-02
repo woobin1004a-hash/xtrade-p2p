@@ -2684,9 +2684,26 @@
             }
         }
 
-        /** 계좌/결제 필드가 http(s) URL이면 복사 대신 외부 링크 열기(카카오페이 QR 등) */
-        function isOfferHttpUrl(s) {
-            return /^https?:\/\//i.test(String(s || '').trim());
+        /**
+         * 계좌 필드에서 결제/QR URL 추출 (모바일에서 값이 순수 URL이 아니거나 파싱 형식이 달라도 동작)
+         * - 문자열 어디에든 https?:// 가 있으면 첫 URL 사용
+         * - 스킴 없이 qr.kakaopay.com/... 만 있는 경우 https 보정
+         */
+        function extractPaymentUrlFromOfferField(s) {
+            var t = String(s || '')
+                .trim()
+                .replace(/^\uFEFF/, '');
+            if (!t) return '';
+            var m = t.match(/https?:\/\/[^\s<>"'`|]+/i);
+            if (m && m[0]) {
+                var u = m[0].replace(/[.,;:)]+$/, '');
+                return u;
+            }
+            var m2 = t.match(/(?:^|[\s|/])((?:qr\.)?kakaopay\.com\/[^\s<>"'`|]+)/i);
+            if (m2 && m2[1]) {
+                return 'https://' + String(m2[1]).replace(/^\/+/, '');
+            }
+            return '';
         }
 
         /** 텔레그램 미니앱: 인앱 브라우저로 링크 열기 — PC/모바일 공통 */
@@ -2708,15 +2725,16 @@
             }
         }
 
-        /** URL이면 링크 열기, 아니면 기존처럼 복사 */
+        /** URL(또는 URL 포함 문자열)이면 링크 열기, 아니면 기존처럼 복사 */
         function openOfferLinkOrCopy(value, label) {
-            var v = String(value || '').trim();
-            if (!v) return;
-            if (isOfferHttpUrl(v)) {
-                openOfferExternalLink(v);
+            var raw = String(value || '').trim();
+            if (!raw) return;
+            var payUrl = extractPaymentUrlFromOfferField(raw);
+            if (payUrl) {
+                openOfferExternalLink(payUrl);
                 return;
             }
-            copyOfferValue(v, label);
+            copyOfferValue(raw, label);
         }
 
         /** 영수증 모달용 타임스탬프 표시 */
