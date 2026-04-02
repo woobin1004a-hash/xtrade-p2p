@@ -2684,6 +2684,41 @@
             }
         }
 
+        /** 계좌/결제 필드가 http(s) URL이면 복사 대신 외부 링크 열기(카카오페이 QR 등) */
+        function isOfferHttpUrl(s) {
+            return /^https?:\/\//i.test(String(s || '').trim());
+        }
+
+        /** 텔레그램 미니앱: 인앱 브라우저로 링크 열기 — PC/모바일 공통 */
+        function openOfferExternalLink(url) {
+            var u = String(url || '').trim();
+            if (!u) return;
+            try {
+                if (tg && typeof tg.openLink === 'function') {
+                    tg.openLink(u, { try_instant_view: false });
+                    return;
+                }
+            } catch (eOpen) {}
+            try {
+                window.open(u, '_blank', 'noopener,noreferrer');
+            } catch (eWin) {
+                try {
+                    location.href = u;
+                } catch (eLoc) {}
+            }
+        }
+
+        /** URL이면 링크 열기, 아니면 기존처럼 복사 */
+        function openOfferLinkOrCopy(value, label) {
+            var v = String(value || '').trim();
+            if (!v) return;
+            if (isOfferHttpUrl(v)) {
+                openOfferExternalLink(v);
+                return;
+            }
+            copyOfferValue(v, label);
+        }
+
         /** 영수증 모달용 타임스탬프 표시 */
         function formatReceiptTimestamp(ms) {
             var n = Number(ms || 0);
@@ -4477,7 +4512,7 @@
                             '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('판매자 계좌(입금)', 'Seller bank account (deposit)')) + '</div><div class="offer-v">' + escapeHtml(bankS.bankName || '-') + '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('계좌번호', 'Account number')) + '</div><div class="offer-v">' +
                             (bankS.accountNumber
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumSEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankS.accountNumber) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="openOfferLinkOrCopy(\'' + accNumSEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankS.accountNumber) + '</span>')
                                 : '-') +
                             '</div></div>' +
                             '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('예금주', 'Account holder')) + '</div><div class="offer-v">' + escapeHtml(bankS.accountHolder || '-') + '</div></div>' +
@@ -4530,7 +4565,7 @@
                         '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('은행명', 'Bank')) + '</div><div class="offer-v">' + escapeHtml(bankParts.bankName || '-') + '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('계좌번호', 'Account number')) + '</div><div class="offer-v">' +
                             (bankParts.accountNumber
-                                ? ('<span class="offer-copy-link" onclick="copyOfferValue(\'' + accNumEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankParts.accountNumber) + '</span>')
+                                ? ('<span class="offer-copy-link" onclick="openOfferLinkOrCopy(\'' + accNumEsc + '\', \'' + escapeJsSingleQuote(langText('계좌번호', 'Account number')) + '\')">' + escapeHtml(bankParts.accountNumber) + '</span>')
                                 : '-') +
                         '</div></div>' +
                         '<div class="offer-line"><div class="offer-k">' + escapeHtml(langText('입금자명', 'Depositor name')) + '</div><div class="offer-v">' + escapeHtml(bankParts.accountHolder || '-') + '</div></div>';
