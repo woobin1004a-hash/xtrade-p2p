@@ -3057,14 +3057,17 @@
                  * 업로드에 쓴 것과 동일한 로컬 PNG(blob)로만 저장(URL 절대 열지 않음).
                  */
                 function shouldUseTelegramDownloadFile() {
-                    if (!tg || typeof tg.downloadFile !== 'function') return false;
-                    var p = String(tg.platform || '').toLowerCase();
-                    return p === 'ios' || p === 'android';
+                    // Bot API 8.0+에서 tg.downloadFile은 모든 플랫폼(iOS·Android·PC Desktop·PC Web)에서
+                    // Telegram 자체 다운로드 팝업을 띄워 파일을 저장합니다.
+                    // iOS/Android로 제한하지 않고, tg.downloadFile이 존재하면 항상 사용합니다.
+                    return !!(tg && typeof tg.downloadFile === 'function');
                 }
 
                 /**
-                 * PC 텔레그램: tg.downloadFile(HTTPS)·새 탭 열기는 기본 브라우저로 PNG가 떠서 사용자 불만 → 사용 안 함.
-                 * 저장 대화상자 → 이미지 클립보드 → 숨김 a[download] → URL 텍스트만 복사(브라우저 자동 실행 없음).
+                 * PC 텔레그램: tg.downloadFile이 없을 경우 fallback.
+                 * 1순위: 숨김 <a download> 직접 다운로드 (PC 웹 브라우저 환경)
+                 * 2순위: 이미지 클립보드 복사
+                 * 3순위: URL 텍스트 복사 (최후 수단)
                  */
                 function showReceiptPngSaveOverlay(pngBlob, name, publicHttpsUrl) {
                     var fname = name || 'xtrade-receipt.png';
@@ -3172,6 +3175,36 @@
                     }
 
                     function afterShareFail() {
+                        // 1순위: 숨김 <a download> 태그로 직접 PNG 다운로드 시도
+                        // PC 웹 환경(Telegram Web 포함)에서 가장 안정적인 방법입니다.
+                        var aDownloadOk = false;
+                        try {
+                            var aEl = document.createElement('a');
+                            aEl.href = objUrl;
+                            aEl.download = fname;
+                            aEl.rel = 'noopener';
+                            aEl.style.display = 'none';
+                            document.body.appendChild(aEl);
+                            aEl.click();
+                            document.body.removeChild(aEl);
+                            aDownloadOk = true;
+                        } catch (eA) {
+                            aDownloadOk = false;
+                        }
+
+                        if (aDownloadOk) {
+                            // 다운로드가 정상 트리거된 경우 완료 처리
+                            cleanup();
+                            var msgDl = langText(
+                                '다운로드가 시작되었습니다. 브라우저 다운로드 폴더를 확인해 주세요.',
+                                'Download started. Check your browser downloads folder.'
+                            );
+                            if (tg && typeof tg.showAlert === 'function') tg.showAlert(msgDl);
+                            else alert(msgDl);
+                            return;
+                        }
+
+                        // 2순위: 클립보드 이미지 복사 (a 태그 다운로드가 실패한 경우만)
                         if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
                             try {
                                 var ci = new ClipboardItem({ 'image/png': pngBlob });
